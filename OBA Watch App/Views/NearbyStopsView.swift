@@ -15,8 +15,6 @@ struct NearbyStopsView: View {
     @StateObject private var viewModel: NearbyStopsViewModel
     @State private var searchText: String = ""
     
-    @AppStorage("watch_map_style_standard") private var useStandardMapStyle: Bool = true
-    
     init() {
         _viewModel = StateObject(wrappedValue: NearbyStopsViewModel(
             apiClientProvider: { WatchAppState.shared.apiClient },
@@ -39,15 +37,6 @@ struct NearbyStopsView: View {
                 }
             }
             .navigationTitle("Nearby Stops")
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        useStandardMapStyle.toggle()
-                    } label: {
-                        Image(systemName: useStandardMapStyle ? "map" : "globe")
-                    }
-                }
-            }
             .refreshable {
                 await viewModel.loadNearbyStops()
             }
@@ -112,7 +101,7 @@ struct NearbyStopsView: View {
                 NearbyMapView(
                     stops: limitedStops,
                     currentLocation: appState.currentLocation,
-                    mapStyle: useStandardMapStyle ? .standard : .imagery
+                    mapStyle: appState.mapStyle
                 )
                 .frame(maxWidth: .infinity)
                 .frame(height: 140)
@@ -223,7 +212,7 @@ struct NearbyStopRow: View {
 struct NearbyMapView: View {
     let stops: [OBAStop]
     let currentLocation: CLLocation?
-    var mapStyle: MapStyle = .standard
+    let mapStyle: MapStyle
 
     var body: some View {
         Map {

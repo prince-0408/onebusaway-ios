@@ -9,17 +9,22 @@ final class AlarmsSyncManager {
     private init() {
     }
 
-    func currentAlarms() -> [AlarmItem] {
-        guard let data = UserDefaults.standard.data(forKey: storageKey) else { return [] }
-        return (try? JSONDecoder().decode([AlarmItem].self, from: data)) ?? []
+    func currentAlarms() -> [WatchAlarmItem] {
+        guard let data = WatchAppState.userDefaults.data(forKey: storageKey) else { return [] }
+        return (try? JSONDecoder().decode([WatchAlarmItem].self, from: data)) ?? []
     }
-}
 
-struct AlarmItem: Identifiable, Codable, Equatable {
-    let id: String
-    let stopID: String
-    let routeShortName: String?
-    let headsign: String?
-    let scheduledTime: Date?
-    let status: String?
+    /// Updates local alarms from data received via WatchConnectivity.
+    func updateAlarms(_ alarms: [[String: Any]]) {
+        do {
+            let data = try JSONSerialization.data(withJSONObject: alarms, options: [])
+            let decoded = try JSONDecoder().decode([WatchAlarmItem].self, from: data)
+            let encodedData = try JSONEncoder().encode(decoded)
+            
+            WatchAppState.userDefaults.set(encodedData, forKey: storageKey)
+            NotificationCenter.default.post(name: Self.alarmsUpdatedNotification, object: nil)
+        } catch {
+            print("Failed to sync alarms: \(error.localizedDescription)")
+        }
+    }
 }

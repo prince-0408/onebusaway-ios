@@ -13,8 +13,7 @@ import OBAKitCore
 
 struct ContentView: View {
     @EnvironmentObject var appState: WatchAppState
-    @AppStorage("watch_has_completed_region_onboarding") private var hasCompletedRegionOnboarding: Bool = false
-    @AppStorage("watch_map_style_standard") private var useStandardMapStyle: Bool = true
+    @AppStorage("watch_has_completed_region_onboarding", store: WatchAppState.userDefaults) private var hasCompletedRegionOnboarding: Bool = false
     @State private var showingMore = false
     
     var body: some View {
@@ -54,26 +53,51 @@ struct LocationOnboardingView: View {
     @EnvironmentObject var appState: WatchAppState
     
     var body: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "location.circle.fill")
-                .font(.system(size: 36))
-                .foregroundColor(.green)
-            Text("Enable Location")
-                .font(.headline)
-                .multilineTextAlignment(.center)
-            Text("Allow access to your location to find nearby transit stops.")
-                .font(.caption2)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal)
+        VStack(spacing: 0) {
+            Image("AppLogo")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 52, height: 52)
+                .cornerRadius(12)
+                .shadow(color: .green.opacity(0.3), radius: 4)
+                .padding(.top, 24)
+            
+            VStack(spacing: 2) {
+                Text("Nearby Transit")
+                    .font(.system(size: 17, weight: .bold))
+                    .multilineTextAlignment(.center)
+                
+                Text("Find stops and schedules based on where you are.")
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 8)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.top, 8)
+            
+            Spacer(minLength: 4)
+            
             Button {
                 appState.requestLocationPermission()
             } label: {
-                Label("Use Current Location", systemImage: "location.fill")
+                HStack(spacing: 8) {
+                    Image(systemName: "location.fill")
+                        .font(.system(size: 14, weight: .semibold))
+
+                    Text("Allow Access")
+                        .font(.system(size: 15, weight: .semibold))
+                }
+                .foregroundStyle(Color.green)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.plain)
+            .modifier(GlassCapsuleModifier())
+            .padding(.horizontal, 4)
+            .padding(.bottom, 6)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+        .containerBackground(Color.black.gradient, for: .navigation)
     }
 }
 
@@ -84,8 +108,8 @@ struct LocationOnboardingView: View {
 struct RegionOnboardingView: View {
     @EnvironmentObject var appState: WatchAppState
     
-    @AppStorage("watch_selected_region_id") private var selectedRegionID: String = "mta-new-york"
-    @AppStorage("watch_share_current_location") private var shareCurrentLocation: Bool = true
+    @AppStorage("watch_selected_region_id", store: WatchAppState.userDefaults) private var selectedRegionID: String = "mta-new-york"
+    @AppStorage("watch_share_current_location", store: WatchAppState.userDefaults) private var shareCurrentLocation: Bool = true
 
     let onContinue: () -> Void
 
@@ -95,7 +119,7 @@ struct RegionOnboardingView: View {
         self.onContinue = onContinue
         
         // Use the saved region if available, otherwise fall back to MTA New York.
-        let savedRegionID = UserDefaults.standard.string(forKey: "watch_selected_region_id") ?? "mta-new-york"
+        let savedRegionID = WatchAppState.userDefaults.string(forKey: "watch_selected_region_id") ?? "mta-new-york"
         
         let initialCoordinate = WatchAppState.regionCoordinates[savedRegionID] ?? CLLocationCoordinate2D(latitude: 40.7128, longitude: -74.0060)
         
@@ -147,10 +171,17 @@ struct RegionOnboardingView: View {
             Section {
                 Button(action: onContinue) {
                     Text("Continue")
+                        .font(.system(size: 15, weight: .semibold))
                         .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(shareCurrentLocation ? .green : .gray)
+                .buttonStyle(.plain)
+                .modifier(GlassCapsuleModifier())
+                .foregroundStyle(shareCurrentLocation ? Color.green : Color.gray)
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
+                .padding(.horizontal, 4)
+                .padding(.bottom, 10)
             }
         }
     }
@@ -158,22 +189,10 @@ struct RegionOnboardingView: View {
 
 // MARK: - Settings
 
-/// Compact "More" screen for watchOS, inspired by the iOS More tab.
 struct MoreView: View {
     var body: some View {
         NavigationStack {
             List {
-                Section {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("OneBusAway")
-                            .font(.headline)
-                        Text("This app is made and supported by volunteers.")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                    }
-                    .padding(.vertical, 4)
-                }
-
                 Section {
                     NavigationLink {
                         SettingsView()
@@ -187,113 +206,10 @@ struct MoreView: View {
     }
 }
 
-struct SettingsView: View {
-    @EnvironmentObject var appState: WatchAppState
-    @AppStorage("watch_selected_region_id") private var selectedRegionID: String = "mta-new-york"
-    
-    // Map
-    @AppStorage("watch_map_style_standard") private var useStandardMapStyle: Bool = true
-    @AppStorage("watch_map_shows_scale") private var showsScale: Bool = false
-    @AppStorage("watch_map_shows_traffic") private var showsTraffic: Bool = false
-    @AppStorage("watch_map_shows_heading") private var showsCurrentHeading: Bool = true
-
-    // Location
-    @AppStorage("watch_share_current_location") private var shareCurrentLocation: Bool = true
-
-    // Agency Alerts
-    @AppStorage("watch_display_test_alerts") private var displayTestAlerts: Bool = false
-
-    // Accessibility
-    @AppStorage("watch_haptic_on_reload") private var hapticOnReload: Bool = false
-    @AppStorage("watch_always_show_full_sheet_voice") private var alwaysShowFullSheetVoice: Bool = false
-    @AppStorage("watch_show_route_labels") private var showRouteLabels: Bool = true
-
-    // Debug
-    @AppStorage("watch_debug_mode") private var debugMode: Bool = false
-
-    // Privacy
-    @AppStorage("watch_send_usage_data") private var sendUsageData: Bool = true
-
-    var body: some View {
-        List {
-            Section("Region") {
-                NavigationLink {
-                    ChooseRegionView()
-                } label: {
-                    HStack {
-                        Text("Choose Region")
-                        Spacer()
-                        Text(WatchAppState.regions.first(where: { $0.id == selectedRegionID })?.name ?? "Unknown")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                    }
-                }
-            }
-            
-            Section("Map") {
-                Toggle("Standard map style", isOn: $useStandardMapStyle)
-                Toggle("Shows scale", isOn: $showsScale)
-                Toggle("Shows traffic", isOn: $showsTraffic)
-                Toggle("Show my current heading", isOn: $showsCurrentHeading)
-            }
-
-            Section("Location") {
-                Toggle("Share current location", isOn: $shareCurrentLocation)
-            }
-
-            Section("Agency Alerts") {
-                Toggle("Display test alerts", isOn: $displayTestAlerts)
-            }
-
-            Section("Accessibility") {
-                Toggle("Haptic feedback on reload", isOn: $hapticOnReload)
-                Toggle("Always show full sheet on VoiceOver", isOn: $alwaysShowFullSheetVoice)
-                Toggle("Show route labels on the map", isOn: $showRouteLabels)
-            }
-
-            Section("Debug") {
-                Toggle("Debug Mode", isOn: $debugMode)
-            }
-
-            Section("Privacy") {
-                Toggle("Send usage data to developer", isOn: $sendUsageData)
-            }
-        }
-        .navigationTitle("Settings")
-    }
-}
-
-struct ChooseRegionView: View {
-    @EnvironmentObject var appState: WatchAppState
-    @AppStorage("watch_selected_region_id") private var selectedRegionID: String = "mta-new-york"
-    @Environment(\.dismiss) var dismiss
-    
-    var body: some View {
-        List {
-            ForEach(WatchAppState.regions) { region in
-                Button {
-                    appState.updateRegion(id: region.id)
-                    dismiss()
-                } label: {
-                    HStack {
-                        Text(region.name)
-                        Spacer()
-                        if region.id == selectedRegionID {
-                            Image(systemName: "checkmark")
-                                .foregroundColor(.green)
-                        }
-                    }
-                }
-            }
-        }
-        .navigationTitle("Choose Region")
-    }
-}
-
 /// Simple map showing the selected region from onboarding, with nearby stops.
 struct RegionPreviewMapView: View {
-    @AppStorage("watch_selected_region_id") private var selectedRegionID: String = "mta-new-york"
-    @AppStorage("watch_map_style_standard") private var useStandardMapStyle: Bool = true
+    @EnvironmentObject var appState: WatchAppState
+    @AppStorage("watch_selected_region_id", store: WatchAppState.userDefaults) private var selectedRegionID: String = "mta-new-york"
     @StateObject private var viewModel = RegionPreviewMapViewModel()
 
     private var centerCoordinate: CLLocationCoordinate2D {
@@ -317,31 +233,20 @@ struct RegionPreviewMapView: View {
             span: MKCoordinateSpan(latitudeDelta: 0.25, longitudeDelta: 0.25)
         )
 
-        let style: MapStyle = useStandardMapStyle ? .standard : .imagery
-
         ZStack(alignment: .topTrailing) {
             if !viewModel.stops.isEmpty {
                 let previewLocation = CLLocation(latitude: centerCoordinate.latitude, longitude: centerCoordinate.longitude)
                 NearbyMapView(
                     stops: Array(viewModel.stops.prefix(60)),
                     currentLocation: previewLocation,
-                    mapStyle: style
+                    mapStyle: appState.mapStyle
                 )
+                .id("standard")
             } else {
                 Map(coordinateRegion: .constant(region))
-                    .mapStyle(style)
+                    .mapStyle(appState.mapStyle)
+                    .id("standard")
             }
-
-            Button {
-                useStandardMapStyle.toggle()
-            } label: {
-                Image(systemName: useStandardMapStyle ? "globe.americas.fill" : "map")
-                    .font(.system(size: 12, weight: .medium))
-                    .padding(6)
-                    .background(.thinMaterial)
-                    .clipShape(Circle())
-            }
-            .padding(8)
         }
         .onAppear {
             Task {
@@ -371,7 +276,7 @@ final class RegionPreviewMapViewModel: ObservableObject {
 
 /// Main menu shown after permission has been handled.
 struct MainMenuView: View {
-    @AppStorage("watch_selected_region_id") private var selectedRegionID: String = "mta-new-york"
+    @AppStorage("watch_selected_region_id", store: WatchAppState.userDefaults) private var selectedRegionID: String = "mta-new-york"
     
     private var regionName: String {
         switch selectedRegionID {
@@ -459,6 +364,24 @@ struct MainMenuView: View {
         .navigationTitle(regionName)
     }
 }
+
+
+struct GlassCapsuleModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(watchOS 26.0, *) {
+            content
+                .glassEffect(in: Capsule())
+        } else {
+            content
+                .background(
+                    Capsule()
+                        .fill(Color.white.opacity(0.08))
+                )
+        }
+    }
+}
+
+
 
 #Preview {
     ContentView()

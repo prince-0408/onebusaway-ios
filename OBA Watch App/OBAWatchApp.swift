@@ -7,6 +7,7 @@
 
 import SwiftUI
 import WatchKit
+import MapKit
 import CoreLocation
 import Combine
 import WatchConnectivity
@@ -92,25 +93,42 @@ class WatchAppState: NSObject, ObservableObject, CLLocationManagerDelegate, WCSe
 
     /// Base URLs for regions defined in RegionOnboardingView
     static let regionBaseURLs: [String: String] = [
-        "tampa-bay": "http://oba.tampa.onebusaway.org",
-        "puget-sound": "https://api.pugetsound.onebusaway.org",
-        "mta-new-york": "https://bustime.mta.info",
-        "washington-dc": "https://api.wmata.com", // Note: DC usually needs more config
+        "tampa-bay": "https://api.tampa.onebusawaycloud.com/",
+        "puget-sound": "https://api.pugetsound.onebusaway.org/",
+        "mta-new-york": "https://bustime.mta.info/",
+        "washington-dc": "https://buseta.wmata.com/onebusaway-api-webapp/",
         "san-diego": "https://realtime.sdmts.com/api/"
     ]
+
+    /// Base URLs for OTP regions defined in RegionOnboardingView
+    static let regionOTPBaseURLs: [String: String] = [
+        "tampa-bay": "https://otp.prod.obahart.org/otp/",
+        "puget-sound": "https://otp.prod.sound.obaweb.org/otp/routers/default/",
+        "atlanta": "https://opentrip.atlantaregion.com/otp",
+        "san-diego": "https://realtime.sdmts.com:9091/otp",
+        "adelaide-metro": "https://otp.nautilus-tech.com.au/otp/"
+    ]
+
+    var currentOTPBaseURL: URL? {
+        let regionID = Self.userDefaults.string(forKey: "watch_selected_region_id") ?? "mta-new-york"
+        if let urlString = Self.regionOTPBaseURLs[regionID] {
+            return URL(string: urlString)
+        }
+        return nil
+    }
 
     /// Returns the location to use for nearby stops, taking into account
     /// the user's preference for sharing current location vs. using a
     /// manually selected region.
     var effectiveLocation: CLLocation {
-        let shareLocation = UserDefaults.standard.bool(forKey: "watch_share_current_location")
+        let shareLocation = Self.userDefaults.bool(forKey: "watch_share_current_location")
         
         if shareLocation, let loc = currentLocation {
             return loc
         }
         
         // Fallback to selected region
-        let regionID = UserDefaults.standard.string(forKey: "watch_selected_region_id") ?? "mta-new-york"
+        let regionID = Self.userDefaults.string(forKey: "watch_selected_region_id") ?? "mta-new-york"
         if let coord = Self.regionCoordinates[regionID] {
             return CLLocation(latitude: coord.latitude, longitude: coord.longitude)
         }
@@ -118,9 +136,27 @@ class WatchAppState: NSObject, ObservableObject, CLLocationManagerDelegate, WCSe
         return CLLocation(latitude: 40.7128, longitude: -74.0060)
     }
 
+    /// Map settings
+    @Published var showsScale: Bool {
+        didSet { Self.userDefaults.set(showsScale, forKey: "watch_map_shows_scale") }
+    }
+    @Published var showsTraffic: Bool {
+        didSet { Self.userDefaults.set(showsTraffic, forKey: "watch_map_shows_traffic") }
+    }
+    @Published var showsCurrentHeading: Bool {
+        didSet { Self.userDefaults.set(showsCurrentHeading, forKey: "watch_map_shows_heading") }
+    }
+    @Published var showRouteLabels: Bool {
+        didSet { Self.userDefaults.set(showRouteLabels, forKey: "watch_show_route_labels") }
+    }
+
+    var mapStyle: MapStyle {
+        return .standard(elevation: .realistic)
+    }
+
     /// Updates the current region and API client.
     func updateRegion(id: String) {
-         UserDefaults.standard.set(id, forKey: "watch_selected_region_id")
+         Self.userDefaults.set(id, forKey: "watch_selected_region_id")
          
          if let urlString = Self.regionBaseURLs[id], let url = URL(string: urlString) {
              let config = OBAURLSessionAPIClient.Configuration(
@@ -138,13 +174,24 @@ class WatchAppState: NSObject, ObservableObject, CLLocationManagerDelegate, WCSe
 
     private var configCancellable: AnyCancellable?
 
+    /// Shared user defaults for the app group
+    static let userDefaults: UserDefaults = {
+        if let appGroup = Bundle.main.object(forInfoDictionaryKey: "OBAKitConfig") as? [String: Any],
+           let suiteName = appGroup["AppGroup"] as? String {
+            return UserDefaults(suiteName: suiteName) ?? .standard
+        }
+        return .standard
+    }()
+
     private override init() {
         // Create local manager and API configuration first, so all stored
         // properties can be initialized before calling super.init().
         let manager = CLLocationManager()
+        
+        let defaults = Self.userDefaults
 
         // Use the saved region if available, otherwise fall back to MTA New York.
-        let savedRegionID = UserDefaults.standard.string(forKey: "watch_selected_region_id") ?? "mta-new-york"
+        let savedRegionID = defaults.string(forKey: "watch_selected_region_id") ?? "mta-new-york"
         let baseURLString = Self.regionBaseURLs[savedRegionID] ?? "https://bustime.mta.info"
         let baseURL = URL(string: baseURLString)!
         
@@ -158,6 +205,12 @@ class WatchAppState: NSObject, ObservableObject, CLLocationManagerDelegate, WCSe
             minutesBeforeArrivals: 5,
             minutesAfterArrivals: 125
         )
+
+        // Initialize map settings from UserDefaults
+        self.showsScale = defaults.bool(forKey: "watch_map_shows_scale")
+        self.showsTraffic = defaults.bool(forKey: "watch_map_shows_traffic")
+        self.showsCurrentHeading = defaults.object(forKey: "watch_map_shows_heading") as? Bool ?? true
+        self.showRouteLabels = defaults.object(forKey: "watch_show_route_labels") as? Bool ?? true
 
         // Initialize stored properties.
         self.locationManager = manager
@@ -205,6 +258,9 @@ class WatchAppState: NSObject, ObservableObject, CLLocationManagerDelegate, WCSe
             }
             if let alerts = userInfo["alerts"] as? [[String: Any]] {
                 ServiceAlertsSyncManager.shared.updateAlerts(alerts)
+            }
+            if let alarms = userInfo["alarms"] as? [[String: Any]] {
+                AlarmsSyncManager.shared.updateAlarms(alarms)
             }
         }
     }

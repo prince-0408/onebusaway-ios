@@ -14,18 +14,27 @@ import Foundation
     // Add a way to convert to watch-compatible format if needed, 
     // but the Codable keys already match mostly.
     
-    fileprivate struct WatchBookmark: Codable {
-        let id: UUID
-        let stopID: StopID
-        let name: String
-        let routeShortName: String?
-        let tripHeadsign: String?
-        let stop: Stop?
+    public var watchBookmarkObject: WatchBookmark {
+        let watchStop = OBAStop(
+            id: stop.id,
+            name: stop.name,
+            latitude: stop.location.coordinate.latitude,
+            longitude: stop.location.coordinate.longitude,
+            code: stop.code,
+            direction: stop.direction != .unknown ? String(describing: stop.direction).uppercased() : nil,
+            locationType: stop.locationType.rawValue
+        )
+        return WatchBookmark(id: id, stopID: stopID, name: name, routeShortName: routeShortName, tripHeadsign: tripHeadsign, stop: watchStop)
     }
-    
-    var watchBookmark: Data? {
-        let wb = WatchBookmark(id: id, stopID: stopID, name: name, routeShortName: routeShortName, tripHeadsign: tripHeadsign, stop: stop)
-        return try? JSONEncoder().encode(wb)
+
+    public var watchBookmarkData: Data? {
+        try? JSONEncoder().encode(watchBookmarkObject)
+    }
+
+    /// A dictionary representation of the bookmark, suitable for Watch Connectivity.
+    public var dictionary: [String: Any]? {
+        guard let data = try? JSONEncoder().encode(self) else { return nil }
+        return try? JSONSerialization.jsonObject(with: data, options: []) as? [String: Any]
     }
 
     /// Optional. The unique identifier for the `BookmarkGroup` to which this object belongs.

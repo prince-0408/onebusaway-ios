@@ -38,7 +38,7 @@ class SearchViewModel: ObservableObject {
         self.apiClientProvider = apiClientProvider
         self.locationProvider = locationProvider
         self.recentStops = Self.loadRecentStops(from: recentStopsKey)
-        self.recentSearchTerms = UserDefaults.standard.stringArray(forKey: recentSearchTermsKey) ?? []
+        self.recentSearchTerms = WatchAppState.userDefaults.stringArray(forKey: recentSearchTermsKey) ?? []
         self.bookmarkResults = Self.loadBookmarks(from: bookmarksKey)
     }
     
@@ -69,7 +69,7 @@ class SearchViewModel: ObservableObject {
             terms = Array(terms.prefix(5))
         }
         recentSearchTerms = terms
-        UserDefaults.standard.set(terms, forKey: recentSearchTermsKey)
+        WatchAppState.userDefaults.set(terms, forKey: recentSearchTermsKey)
     }
 
     func selectRecentSearchTerm(_ term: String) {
@@ -79,7 +79,7 @@ class SearchViewModel: ObservableObject {
 
     func clearRecentSearchTerms() {
         recentSearchTerms = []
-        UserDefaults.standard.removeObject(forKey: recentSearchTermsKey)
+        WatchAppState.userDefaults.removeObject(forKey: recentSearchTermsKey)
     }
 
     func quickSearch(_ type: QuickSearchType) {
@@ -109,7 +109,7 @@ class SearchViewModel: ObservableObject {
         // Persist to UserDefaults.
         do {
             let data = try JSONEncoder().encode(recentStops)
-            UserDefaults.standard.set(data, forKey: recentStopsKey)
+            WatchAppState.userDefaults.set(data, forKey: recentStopsKey)
         } catch {
             // Ignore persistence errors for now.
         }
@@ -179,7 +179,7 @@ class SearchViewModel: ObservableObject {
     }
 
     private static func loadRecentStops(from key: String) -> [OBAStop] {
-        guard let data = UserDefaults.standard.data(forKey: key) else { return [] }
+        guard let data = WatchAppState.userDefaults.data(forKey: key) else { return [] }
         do {
             return try JSONDecoder().decode([OBAStop].self, from: data)
         } catch {
@@ -188,7 +188,7 @@ class SearchViewModel: ObservableObject {
     }
 
     private static func loadBookmarks(from key: String) -> [WatchBookmark] {
-        guard let data = UserDefaults.standard.data(forKey: key) else { return [] }
+        guard let data = WatchAppState.userDefaults.data(forKey: key) else { return [] }
         do {
             return try JSONDecoder().decode([WatchBookmark].self, from: data)
         } catch {

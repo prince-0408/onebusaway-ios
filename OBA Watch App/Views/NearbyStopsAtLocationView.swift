@@ -6,6 +6,7 @@ import OBAKitCore
 /// Shows nearby stops for a fixed coordinate selected from address search,
 /// mirroring the iOS "Nearby Stops" sheet but in a simplified watch layout.
 struct NearbyStopsAtLocationView: View {
+    @EnvironmentObject var appState: WatchAppState
     let title: String
     let coordinate: CLLocationCoordinate2D
 
@@ -39,7 +40,7 @@ struct NearbyStopsAtLocationView: View {
             }
             .navigationTitle(title)
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .primaryAction) {
                     Button {
                         DeepLinkSyncManager.shared.planTripOnPhone(
                             originLat: coordinate.latitude,
@@ -48,7 +49,7 @@ struct NearbyStopsAtLocationView: View {
                             destLon: nil
                         )
                     } label: {
-                        Image(systemName: "figure.walk")
+                        Label("Plan on Phone", systemImage: "figure.walk")
                     }
                 }
             }
@@ -56,21 +57,6 @@ struct NearbyStopsAtLocationView: View {
                 await viewModel.loadNearbyStops()
             }
         }
-    }
-
-    private var emptyStateView: some View {
-        VStack(spacing: 8) {
-            Image(systemName: "location.slash")
-                .font(.system(size: 40))
-                .foregroundColor(.secondary)
-            Text("No Stops Found")
-                .font(.headline)
-            Text(viewModel.locationStatus)
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-        }
-        .padding()
     }
 
     private var stopsList: some View {
@@ -106,7 +92,7 @@ struct NearbyStopsAtLocationView: View {
                 NearbyMapView(
                     stops: limitedStops,
                     currentLocation: CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude),
-                    mapStyle: mapStyle
+                    mapStyle: appState.mapStyle
                 )
                 .frame(height: 140)
                 .clipShape(RoundedRectangle(cornerRadius: 16))
@@ -139,6 +125,21 @@ struct NearbyStopsAtLocationView: View {
         }
     }
 
+    private var emptyStateView: some View {
+        VStack(spacing: 8) {
+            Image(systemName: "location.slash")
+                .font(.system(size: 40))
+                .foregroundColor(.secondary)
+            Text("No Stops Found")
+                .font(.headline)
+            Text(viewModel.locationStatus)
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .padding()
+    }
+
     private func directionLabel(for stop: OBAStop) -> String {
         guard let dir = stop.direction?.lowercased() else { return "" }
         switch dir {
@@ -151,14 +152,6 @@ struct NearbyStopsAtLocationView: View {
         case "se": return "Southeast"
         case "sw": return "Southwest"
         default: return ""
-        }
-    }
-
-    private var mapStyle: MapStyle {
-        if UserDefaults.standard.bool(forKey: "watch_map_style_standard") {
-            return .standard
-        } else {
-            return .imagery
         }
     }
 }

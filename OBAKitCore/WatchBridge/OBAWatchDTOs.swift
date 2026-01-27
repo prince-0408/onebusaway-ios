@@ -228,6 +228,8 @@ struct OBARawVehicleStatus: Decodable, Sendable {
     let phase: String?
     let status: String?
     let tripID: OBATripID?
+    let routeShortName: String?
+    let tripHeadsign: String?
 
     private enum CodingKeys: String, CodingKey {
         case vehicleID = "vehicleId"
@@ -237,6 +239,8 @@ struct OBARawVehicleStatus: Decodable, Sendable {
         case phase
         case status
         case tripID = "tripId"
+        case routeShortName
+        case tripHeadsign
     }
 
     private enum LocationKeys: String, CodingKey {
@@ -252,6 +256,8 @@ struct OBARawVehicleStatus: Decodable, Sendable {
         self.phase = try container.decodeIfPresent(String.self, forKey: .phase)
         self.status = try container.decodeIfPresent(String.self, forKey: .status)
         self.tripID = try container.decodeIfPresent(OBATripID.self, forKey: .tripID)
+        self.routeShortName = try container.decodeIfPresent(String.self, forKey: .routeShortName)
+        self.tripHeadsign = try container.decodeIfPresent(String.self, forKey: .tripHeadsign)
 
         if let locationContainer = try? container.nestedContainer(keyedBy: LocationKeys.self, forKey: .location) {
             self.latitude = try locationContainer.decodeIfPresent(Double.self, forKey: .lat)
@@ -271,7 +277,9 @@ struct OBARawVehicleStatus: Decodable, Sendable {
             longitude: longitude,
             phase: phase,
             status: status,
-            tripID: tripID
+            tripID: tripID,
+            routeShortName: routeShortName,
+            tripHeadsign: tripHeadsign
         )
     }
 }
@@ -677,6 +685,7 @@ struct OBARawTripsForLocationResponse: Decodable, Sendable {
         let list: [RawTrip]?
         let vehicles: [RawTrip]?
         let trips: [RawTrip]?
+        let references: OBARawStopsForLocationResponse.ReferencesRaw?
     }
 
     struct RawTrip: Decodable, Sendable {
@@ -689,6 +698,29 @@ struct OBARawTripsForLocationResponse: Decodable, Sendable {
         let routeShortName: String?
         let tripHeadsign: String?
 
+        private enum CodingKeys: String, CodingKey {
+            case tripId
+            case vehicleId
+            case lastUpdateTime
+            case location
+            case orientation
+            case routeId
+            case routeShortName
+            case tripHeadsign
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            self.tripId = try container.decode(String.self, forKey: .tripId)
+            self.vehicleId = try container.decodeIfPresent(String.self, forKey: .vehicleId)
+            self.lastUpdateTime = try container.decodeIfPresent(Date.self, forKey: .lastUpdateTime)
+            self.location = try container.decodeIfPresent(Location.self, forKey: .location)
+            self.orientation = try container.decodeIfPresent(Double.self, forKey: .orientation)
+            self.routeId = try container.decodeIfPresent(String.self, forKey: .routeId)
+            self.routeShortName = try container.decodeIfPresent(String.self, forKey: .routeShortName)
+            self.tripHeadsign = try container.decodeIfPresent(String.self, forKey: .tripHeadsign)
+        }
+
         struct Location: Decodable, Sendable {
             let lat: Double
             let lon: Double
@@ -698,16 +730,30 @@ struct OBARawTripsForLocationResponse: Decodable, Sendable {
     let data: Data
 
     func toDomain() -> [OBATripForLocation] {
-        (data.list ?? data.vehicles ?? data.trips ?? []).map { raw in
-            OBATripForLocation(
+        let trips = data.list ?? data.vehicles ?? data.trips ?? []
+        let routeMap = Dictionary(uniqueKeysWithValues: (data.references?.routes ?? []).compactMap { route in
+            return (route.id, route)
+        })
+
+        return trips.map { raw in
+            var routeShortName = raw.routeShortName
+            let tripHeadsign = raw.tripHeadsign
+
+            if let routeId = raw.routeId, let route = routeMap[routeId] {
+                if routeShortName == nil || routeShortName!.isEmpty {
+                    routeShortName = route.shortName ?? route.longName
+                }
+            }
+
+            return OBATripForLocation(
                 id: raw.tripId,
                 vehicleID: raw.vehicleId ?? "",
                 latitude: raw.location?.lat,
                 longitude: raw.location?.lon,
                 orientation: raw.orientation,
                 routeID: raw.routeId,
-                routeShortName: raw.routeShortName,
-                tripHeadsign: raw.tripHeadsign,
+                routeShortName: routeShortName,
+                tripHeadsign: tripHeadsign,
                 lastUpdateTime: raw.lastUpdateTime
             )
         }

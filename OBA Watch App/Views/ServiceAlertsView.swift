@@ -1,7 +1,8 @@
 import SwiftUI
+import OBAKitCore
 
 struct ServiceAlertsView: View {
-    @State private var alerts: [ServiceAlert] = ServiceAlertsSyncManager.shared.currentAlerts()
+    @State private var alerts: [WatchServiceAlert] = ServiceAlertsSyncManager.shared.currentAlerts()
     var body: some View {
         List {
             if alerts.isEmpty {

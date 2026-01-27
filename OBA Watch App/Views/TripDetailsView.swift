@@ -41,118 +41,12 @@ struct TripDetailsView: View {
                 Text(error)
                     .foregroundColor(.red)
             } else {
-                Section {
-                    Map(position: $mapPosition) {
-                        if !viewModel.polyline.isEmpty {
-                            MapPolyline(coordinates: viewModel.polyline)
-                                .stroke(.green, lineWidth: 3)
-                        }
-                        
-                        if let schedule = viewModel.tripDetails?.schedule {
-                            ForEach(schedule.stopTimes, id: \.stopId) { stopTime in
-                                if let lat = stopTime.latitude, let lon = stopTime.longitude {
-                                    Annotation("", coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon)) {
-                                        ZStack {
-                                            Circle()
-                                                .fill(Color.green)
-                                                .frame(width: 20, height: 20)
-                                                .shadow(radius: 2)
-                                            
-                                            Image(systemName: "bus.fill")
-                                                .font(.system(size: 10))
-                                                .foregroundColor(.white)
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    .frame(height: 160)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
-                    .listRowInsets(EdgeInsets())
-                    .listRowBackground(Color.clear)
-                }
+                mapSection
                 
                 if let details = viewModel.tripDetails {
-                    // Header
-                    Section {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("\(routeShortName ?? details.tripId ?? "") - \(headsign ?? details.schedule?.nextTripId ?? "Trip")")
-                                .font(.system(size: 16, weight: .bold))
-                                .foregroundColor(.white)
-                                .lineLimit(2)
-                            
-                            if let serviceDate = details.serviceDate {
-                                HStack(spacing: 4) {
-                                    Text(serviceDate, style: .time)
-                                        .font(.system(size: 12))
-                                        .foregroundColor(.secondary)
-                                    Text("•")
-                                        .font(.system(size: 12))
-                                        .foregroundColor(.secondary)
-                                    Text("Scheduled")
-                                        .font(.system(size: 12))
-                                        .foregroundColor(.secondary)
-                                }
-                            }
-                        }
-                        .padding(.vertical, 4)
-                    }
-                    .listRowBackground(
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(Color.white.opacity(0.1))
-                    )
-                    
-                    // Vehicle Status
-                    if let status = details.status {
-                        Section("Vehicle Status") {
-                            if let lastUpdate = status.lastUpdateTime {
-                                 LabeledContent {
-                                     Text(relativeTime(for: lastUpdate))
-                                         .font(.system(size: 14))
-                                         .foregroundColor(.white)
-                                 } label: {
-                                     Text("Last Update")
-                                         .font(.system(size: 14))
-                                         .foregroundColor(.secondary)
-                                 }
-                            }
-                            
-                            if let deviation = status.scheduleDeviation {
-                                 LabeledContent {
-                                     Text(deviationString(seconds: deviation))
-                                         .font(.system(size: 14))
-                                         .foregroundColor(.white)
-                                 } label: {
-                                     Text("Status")
-                                         .font(.system(size: 14))
-                                         .foregroundColor(.secondary)
-                                 }
-                            }
-                        }
-                        .listRowBackground(
-                            RoundedRectangle(cornerRadius: 16)
-                                .fill(Color.white.opacity(0.1))
-                        )
-                    }
-                    
-                    // Stops
-                    if let schedule = details.schedule {
-                        Section("Stops") {
-                            ForEach(Array(schedule.stopTimes.enumerated()), id: \.element.stopId) { index, stopTime in
-                                StopRow(
-                                    stopTime: stopTime,
-                                    isFirst: index == 0,
-                                    isLast: index == schedule.stopTimes.count - 1,
-                                    serviceDate: details.serviceDate
-                                )
-                                .listRowBackground(
-                                    RoundedRectangle(cornerRadius: 16)
-                                        .fill(Color.white.opacity(0.1))
-                                )
-                            }
-                        }
-                    }
+                    headerSection(details)
+                    vehicleStatusSection(details)
+                    stopsSection(details)
                 }
             }
         }
@@ -160,6 +54,142 @@ struct TripDetailsView: View {
         .navigationBarTitleDisplayMode(.inline)
         .task {
             await viewModel.loadDetails()
+        }
+    }
+
+    private var mapSection: some View {
+        Section {
+            Map(position: $mapPosition) {
+                if !viewModel.polyline.isEmpty {
+                    MapPolyline(coordinates: viewModel.polyline)
+                        .stroke(.green, lineWidth: 3)
+                }
+                
+                if let schedule = viewModel.tripDetails?.schedule {
+                    ForEach(Array(schedule.stopTimes.enumerated()), id: \.offset) { _, stopTime in
+                        if let lat = stopTime.latitude, let lon = stopTime.longitude {
+                            Annotation("", coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon)) {
+                                ZStack {
+                                    Circle()
+                                        .fill(Color.green)
+                                        .frame(width: 20, height: 20)
+                                        .shadow(radius: 2)
+                                    
+                                    Image(systemName: "bus.fill")
+                                        .font(.system(size: 10))
+                                        .foregroundColor(.white)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            .mapStyle(appState.mapStyle)
+            .id("standard")
+            .frame(height: 160)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .listRowInsets(EdgeInsets())
+            .listRowBackground(Color.clear)
+        }
+    }
+
+    private func headerSection(_ details: OBATripExtendedDetails) -> some View {
+        Section {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("\(routeShortName ?? details.tripId ?? "") - \(headsign ?? details.schedule?.nextTripId ?? "Trip")")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(.white)
+                    .lineLimit(2)
+                
+                if let serviceDate = details.serviceDate {
+                    HStack(spacing: 4) {
+                        Text(serviceDate, style: .time)
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                        Text("•")
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                        Text("Scheduled")
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+            .padding(.vertical, 8)
+        }
+        .listRowBackground(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color.white.opacity(0.12))
+        )
+    }
+
+    @ViewBuilder
+    private func vehicleStatusSection(_ details: OBATripExtendedDetails) -> some View {
+        if let status = details.status {
+            Section {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "bus.fill")
+                            .font(.system(size: 14))
+                            .foregroundColor(.green)
+                        
+                        Text(status.vehicleID != nil ? "Vehicle \(status.vehicleID!)" : "Vehicle Status")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundColor(.white)
+                    }
+                    
+                    HStack(spacing: 4) {
+                        if let deviation = status.scheduleDeviation {
+                            Text(deviationString(seconds: deviation))
+                                .font(.system(size: 12))
+                                .foregroundColor(deviationColor(seconds: deviation))
+                        }
+                        
+                        if status.scheduleDeviation != nil && status.lastUpdateTime != nil {
+                            Text("•")
+                                .font(.system(size: 12))
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        if let lastUpdate = status.lastUpdateTime {
+                            Text(relativeTime(for: lastUpdate))
+                                .font(.system(size: 12))
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+                .padding(.vertical, 8)
+            }
+            .listRowBackground(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color.white.opacity(0.12))
+            )
+        }
+    }
+
+    private func deviationColor(seconds: Int) -> Color {
+        if seconds <= 0 { return .green }
+        if seconds < 300 { return .yellow }
+        return .red
+    }
+
+    @ViewBuilder
+    private func stopsSection(_ details: OBATripExtendedDetails) -> some View {
+        if let schedule = details.schedule {
+            Section("Stops") {
+                ForEach(Array(schedule.stopTimes.enumerated()), id: \.offset) { index, stopTime in
+                    StopRow(
+                        stopTime: stopTime,
+                        isFirst: index == 0,
+                        isLast: index == schedule.stopTimes.count - 1,
+                        serviceDate: details.serviceDate
+                    )
+                    .listRowBackground(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(Color.white.opacity(0.12))
+                    )
+                }
+            }
         }
     }
     

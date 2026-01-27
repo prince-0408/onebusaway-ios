@@ -56,8 +56,7 @@ public final class OBAURLSessionAPIClient: OBAAPIClient {
         vehicleID: String?,
         stopSequence: Int
     ) async throws -> OBAArrival {
-        var components = URLComponents(url: configuration.baseURL, resolvingAgainstBaseURL: false)
-        components?.path = "/api/where/arrival-and-departure-for-stop/\(stopID).json"
+        let path = "/api/where/arrival-and-departure-for-stop/\(stopID).json"
         var params: [URLQueryItem] = [
             URLQueryItem(name: "tripId", value: tripID),
             URLQueryItem(name: "serviceDate", value: String(Int64(serviceDate.timeIntervalSince1970 * 1000)))
@@ -68,18 +67,15 @@ public final class OBAURLSessionAPIClient: OBAAPIClient {
         if stopSequence > 0 {
             params.append(URLQueryItem(name: "stopSequence", value: String(stopSequence)))
         }
-        components?.queryItems = params
 
-        guard let url = components?.url else { throw OBAAPIError.invalidURL }
+        let url = try buildURL(path: path, queryItems: params)
         let response: OBARawListResponse<OBARawArrival> = try await get(url: url)
         return response.list.toDomainArrival()
     }
 
     public func fetchStop(id: OBAStopID) async throws -> OBAStop {
-        var components = URLComponents(url: configuration.baseURL, resolvingAgainstBaseURL: false)
-        components?.path = "/api/where/stop/\(id).json"
-        components?.queryItems = apiKeyQueryItem
-        guard let url = components?.url else { throw OBAAPIError.invalidURL }
+        let path = "/api/where/stop/\(id).json"
+        let url = try buildURL(path: path, queryItems: apiKeyQueryItem)
         let response: OBARawStopResponse = try await get(url: url)
         return response.toDomainStop()
     }
@@ -88,32 +84,27 @@ public final class OBAURLSessionAPIClient: OBAAPIClient {
         stopID: OBAStopID,
         date: Date?
     ) async throws -> OBAStopSchedule {
-        var components = URLComponents(url: configuration.baseURL, resolvingAgainstBaseURL: false)
-        components?.path = "/api/where/schedule-for-stop/\(stopID).json"
+        let path = "/api/where/schedule-for-stop/\(stopID).json"
         var items = apiKeyQueryItem
         if let date {
             let formatter = DateFormatter()
             formatter.dateFormat = "yyyy-MM-dd"
             items.append(URLQueryItem(name: "date", value: formatter.string(from: date)))
         }
-        components?.queryItems = items
-        guard let url = components?.url else { throw OBAAPIError.invalidURL }
+        let url = try buildURL(path: path, queryItems: items)
         let response: OBARawScheduleForStopResponse = try await get(url: url)
         return response.toDomainSchedule()
     }
 
     public func fetchAgenciesWithCoverage() async throws -> [OBAAgencyCoverage] {
-        var components = URLComponents(url: configuration.baseURL, resolvingAgainstBaseURL: false)
-        components?.path = "/api/where/agencies-with-coverage.json"
-        components?.queryItems = apiKeyQueryItem
-        guard let url = components?.url else { throw OBAAPIError.invalidURL }
+        let path = "/api/where/agencies-with-coverage.json"
+        let url = try buildURL(path: path, queryItems: apiKeyQueryItem)
         let response: OBARawAgenciesWithCoverageResponse = try await get(url: url)
         return response.toDomainAgencies()
     }
 
     public func submitStopProblem(_ report: OBAStopProblemReport) async throws {
-        var components = URLComponents(url: configuration.baseURL, resolvingAgainstBaseURL: false)
-        components?.path = "/api/where/report-problem-with-stop/\(report.stopID).json"
+        let path = "/api/where/report-problem-with-stop/\(report.stopID).json"
         var items = apiKeyQueryItem + [
             URLQueryItem(name: "code", value: report.code),
         ]
@@ -127,8 +118,7 @@ public final class OBAURLSessionAPIClient: OBAAPIClient {
                 URLQueryItem(name: "userLocationAccuracy", value: String(loc.horizontalAccuracy))
             ])
         }
-        components?.queryItems = items
-        let url = try components?.url ?? { throw URLError(.badURL) }()
+        let url = try buildURL(path: path, queryItems: items)
         let (_, response) = try await urlSession.data(from: url)
         guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
             throw OBAAPIError.badServerResponse(statusCode: (response as? HTTPURLResponse)?.statusCode ?? 0, url: url)
@@ -136,8 +126,7 @@ public final class OBAURLSessionAPIClient: OBAAPIClient {
     }
 
     public func submitTripProblem(_ report: OBATripProblemReport) async throws {
-        var components = URLComponents(url: configuration.baseURL, resolvingAgainstBaseURL: false)
-        components?.path = "/api/where/report-problem-with-trip.json"
+        let path = "/api/where/report-problem-with-trip.json"
         var items = apiKeyQueryItem + [
             URLQueryItem(name: "tripId", value: report.tripID),
             URLQueryItem(name: "serviceDate", value: String(Int64(report.serviceDate.timeIntervalSince1970 * 1000))),
@@ -160,8 +149,7 @@ public final class OBAURLSessionAPIClient: OBAAPIClient {
                 URLQueryItem(name: "userLocationAccuracy", value: String(loc.horizontalAccuracy))
             ])
         }
-        components?.queryItems = items
-        let url = try components?.url ?? { throw OBAAPIError.invalidURL }()
+        let url = try buildURL(path: path, queryItems: items)
         let (_, response) = try await urlSession.data(from: url)
         guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
             throw OBAAPIError.badServerResponse(statusCode: (response as? HTTPURLResponse)?.statusCode ?? 0, url: url)
@@ -173,13 +161,12 @@ public final class OBAURLSessionAPIClient: OBAAPIClient {
         longitude: Double,
         radius: Double
     ) async throws -> OBANearbyStopsResult {
-        var components = URLComponents(url: configuration.baseURL, resolvingAgainstBaseURL: false)
-        components?.path = "/api/where/stops-for-location.json"
+        let path = "/api/where/stops-for-location.json"
         
         // Use a larger radius for MTA or if zero results, or use latSpan/lonSpan
         let finalRadius = radius > 0 ? radius : 1000.0
         
-        components?.queryItems = [
+        let queryItems = [
             URLQueryItem(name: "lat", value: String(latitude)),
             URLQueryItem(name: "lon", value: String(longitude)),
             URLQueryItem(name: "latSpan", value: "0.05"), // ~5km span
@@ -187,7 +174,7 @@ public final class OBAURLSessionAPIClient: OBAAPIClient {
             URLQueryItem(name: "radius", value: String(finalRadius))
         ] + apiKeyQueryItem
 
-        let url = try components?.url ?? { throw OBAAPIError.invalidURL }()
+        let url = try buildURL(path: path, queryItems: queryItems)
         let response: OBARawStopsForLocationResponse = try await get(url: url)
         return OBANearbyStopsResult(
             stops: response.toDomainStops(),
@@ -201,16 +188,15 @@ public final class OBAURLSessionAPIClient: OBAAPIClient {
         longitude: Double,
         radius: Double
     ) async throws -> OBANearbyStopsResult {
-        var components = URLComponents(url: configuration.baseURL, resolvingAgainstBaseURL: false)
-        components?.path = "/api/where/stops-for-location.json"
-        components?.queryItems = [
+        let path = "/api/where/stops-for-location.json"
+        let queryItems = [
             URLQueryItem(name: "lat", value: String(latitude)),
             URLQueryItem(name: "lon", value: String(longitude)),
             URLQueryItem(name: "radius", value: String(radius)),
             URLQueryItem(name: "query", value: query)
         ] + apiKeyQueryItem
 
-        let url = try components?.url ?? { throw OBAAPIError.invalidURL }()
+        let url = try buildURL(path: path, queryItems: queryItems)
         let response: OBARawStopsForLocationResponse = try await get(url: url)
         return OBANearbyStopsResult(
             stops: response.toDomainStops(),
@@ -219,15 +205,13 @@ public final class OBAURLSessionAPIClient: OBAAPIClient {
     }
 
     public func fetchArrivals(for stopID: OBAStopID) async throws -> OBAArrivalsResult {
-        var components = URLComponents(url: configuration.baseURL, resolvingAgainstBaseURL: false)
-        // URLComponents.path should not be pre-encoded; it will handle encoding.
-        components?.path = "/api/where/arrivals-and-departures-for-stop/\(stopID).json"
-        components?.queryItems = apiKeyQueryItem + [
+        let path = "/api/where/arrivals-and-departures-for-stop/\(stopID).json"
+        let queryItems = apiKeyQueryItem + [
             URLQueryItem(name: "minutesBefore", value: String(configuration.minutesBeforeArrivals)),
             URLQueryItem(name: "minutesAfter", value: String(configuration.minutesAfterArrivals))
         ]
 
-        let url = try components?.url ?? { throw OBAAPIError.invalidURL }()
+        let url = try buildURL(path: path, queryItems: queryItems)
         
         var arrivals: [OBAArrival] = []
         var routes: [OBARoute] = []
@@ -257,15 +241,14 @@ public final class OBAURLSessionAPIClient: OBAAPIClient {
             return OBAArrivalsResult(arrivals: arrivals, routes: routes, stopName: stopName, stopCode: stopCode, stopDirection: stopDirection)
         } catch {
             // Fallback 1: try as query parameter
-            var fallbackComponents = URLComponents(url: configuration.baseURL, resolvingAgainstBaseURL: false)
-            fallbackComponents?.path = "/api/where/arrivals-and-departures-for-stop.json"
-            fallbackComponents?.queryItems = apiKeyQueryItem + [
+            let fallbackPath = "/api/where/arrivals-and-departures-for-stop.json"
+            let fallbackQueryItems = apiKeyQueryItem + [
                 URLQueryItem(name: "stopId", value: stopID),
                 URLQueryItem(name: "minutesBefore", value: String(configuration.minutesBeforeArrivals)),
                 URLQueryItem(name: "minutesAfter", value: String(configuration.minutesAfterArrivals))
             ]
             
-            if let fallbackURL = fallbackComponents?.url {
+            if let fallbackURL = try? buildURL(path: fallbackPath, queryItems: fallbackQueryItems) {
                 do {
                     let response: OBARawListResponse<[OBARawArrival]> = try await get(url: fallbackURL)
                     let now = Date()
@@ -292,11 +275,8 @@ public final class OBAURLSessionAPIClient: OBAAPIClient {
             }
 
             // Fallback 2: try stop/[ID].json to at least get routes and stop name if arrivals fail
-            var stopComponents = URLComponents(url: configuration.baseURL, resolvingAgainstBaseURL: false)
-            stopComponents?.path = "/api/where/stop/\(stopID).json"
-            stopComponents?.queryItems = apiKeyQueryItem
-            
-            if let stopURL = stopComponents?.url {
+            let stopPath = "/api/where/stop/\(stopID).json"
+            if let stopURL = try? buildURL(path: stopPath, queryItems: apiKeyQueryItem) {
                 do {
                     let response: OBARawStopResponse = try await get(url: stopURL)
                     let domainStop = response.toDomainStop()
@@ -322,14 +302,13 @@ public final class OBAURLSessionAPIClient: OBAAPIClient {
         latSpan: Double,
         lonSpan: Double
     ) async throws -> [OBATripForLocation] {
-        var components = URLComponents(url: configuration.baseURL, resolvingAgainstBaseURL: false)
-        components?.path = "/api/where/trips-for-location.json"
+        let path = "/api/where/trips-for-location.json"
         
         // Use provided spans or default to ~1km if zero
         let finalLatSpan = latSpan > 0 ? latSpan : 0.01
         let finalLonSpan = lonSpan > 0 ? lonSpan : 0.01
         
-        components?.queryItems = [
+        let queryItems = [
             URLQueryItem(name: "lat", value: String(latitude)),
             URLQueryItem(name: "lon", value: String(longitude)),
             URLQueryItem(name: "latSpan", value: String(finalLatSpan)),
@@ -337,40 +316,35 @@ public final class OBAURLSessionAPIClient: OBAAPIClient {
             URLQueryItem(name: "includeStatus", value: "true")
         ] + apiKeyQueryItem
 
-        let url = try components?.url ?? { throw OBAAPIError.invalidURL }()
+        let url = try buildURL(path: path, queryItems: queryItems)
         let response: OBARawTripsForLocationResponse = try await get(url: url)
         return response.toDomain()
     }
 
     public func fetchTripsForRoute(routeID: OBARouteID) async throws -> [OBATripForLocation] {
-        var components = URLComponents(url: configuration.baseURL, resolvingAgainstBaseURL: false)
-        components?.path = "/api/where/trips-for-route/\(routeID).json"
-        components?.queryItems = [
+        let path = "/api/where/trips-for-route/\(routeID).json"
+        let queryItems = [
             URLQueryItem(name: "includeStatus", value: "true")
         ] + apiKeyQueryItem
 
-        let url = try components?.url ?? { throw OBAAPIError.invalidURL }()
+        let url = try buildURL(path: path, queryItems: queryItems)
         let response: OBARawTripsForLocationResponse = try await get(url: url)
         return response.toDomain()
     }
 
     public func fetchRoutesForStop(stopID: OBAStopID) async throws -> [OBARoute] {
-        var components = URLComponents(url: configuration.baseURL, resolvingAgainstBaseURL: false)
-        components?.path = "/api/where/routes-for-stop/\(stopID).json"
-        components?.queryItems = apiKeyQueryItem
-
-        let url = try components?.url ?? { throw OBAAPIError.invalidURL }()
+        let path = "/api/where/routes-for-stop/\(stopID).json"
+        let url = try buildURL(path: path, queryItems: apiKeyQueryItem)
         
         do {
             let response: OBARawRoutesForStopResponse = try await get(url: url)
             return response.toDomainRoutes()
         } catch {
             // Fallback 1: try as query parameter
-            var fallbackComponents = URLComponents(url: configuration.baseURL, resolvingAgainstBaseURL: false)
-            fallbackComponents?.path = "/api/where/routes-for-stop.json"
-            fallbackComponents?.queryItems = apiKeyQueryItem + [URLQueryItem(name: "stopId", value: stopID)]
+            let fallbackPath = "/api/where/routes-for-stop.json"
+            let fallbackQueryItems = apiKeyQueryItem + [URLQueryItem(name: "stopId", value: stopID)]
             
-            if let fallbackURL = fallbackComponents?.url {
+            if let fallbackURL = try? buildURL(path: fallbackPath, queryItems: fallbackQueryItems) {
                 do {
                     let response: OBARawRoutesForStopResponse = try await get(url: fallbackURL)
                     return response.toDomainRoutes()
@@ -380,11 +354,8 @@ public final class OBAURLSessionAPIClient: OBAAPIClient {
             }
 
             // Fallback 2: try stop/[ID].json (common in MTA)
-            var stopComponents = URLComponents(url: configuration.baseURL, resolvingAgainstBaseURL: false)
-            stopComponents?.path = "/api/where/stop/\(stopID).json"
-            stopComponents?.queryItems = apiKeyQueryItem
-            
-            if let stopURL = stopComponents?.url {
+            let stopPath = "/api/where/stop/\(stopID).json"
+            if let stopURL = try? buildURL(path: stopPath, queryItems: apiKeyQueryItem) {
                 do {
                     let response: OBARawStopResponse = try await get(url: stopURL)
                     return response.toDomainRoutes()
@@ -394,11 +365,8 @@ public final class OBAURLSessionAPIClient: OBAAPIClient {
             }
 
             // Fallback 3: try arrivals-and-departures-for-stop (often contains stop details in MTA)
-            var arrivalsComponents = URLComponents(url: configuration.baseURL, resolvingAgainstBaseURL: false)
-            arrivalsComponents?.path = "/api/where/arrivals-and-departures-for-stop/\(stopID).json"
-            arrivalsComponents?.queryItems = apiKeyQueryItem
-            
-            if let arrivalsURL = arrivalsComponents?.url {
+            let arrivalsPath = "/api/where/arrivals-and-departures-for-stop/\(stopID).json"
+            if let arrivalsURL = try? buildURL(path: arrivalsPath, queryItems: apiKeyQueryItem) {
                 do {
                     let response: OBARawListResponse<[OBARawArrival]> = try await get(url: arrivalsURL)
                     if let rawStop = response.stop {
@@ -426,8 +394,7 @@ public final class OBAURLSessionAPIClient: OBAAPIClient {
         longitude: Double,
         radius: Double
     ) async throws -> [OBARoute] {
-        var components = URLComponents(url: configuration.baseURL, resolvingAgainstBaseURL: false)
-        components?.path = "/api/where/routes-for-location.json"
+        let path = "/api/where/routes-for-location.json"
         var items: [URLQueryItem] = [
             URLQueryItem(name: "lat", value: String(latitude)),
             URLQueryItem(name: "lon", value: String(longitude)),
@@ -436,36 +403,31 @@ public final class OBAURLSessionAPIClient: OBAAPIClient {
         if !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             items.append(URLQueryItem(name: "query", value: query))
         }
-        components?.queryItems = items + apiKeyQueryItem
+        let queryItems = items + apiKeyQueryItem
 
-        let url = try components?.url ?? { throw OBAAPIError.invalidURL }()
+        let url = try buildURL(path: path, queryItems: queryItems)
         let response: OBARawRoutesForLocationResponse = try await get(url: url)
         return response.toDomainRoutes()
     }
 
     public func fetchStopsForRoute(routeID: OBARouteID) async throws -> [OBARouteDirection] {
-        var components = URLComponents(url: configuration.baseURL, resolvingAgainstBaseURL: false)
-        components?.path = "/api/where/stops-for-route/\(routeID).json"
-        
+        let path = "/api/where/stops-for-route/\(routeID).json"
         var queryItems = apiKeyQueryItem
         queryItems.append(URLQueryItem(name: "includePolylines", value: "false"))
-        components?.queryItems = queryItems
 
-        let url = try components?.url ?? { throw OBAAPIError.invalidURL }()
+        let url = try buildURL(path: path, queryItems: queryItems)
         
         do {
             let response: OBARawStopsForRouteResponse = try await get(url: url)
             return response.data.toDomainDirections()
         } catch {
             // Fallback: some servers might prefer routeId as a query parameter
-            var fallbackComponents = URLComponents(url: configuration.baseURL, resolvingAgainstBaseURL: false)
-            fallbackComponents?.path = "/api/where/stops-for-route.json"
+            let fallbackPath = "/api/where/stops-for-route.json"
             var fallbackQueryItems = apiKeyQueryItem
             fallbackQueryItems.append(URLQueryItem(name: "routeId", value: routeID))
             fallbackQueryItems.append(URLQueryItem(name: "includePolylines", value: "false"))
-            fallbackComponents?.queryItems = fallbackQueryItems
             
-            if let fallbackURL = fallbackComponents?.url {
+            if let fallbackURL = try? buildURL(path: fallbackPath, queryItems: fallbackQueryItems) {
                 do {
                     let response: OBARawStopsForRouteResponse = try await get(url: fallbackURL)
                     return response.data.toDomainDirections()
@@ -478,11 +440,8 @@ public final class OBAURLSessionAPIClient: OBAAPIClient {
     }
 
     public func fetchShapeIDForRoute(routeID: OBARouteID) async throws -> String? {
-        var components = URLComponents(url: configuration.baseURL, resolvingAgainstBaseURL: false)
-        components?.path = "/api/where/schedule-for-route/\(routeID).json"
-        components?.queryItems = apiKeyQueryItem
-
-        let url = try components?.url ?? { throw OBAAPIError.invalidURL }()
+        let path = "/api/where/schedule-for-route/\(routeID).json"
+        let url = try buildURL(path: path, queryItems: apiKeyQueryItem)
         
         do {
             let response: OBARawScheduleForRouteResponse = try await get(url: url)
@@ -496,24 +455,19 @@ public final class OBAURLSessionAPIClient: OBAAPIClient {
     }
 
     public func fetchShape(shapeID: String) async throws -> String {
-        var components = URLComponents(url: configuration.baseURL, resolvingAgainstBaseURL: false)
-        components?.path = "/api/where/shape/\(shapeID).json"
-        components?.queryItems = apiKeyQueryItem
-
-        let url = try components?.url ?? { throw OBAAPIError.invalidURL }()
+        let path = "/api/where/shape/\(shapeID).json"
+        let url = try buildURL(path: path, queryItems: apiKeyQueryItem)
         
         do {
             let response: OBARawShapeResponse = try await get(url: url)
             return response.data.entry.points
         } catch {
             // Fallback: try stops-for-route to get the shape (common in MTA)
-            var fallbackComponents = URLComponents(url: configuration.baseURL, resolvingAgainstBaseURL: false)
-            fallbackComponents?.path = "/api/where/stops-for-route/\(shapeID).json"
+            let fallbackPath = "/api/where/stops-for-route/\(shapeID).json"
             var fallbackQueryItems = apiKeyQueryItem
             fallbackQueryItems.append(URLQueryItem(name: "includePolylines", value: "true"))
-            fallbackComponents?.queryItems = fallbackQueryItems
             
-            if let fallbackURL = fallbackComponents?.url {
+            if let fallbackURL = try? buildURL(path: fallbackPath, queryItems: fallbackQueryItems) {
                 do {
                     let response: OBARawStopsForRouteResponse = try await get(url: fallbackURL)
                     // Merge all polylines into one points string if available
@@ -540,11 +494,8 @@ public final class OBAURLSessionAPIClient: OBAAPIClient {
     }
 
     public func fetchVehicle(vehicleID: String) async throws -> OBAVehicle {
-        var components = URLComponents(url: configuration.baseURL, resolvingAgainstBaseURL: false)
-        components?.path = "/api/where/vehicle/\(vehicleID).json"
-        components?.queryItems = apiKeyQueryItem
-
-        let url = try components?.url ?? { throw OBAAPIError.invalidURL }()
+        let path = "/api/where/vehicle/\(vehicleID).json"
+        let url = try buildURL(path: path, queryItems: apiKeyQueryItem)
         let response: OBARawListResponse<OBARawVehicleStatus> = try await get(url: url)
         
         // Handle potentially missing vehicle status in MTA response
@@ -552,31 +503,22 @@ public final class OBAURLSessionAPIClient: OBAAPIClient {
     }
 
     public func fetchTrip(tripID: OBATripID) async throws -> OBATripDetails {
-        var components = URLComponents(url: configuration.baseURL, resolvingAgainstBaseURL: false)
-        components?.path = "/api/where/trip/\(tripID).json"
-        components?.queryItems = apiKeyQueryItem
-
-        let url = try components?.url ?? { throw OBAAPIError.invalidURL }()
+        let path = "/api/where/trip/\(tripID).json"
+        let url = try buildURL(path: path, queryItems: apiKeyQueryItem)
         let response: OBARawListResponse<OBARawTripDetails> = try await get(url: url)
         return response.list.toDomain()
     }
 
     public func fetchTripForVehicle(vehicleID: String) async throws -> OBAVehicleTripStatus {
-        var components = URLComponents(url: configuration.baseURL, resolvingAgainstBaseURL: false)
-        components?.path = "/api/where/trip-for-vehicle/\(vehicleID).json"
-        components?.queryItems = apiKeyQueryItem
-
-        let url = try components?.url ?? { throw OBAAPIError.invalidURL }()
+        let path = "/api/where/trip-for-vehicle/\(vehicleID).json"
+        let url = try buildURL(path: path, queryItems: apiKeyQueryItem)
         let response: OBARawListResponse<OBAVehicleTripStatus> = try await get(url: url)
         return response.list
     }
 
     public func fetchTripDetails(tripID: OBATripID) async throws -> OBATripExtendedDetails {
-        var components = URLComponents(url: configuration.baseURL, resolvingAgainstBaseURL: false)
-        components?.path = "/api/where/trip-details/\(tripID).json"
-        components?.queryItems = apiKeyQueryItem
-
-        let url = try components?.url ?? { throw OBAAPIError.invalidURL }()
+        let path = "/api/where/trip-details/\(tripID).json"
+        let url = try buildURL(path: path, queryItems: apiKeyQueryItem)
         
         let response: OBARawTripDetailsResponse = try await get(url: url)
         
@@ -672,11 +614,9 @@ public final class OBAURLSessionAPIClient: OBAAPIClient {
     }
 
     public func fetchCurrentTime() async throws -> Date {
-        var components = URLComponents(url: configuration.baseURL, resolvingAgainstBaseURL: false)
-        components?.path = "/api/where/current-time.json"
-        components?.queryItems = apiKeyQueryItem
+        let path = "/api/where/current-time.json"
+        let url = try buildURL(path: path, queryItems: apiKeyQueryItem)
 
-        let url = try components?.url ?? { throw URLError(.badURL) }()
         // We only care about the top-level "currentTime" field in the JSON response,
         // but our generic `get` decodes a specific type.
         // Let's make a tiny local struct to capture the time.
@@ -700,16 +640,39 @@ public final class OBAURLSessionAPIClient: OBAAPIClient {
     }
 
     public func fetchVehiclesForAgency(agencyID: String) async throws -> [OBATripForLocation] {
-        var components = URLComponents(url: configuration.baseURL, resolvingAgainstBaseURL: false)
-        components?.path = "/api/where/vehicles-for-agency/\(agencyID).json"
-        components?.queryItems = apiKeyQueryItem
-
-        let url = try components?.url ?? { throw OBAAPIError.invalidURL }()
+        let path = "/api/where/vehicles-for-agency/\(agencyID).json"
+        let url = try buildURL(path: path, queryItems: apiKeyQueryItem)
         let response: OBARawTripsForLocationResponse = try await get(url: url)
         return response.toDomain()
     }
 
     // MARK: - Helpers
+
+    /// Correctly joins the base URL with a path and query items.
+    /// This handles regions that have a path suffix in their base URL (e.g., /api/).
+    private func buildURL(path: String, queryItems: [URLQueryItem]) throws -> URL {
+        let baseURLString = configuration.baseURL.absoluteString
+        let joinedURLString: String
+        
+        if baseURLString.hasSuffix("/") && path.hasPrefix("/") {
+            joinedURLString = baseURLString + String(path.dropFirst())
+        } else if !baseURLString.hasSuffix("/") && !path.hasPrefix("/") {
+            joinedURLString = baseURLString + "/" + path
+        } else {
+            joinedURLString = baseURLString + path
+        }
+        
+        guard var components = URLComponents(string: joinedURLString) else {
+            throw OBAAPIError.invalidURL
+        }
+        
+        components.queryItems = queryItems
+        guard let url = components.url else {
+            throw OBAAPIError.invalidURL
+        }
+        
+        return url
+    }
 
     private var apiKeyQueryItem: [URLQueryItem] {
         if let key = configuration.apiKey, !key.isEmpty {

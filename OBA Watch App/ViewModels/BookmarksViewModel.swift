@@ -10,18 +10,6 @@ import SwiftUI
 import Combine
 import OBAKitCore
 
-// Lightweight bookmark model for watchOS.
-// This is intentionally decoupled from OBAKitCore and mirrors
-// just the fields needed by the watch UI.
-struct WatchBookmark: Identifiable, Codable, Equatable {
-    let id: UUID
-    let stopID: OBAStopID
-    let name: String
-    let routeShortName: String?
-    let tripHeadsign: String?
-    let stop: OBAStop?
-}
-
 @MainActor
 class BookmarksViewModel: ObservableObject {
     @Published var bookmarks: [WatchBookmark] = []
@@ -44,7 +32,7 @@ class BookmarksViewModel: ObservableObject {
             .store(in: &cancellables)
     }
     
-    func loadBookmarks(from defaults: UserDefaults = .standard) {
+    func loadBookmarks(from defaults: UserDefaults = WatchAppState.userDefaults) {
         guard let data = defaults.data(forKey: storageKey) else {
             bookmarks = []
             return
@@ -93,7 +81,7 @@ class BookmarksViewModel: ObservableObject {
 
         do {
             let data = try JSONEncoder().encode(bookmarks)
-            UserDefaults.standard.set(data, forKey: storageKey)
+            WatchAppState.userDefaults.set(data, forKey: storageKey)
         } catch {
             errorMessage = "Failed to save bookmark."
         }

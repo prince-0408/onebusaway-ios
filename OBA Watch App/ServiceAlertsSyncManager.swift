@@ -17,9 +17,9 @@ final class ServiceAlertsSyncManager {
         
         do {
             let data = try JSONSerialization.data(withJSONObject: alerts, options: [])
-            let decodedAlerts = try decoder.decode([ServiceAlert].self, from: data)
+            let decodedAlerts = try decoder.decode([WatchServiceAlert].self, from: data)
             let encodedData = try encoder.encode(decodedAlerts)
-            UserDefaults.standard.set(encodedData, forKey: storageKey)
+            WatchAppState.userDefaults.set(encodedData, forKey: storageKey)
             NotificationCenter.default.post(name: Self.alertsUpdatedNotification, object: nil)
         } catch {
             print("Failed to sync service alerts: \(error.localizedDescription)")
@@ -27,16 +27,8 @@ final class ServiceAlertsSyncManager {
     }
 
     /// Retrieves the current list of service alerts.
-    func currentAlerts() -> [ServiceAlert] {
-        guard let data = UserDefaults.standard.data(forKey: storageKey) else { return [] }
-        return (try? JSONDecoder().decode([ServiceAlert].self, from: data)) ?? []
+    func currentAlerts() -> [WatchServiceAlert] {
+        guard let data = WatchAppState.userDefaults.data(forKey: storageKey) else { return [] }
+        return (try? JSONDecoder().decode([WatchServiceAlert].self, from: data)) ?? []
     }
-}
-
-struct ServiceAlert: Identifiable, Codable, Equatable {
-    let id: String
-    let title: String
-    let body: String?
-    let severity: String?
-    let url: String?
 }

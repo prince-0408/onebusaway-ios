@@ -1,7 +1,8 @@
 import SwiftUI
+import OBAKitCore
 
 struct AlarmsView: View {
-    @State private var alarms: [AlarmItem] = AlarmsSyncManager.shared.currentAlarms()
+    @State private var alarms: [WatchAlarmItem] = AlarmsSyncManager.shared.currentAlarms()
     var body: some View {
         List {
             if alarms.isEmpty {

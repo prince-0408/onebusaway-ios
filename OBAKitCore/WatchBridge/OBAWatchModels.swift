@@ -117,6 +117,8 @@ public struct OBAVehicle: Codable, Equatable, Sendable, Identifiable {
     public let phase: String?
     public let status: String?
     public let tripID: OBATripID?
+    public let routeShortName: String?
+    public let tripHeadsign: String?
 
     public init(
         id: String,
@@ -126,7 +128,9 @@ public struct OBAVehicle: Codable, Equatable, Sendable, Identifiable {
         longitude: Double? = nil,
         phase: String? = nil,
         status: String? = nil,
-        tripID: OBATripID? = nil
+        tripID: OBATripID? = nil,
+        routeShortName: String? = nil,
+        tripHeadsign: String? = nil
     ) {
         self.id = id
         self.lastUpdateTime = lastUpdateTime
@@ -136,6 +140,8 @@ public struct OBAVehicle: Codable, Equatable, Sendable, Identifiable {
         self.phase = phase
         self.status = status
         self.tripID = tripID
+        self.routeShortName = routeShortName
+        self.tripHeadsign = tripHeadsign
     }
 }
 
@@ -189,6 +195,61 @@ public struct OBATrip: Codable, Equatable, Sendable, Identifiable {
         self.id = id
         self.routeID = routeID
         self.headsign = headsign
+    }
+}
+
+/// A lightweight bookmark model for watchOS.
+public struct WatchBookmark: Identifiable, Codable, Equatable, Sendable {
+    public let id: UUID
+    public let stopID: OBAStopID
+    public let name: String
+    public let routeShortName: String?
+    public let tripHeadsign: String?
+    public let stop: OBAStop?
+
+    public init(id: UUID, stopID: OBAStopID, name: String, routeShortName: String? = nil, tripHeadsign: String? = nil, stop: OBAStop? = nil) {
+        self.id = id
+        self.stopID = stopID
+        self.name = name
+        self.routeShortName = routeShortName
+        self.tripHeadsign = tripHeadsign
+        self.stop = stop
+    }
+}
+
+/// A lightweight alarm model for watchOS.
+public struct WatchAlarmItem: Identifiable, Codable, Equatable, Sendable {
+    public let id: String
+    public let stopID: OBAStopID
+    public let routeShortName: String?
+    public let headsign: String?
+    public let scheduledTime: Date?
+    public let status: String?
+
+    public init(id: String, stopID: OBAStopID, routeShortName: String? = nil, headsign: String? = nil, scheduledTime: Date? = nil, status: String? = nil) {
+        self.id = id
+        self.stopID = stopID
+        self.routeShortName = routeShortName
+        self.headsign = headsign
+        self.scheduledTime = scheduledTime
+        self.status = status
+    }
+}
+
+/// A lightweight service alert model for watchOS.
+public struct WatchServiceAlert: Identifiable, Codable, Equatable, Sendable {
+    public let id: String
+    public let title: String
+    public let body: String?
+    public let severity: String?
+    public let url: String?
+
+    public init(id: String, title: String, body: String? = nil, severity: String? = nil, url: String? = nil) {
+        self.id = id
+        self.title = title
+        self.body = body
+        self.severity = severity
+        self.url = url
     }
 }
 

@@ -8,6 +8,13 @@
 //
 
 import Foundation
+
+extension NSNotification.Name {
+    public static let OBABookmarksUpdated = NSNotification.Name("OBABookmarksUpdatedNotification")
+    public static let OBAAlarmsUpdated = NSNotification.Name("OBAAlarmsUpdatedNotification")
+    public static let OBAServiceAlertsUpdated = NSNotification.Name("OBAServiceAlertsUpdatedNotification")
+}
+
 #if !os(watchOS)
 import MapKit
 #endif
@@ -360,6 +367,7 @@ public class UserDefaultsStore: NSObject, UserDataStore, StopPreferencesStore {
         }
         set {
             try! encodeUserDefaultsObjects(newValue, key: UserDefaultsKeys.bookmarks) // swiftlint:disable:this force_try
+            NotificationCenter.default.post(name: .OBABookmarksUpdated, object: self)
         }
     }
 
@@ -616,6 +624,7 @@ public class UserDefaultsStore: NSObject, UserDataStore, StopPreferencesStore {
         }
         set {
             try! encodeUserDefaultsObjects(newValue, key: UserDefaultsKeys.alarms) // swiftlint:disable:this force_try
+            NotificationCenter.default.post(name: .OBAAlarmsUpdated, object: self)
         }
     }
 

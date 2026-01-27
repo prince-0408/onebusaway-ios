@@ -20,6 +20,13 @@
 	<string>1.0</string>
 	<key>CFBundleVersion</key>
 	<string>1</string>
+	<key>OBAKitConfig</key>
+	<dict>
+		<key>AppGroup</key>
+		<string>group.org.onebusaway.iphone</string>
+		<key>RESTServerAPIKey</key>
+		<string>org.onebusaway.iphone</string>
+	</dict>
 	<key>WKApplication</key>
 	<true/>
 	<key>WKCompanionAppBundleIdentifier</key>

@@ -15,12 +15,23 @@ final class BookmarksSyncManager {
 
     /// Updates local bookmarks from data received via WatchConnectivity.
     func updateBookmarks(_ bookmarks: [[String: Any]]) {
-        UserDefaults.standard.set(bookmarks, forKey: storageKey)
-        NotificationCenter.default.post(name: Self.bookmarksUpdatedNotification, object: nil)
+        do {
+            let data = try JSONSerialization.data(withJSONObject: bookmarks, options: [])
+            // We decode to [WatchBookmark] first to ensure compatibility, then encode back to Data
+            // to match what BookmarksViewModel expects.
+            let decoded = try JSONDecoder().decode([WatchBookmark].self, from: data)
+            let encodedData = try JSONEncoder().encode(decoded)
+            
+            WatchAppState.userDefaults.set(encodedData, forKey: storageKey)
+            NotificationCenter.default.post(name: Self.bookmarksUpdatedNotification, object: nil)
+        } catch {
+            print("Failed to sync bookmarks: \(error.localizedDescription)")
+        }
     }
 
     /// Retrieves the current list of bookmarks.
-    func getBookmarks() -> [[String: Any]] {
-        return UserDefaults.standard.array(forKey: storageKey) as? [[String: Any]] ?? []
+    func getBookmarks() -> [WatchBookmark] {
+        guard let data = WatchAppState.userDefaults.data(forKey: storageKey) else { return [] }
+        return (try? JSONDecoder().decode([WatchBookmark].self, from: data)) ?? []
     }
 }

@@ -13,7 +13,7 @@ import OBAKitCore
 class RecentStopsViewModel: ObservableObject {
     @Published var recentStops: [OBAStop] = []
     
-    private let storage = UserDefaults.standard
+    private let storage = WatchAppState.userDefaults
     private let storageKey = "OBASharedRecentStops"
     
     init() {

@@ -6,6 +6,7 @@ struct RouteDetailView: View {
     let route: OBARoute
 
     @StateObject private var viewModel: RouteDetailViewModel
+    @EnvironmentObject var appState: WatchAppState
 
     init(route: OBARoute) {
         self.route = route
@@ -18,7 +19,10 @@ struct RouteDetailView: View {
     var body: some View {
         List {
             if !viewModel.shapeCoordinates.isEmpty {
-                RouteShapeMapView(coordinates: viewModel.shapeCoordinates)
+                RouteShapeMapView(
+                    coordinates: viewModel.shapeCoordinates,
+                    mapStyle: appState.mapStyle
+                )
                     .frame(maxWidth: .infinity)
                     .frame(height: 140)
                     .clipShape(RoundedRectangle(cornerRadius: 16))
