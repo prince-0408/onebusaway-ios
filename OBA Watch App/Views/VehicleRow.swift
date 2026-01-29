@@ -58,6 +58,12 @@ struct VehicleRow: View {
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundColor(.white)
                     .lineLimit(2)
+                
+                if let status = status, !status.isEmpty {
+                    Text(status.capitalized)
+                        .font(.system(size: 12))
+                        .foregroundColor(statusColor(status))
+                }
             }
             
             Spacer()
@@ -71,6 +77,14 @@ struct VehicleRow: View {
         }
         .padding(.vertical, 6)
         .padding(.horizontal, 2)
+    }
+    
+    private func statusColor(_ status: String) -> Color {
+        let s = status.lowercased()
+        if s.contains("on time") || s.contains("on_time") { return .green }
+        if s.contains("late") || s.contains("delayed") { return .red }
+        if s.contains("early") { return .yellow }
+        return .secondary
     }
     
     private func formatTime(_ date: Date) -> String {

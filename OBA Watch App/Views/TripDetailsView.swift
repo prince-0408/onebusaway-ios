@@ -17,18 +17,21 @@ struct TripDetailsView: View {
     let vehicleID: String?
     let routeShortName: String?
     let headsign: String?
+    let initialTrip: OBATripForLocation?
     
     @State private var mapPosition: MapCameraPosition = .automatic
     
-    init(tripID: String, vehicleID: String? = nil, routeShortName: String? = nil, headsign: String? = nil) {
+    init(tripID: String, vehicleID: String? = nil, routeShortName: String? = nil, headsign: String? = nil, initialTrip: OBATripForLocation? = nil) {
         self.tripID = tripID
         self.vehicleID = vehicleID
         self.routeShortName = routeShortName
         self.headsign = headsign
+        self.initialTrip = initialTrip
         _viewModel = StateObject(wrappedValue: TripDetailsViewModel(
             apiClient: WatchAppState.shared.apiClient,
             tripID: tripID,
-            vehicleID: vehicleID
+            vehicleID: vehicleID,
+            initialTrip: initialTrip
         ))
     }
     
@@ -143,9 +146,17 @@ struct TripDetailsView: View {
                             Text(deviationString(seconds: deviation))
                                 .font(.system(size: 12))
                                 .foregroundColor(deviationColor(seconds: deviation))
+                        } else if status.predicted == true || status.lastUpdateTime != nil {
+                            Text("On time")
+                                .font(.system(size: 12))
+                                .foregroundColor(.green)
+                        } else {
+                            Text("Scheduled")
+                                .font(.system(size: 12))
+                                .foregroundColor(.secondary)
                         }
                         
-                        if status.scheduleDeviation != nil && status.lastUpdateTime != nil {
+                        if (status.scheduleDeviation != nil || status.predicted != nil || status.lastUpdateTime != nil) && status.lastUpdateTime != nil {
                             Text("•")
                                 .font(.system(size: 12))
                                 .foregroundColor(.secondary)

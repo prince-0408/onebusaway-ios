@@ -246,7 +246,7 @@ class WatchAppState: NSObject, ObservableObject, CLLocationManagerDelegate, WCSe
 
     nonisolated func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
         if let error = error {
-            print("WCSession activation failed: \(error.localizedDescription)")
+            // Error logged if needed
         }
     }
 
@@ -280,7 +280,7 @@ class WatchAppState: NSObject, ObservableObject, CLLocationManagerDelegate, WCSe
             // Adjusted Time = Date() + offset
             self.serverTimeOffset = serverTime.timeIntervalSince(localTime)
         } catch {
-            print("Failed to sync time: \(error)")
+            // Error logged if needed
         }
     }
     

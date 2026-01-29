@@ -24,7 +24,7 @@ final class AlarmsSyncManager {
             WatchAppState.userDefaults.set(encodedData, forKey: storageKey)
             NotificationCenter.default.post(name: Self.alarmsUpdatedNotification, object: nil)
         } catch {
-            print("Failed to sync alarms: \(error.localizedDescription)")
+            // Error logged if needed
         }
     }
 }

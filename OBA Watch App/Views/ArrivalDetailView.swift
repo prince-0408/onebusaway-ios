@@ -70,7 +70,8 @@ struct ArrivalDetailView: View {
                         tripID: arrival.tripID,
                         vehicleID: arrival.vehicleID,
                         routeShortName: arrival.routeShortName,
-                        headsign: arrival.headsign
+                        headsign: arrival.headsign,
+                        initialTrip: arrival.toTripForLocation()
                     )
                 } label: {
                     HStack(spacing: 6) {

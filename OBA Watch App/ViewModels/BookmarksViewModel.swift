@@ -41,14 +41,8 @@ class BookmarksViewModel: ObservableObject {
         do {
             let decoder = JSONDecoder()
             let decoded = try decoder.decode([WatchBookmark].self, from: data)
-            print("Successfully decoded \(decoded.count) bookmarks.")
             bookmarks = decoded.sorted { $0.name < $1.name }
         } catch {
-            print("Failed to decode bookmarks: \(error)")
-            // Try to see if we can decode anything from the data to help debugging
-            if let json = try? JSONSerialization.jsonObject(with: data, options: []) {
-                print("Raw JSON that failed to decode: \(json)")
-            }
             bookmarks = []
             errorMessage = "Failed to load bookmarks."
         }

@@ -34,14 +34,11 @@ final class RouteDetailViewModel: ObservableObject {
                     shapeCoordinates = PolylineDecoder.decode(encodedPolyline: encoded)
                 }
             } catch {
-                print("Note: Could not load route shape: \(error)")
                 // We don't set errorMessage here because stops are more important
             }
         } catch let apiError as OBAAPIError {
-            print("API Error loading route stops: \(apiError)")
             errorMessage = apiError.errorDescription ?? "API Error"
         } catch {
-            print("Error loading route stops: \(error)")
             if let urlError = error as? URLError {
                 errorMessage = "Network error: \(urlError.localizedDescription)"
             } else if error is DecodingError {

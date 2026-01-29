@@ -57,7 +57,7 @@ final class VehicleSearchViewModel: ObservableObject {
         }
 
         do {
-            let span = 0.05
+            let span = 0.015
             let vehicles = try await apiClient.fetchVehiclesReliably(
                 latitude: searchLocation!.coordinate.latitude,
                 longitude: searchLocation!.coordinate.longitude,
@@ -110,7 +110,6 @@ final class VehicleSearchViewModel: ObservableObject {
                             }
                         }
                     } catch {
-                        print("Geocoding failed for '\(trimmed)': \(error.localizedDescription). Attempting MKLocalSearch.")
                         // Geocoding failed, try to get agency coverage for default location
                         agencies = try await apiClient.fetchAgenciesWithCoverage()
                         if let agencyBound = agencies?.first?.agencyRegionBound {
@@ -159,21 +158,13 @@ final class VehicleSearchViewModel: ObservableObject {
                 } else {
                     // If MKLocalSearch failed or no location found, treat as vehicle ID
                     do {
-                        print("Fetching vehicle with ID: \(trimmed)")
                         let v = try await apiClient.fetchVehicle(vehicleID: trimmed)
                         await MainActor.run {
                             self.vehicle = v
                             self.errorMessage = nil
-                            print("Successfully fetched vehicle: \(v)")
                         }
                     } catch {
                         await MainActor.run {
-                            if let decodingError = error as? DecodingError {
-                                print("Decoding error (likely 404/Null response): \(decodingError)")
-                            } else {
-                                print("Error fetching vehicle: \(error)")
-                            }
-
                             if let urlError = error as? URLError {
                                 switch urlError.code {
                                 case .notConnectedToInternet, .networkConnectionLost:

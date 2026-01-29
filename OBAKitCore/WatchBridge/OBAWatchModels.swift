@@ -120,6 +120,23 @@ public struct OBAVehicle: Codable, Equatable, Sendable, Identifiable {
     public let routeShortName: String?
     public let tripHeadsign: String?
 
+    public func toTripForLocation() -> OBATripForLocation? {
+        guard let tID = tripID else { return nil }
+        return OBATripForLocation(
+            id: tID,
+            vehicleID: id,
+            latitude: latitude,
+            longitude: longitude,
+            orientation: nil,
+            routeID: nil,
+            routeShortName: routeShortName,
+            tripHeadsign: tripHeadsign,
+            lastUpdateTime: lastUpdateTime,
+            scheduleDeviation: nil,
+            predicted: nil
+        )
+    }
+
     public init(
         id: String,
         lastUpdateTime: Date? = nil,
@@ -352,6 +369,7 @@ public struct OBAVehicleTripStatus: Codable, Equatable, Sendable {
         public let vehicleID: String?
         public let closestStop: OBAStopID?
         public let nextStop: OBAStopID?
+        public let predicted: Bool?
         
         public let lastLocationUpdateTime: Date?
         public let lastUpdateTime: Date?
@@ -377,13 +395,14 @@ public struct OBAVehicleTripStatus: Codable, Equatable, Sendable {
             case vehicleID = "vehicleId"
             case closestStop
             case nextStop
+            case predicted
             case lastLocationUpdateTime
             case lastUpdateTime
             case position
             case orientation
         }
 
-        public init(activeTripID: OBATripID?, blockTripSequence: Int?, serviceDate: Date?, scheduleDeviation: Int?, vehicleID: String?, closestStop: OBAStopID?, nextStop: OBAStopID?, lastLocationUpdateTime: Date?, lastUpdateTime: Date?, position: Position?, orientation: Double?) {
+        public init(activeTripID: OBATripID?, blockTripSequence: Int?, serviceDate: Date?, scheduleDeviation: Int?, vehicleID: String?, closestStop: OBAStopID?, nextStop: OBAStopID?, predicted: Bool?, lastLocationUpdateTime: Date?, lastUpdateTime: Date?, position: Position?, orientation: Double?) {
             self.activeTripID = activeTripID
             self.blockTripSequence = blockTripSequence
             self.serviceDate = serviceDate
@@ -391,6 +410,7 @@ public struct OBAVehicleTripStatus: Codable, Equatable, Sendable {
             self.vehicleID = vehicleID
             self.closestStop = closestStop
             self.nextStop = nextStop
+            self.predicted = predicted
             self.lastLocationUpdateTime = lastLocationUpdateTime
             self.lastUpdateTime = lastUpdateTime
             self.position = position
@@ -406,6 +426,7 @@ public struct OBAVehicleTripStatus: Codable, Equatable, Sendable {
             vehicleID = try container.decodeIfPresent(String.self, forKey: .vehicleID)
             closestStop = try container.decodeIfPresent(OBAStopID.self, forKey: .closestStop)
             nextStop = try container.decodeIfPresent(OBAStopID.self, forKey: .nextStop)
+            predicted = try container.decodeIfPresent(Bool.self, forKey: .predicted)
             lastLocationUpdateTime = try container.decodeIfPresent(Date.self, forKey: .lastLocationUpdateTime)
             lastUpdateTime = try container.decodeIfPresent(Date.self, forKey: .lastUpdateTime)
             position = try container.decodeIfPresent(Position.self, forKey: .position)
@@ -439,6 +460,25 @@ public struct OBATripForLocation: Codable, Equatable, Sendable, Identifiable {
     public let routeShortName: String?
     public let tripHeadsign: String?
     public let lastUpdateTime: Date?
+    public let scheduleDeviation: Int?
+    public let predicted: Bool?
+
+    public var toStatus: OBAVehicleTripStatus.Status {
+        OBAVehicleTripStatus.Status(
+            activeTripID: id,
+            blockTripSequence: nil,
+            serviceDate: nil,
+            scheduleDeviation: scheduleDeviation,
+            vehicleID: vehicleID,
+            closestStop: nil,
+            nextStop: nil,
+            predicted: predicted,
+            lastLocationUpdateTime: lastUpdateTime,
+            lastUpdateTime: lastUpdateTime,
+            position: (latitude != nil && longitude != nil) ? .init(lat: latitude!, lon: longitude!) : nil,
+            orientation: orientation
+        )
+    }
 
     public init(
         id: String,
@@ -449,7 +489,9 @@ public struct OBATripForLocation: Codable, Equatable, Sendable, Identifiable {
         routeID: String?,
         routeShortName: String?,
         tripHeadsign: String?,
-        lastUpdateTime: Date?
+        lastUpdateTime: Date?,
+        scheduleDeviation: Int? = nil,
+        predicted: Bool? = nil
     ) {
         self.id = id
         self.vehicleID = vehicleID
@@ -460,6 +502,8 @@ public struct OBATripForLocation: Codable, Equatable, Sendable, Identifiable {
         self.routeShortName = routeShortName
         self.tripHeadsign = tripHeadsign
         self.lastUpdateTime = lastUpdateTime
+        self.scheduleDeviation = scheduleDeviation
+        self.predicted = predicted
     }
 }
 
@@ -488,6 +532,22 @@ public struct OBAArrival: Codable, Equatable, Sendable, Identifiable {
     /// Coarse schedule status (early / on-time / delayed / unknown),
     /// mirroring ``ScheduleStatus`` from the iOS ArrivalDeparture model.
     public let scheduleStatus: OBAScheduleStatus
+
+    public func toTripForLocation() -> OBATripForLocation {
+        OBATripForLocation(
+            id: tripID,
+            vehicleID: vehicleID ?? "",
+            latitude: nil,
+            longitude: nil,
+            orientation: nil,
+            routeID: routeID,
+            routeShortName: routeShortName,
+            tripHeadsign: headsign,
+            lastUpdateTime: nil,
+            scheduleDeviation: nil,
+            predicted: isPredicted
+        )
+    }
 
     public init(
         id: String,

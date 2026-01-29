@@ -697,6 +697,8 @@ struct OBARawTripsForLocationResponse: Decodable, Sendable {
         let routeId: String?
         let routeShortName: String?
         let tripHeadsign: String?
+        let scheduleDeviation: Int?
+        let predicted: Bool?
 
         private enum CodingKeys: String, CodingKey {
             case tripId
@@ -707,6 +709,8 @@ struct OBARawTripsForLocationResponse: Decodable, Sendable {
             case routeId
             case routeShortName
             case tripHeadsign
+            case scheduleDeviation
+            case predicted
         }
 
         init(from decoder: Decoder) throws {
@@ -719,6 +723,8 @@ struct OBARawTripsForLocationResponse: Decodable, Sendable {
             self.routeId = try container.decodeIfPresent(String.self, forKey: .routeId)
             self.routeShortName = try container.decodeIfPresent(String.self, forKey: .routeShortName)
             self.tripHeadsign = try container.decodeIfPresent(String.self, forKey: .tripHeadsign)
+            self.scheduleDeviation = try container.decodeIfPresent(Int.self, forKey: .scheduleDeviation)
+            self.predicted = try container.decodeIfPresent(Bool.self, forKey: .predicted)
         }
 
         struct Location: Decodable, Sendable {
@@ -754,7 +760,9 @@ struct OBARawTripsForLocationResponse: Decodable, Sendable {
                 routeID: raw.routeId,
                 routeShortName: routeShortName,
                 tripHeadsign: tripHeadsign,
-                lastUpdateTime: raw.lastUpdateTime
+                lastUpdateTime: raw.lastUpdateTime,
+                scheduleDeviation: raw.scheduleDeviation,
+                predicted: raw.predicted
             )
         }
     }

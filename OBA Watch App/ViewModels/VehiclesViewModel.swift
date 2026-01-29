@@ -24,9 +24,7 @@ final class VehiclesViewModel: ObservableObject {
         errorMessage = nil
         defer { isLoading = false }
         do {
-            let span = 0.05 // Adjusted span to ~5km, more standard for many OBA instances
-            print("Fetching vehicles for location: \(loc.coordinate.latitude), \(loc.coordinate.longitude) with span \(span)")
-            
+            let span = 0.015 // ~1.5km span, better for trips-for-location compatibility
             let result = try await apiClient.fetchVehiclesReliably(
                 latitude: loc.coordinate.latitude,
                 longitude: loc.coordinate.longitude,
@@ -34,11 +32,8 @@ final class VehiclesViewModel: ObservableObject {
                 lonSpan: span
             )
             
-            print("Fetched \(result.count) vehicles (with fallback support)")
-            
             trips = result.sorted { ($0.lastUpdateTime ?? .distantPast) > ($1.lastUpdateTime ?? .distantPast) }
         } catch {
-            print("Error fetching vehicles: \(error)")
             errorMessage = error.localizedDescription
         }
     }

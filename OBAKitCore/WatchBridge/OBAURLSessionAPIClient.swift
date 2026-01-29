@@ -270,7 +270,7 @@ public final class OBAURLSessionAPIClient: OBAAPIClient {
                     
                     return OBAArrivalsResult(arrivals: arrivals, routes: routes, stopName: stopName, stopCode: stopCode, stopDirection: stopDirection)
                 } catch {
-                    print("Fallback 1 (query param) for arrivals-and-departures-for-stop failed: \(error)")
+                    // Fallback failed
                 }
             }
 
@@ -288,7 +288,7 @@ public final class OBAURLSessionAPIClient: OBAAPIClient {
                     // If we reach here, we have routes and stop name, but no arrivals (since we only called stop API)
                     return OBAArrivalsResult(arrivals: [], routes: routes, stopName: stopName, stopCode: stopCode, stopDirection: stopDirection)
                 } catch {
-                    print("Fallback 2 (stop API) for arrivals-and-departures-for-stop failed: \(error)")
+                    // Fallback failed
                 }
             }
             
@@ -349,7 +349,7 @@ public final class OBAURLSessionAPIClient: OBAAPIClient {
                     let response: OBARawRoutesForStopResponse = try await get(url: fallbackURL)
                     return response.toDomainRoutes()
                 } catch {
-                    print("Fallback 1 (query param) for routes-for-stop failed: \(error)")
+                    // Fallback failed
                 }
             }
 
@@ -360,7 +360,7 @@ public final class OBAURLSessionAPIClient: OBAAPIClient {
                     let response: OBARawStopResponse = try await get(url: stopURL)
                     return response.toDomainRoutes()
                 } catch {
-                    print("Fallback 2 (stop API) for routes-for-stop failed: \(error)")
+                    // Fallback failed
                 }
             }
 
@@ -380,7 +380,7 @@ public final class OBAURLSessionAPIClient: OBAAPIClient {
                         }
                     }
                 } catch {
-                    print("Fallback 3 (arrivals API) for routes-for-stop failed: \(error)")
+                    // Fallback failed
                 }
             }
             
@@ -432,7 +432,7 @@ public final class OBAURLSessionAPIClient: OBAAPIClient {
                     let response: OBARawStopsForRouteResponse = try await get(url: fallbackURL)
                     return response.data.toDomainDirections()
                 } catch {
-                    print("Fallback for stops-for-route failed: \(error)")
+                    // Fallback failed
                 }
             }
             throw error
@@ -449,7 +449,6 @@ public final class OBAURLSessionAPIClient: OBAAPIClient {
         } catch {
             // MTA doesn't always support schedule-for-route. 
             // Return the routeID as a 'pseudo' shapeID so fetchShape can fall back to stops-for-route
-            print("schedule-for-route failed for \(routeID), using routeID as pseudo-shapeID: \(error)")
             return routeID
         }
     }
@@ -486,7 +485,7 @@ public final class OBAURLSessionAPIClient: OBAAPIClient {
                         return points
                     }
                 } catch {
-                    print("Fallback for shape (\(shapeID)) using stops-for-route failed: \(error)")
+                    // Fallback failed
                 }
             }
             throw error
@@ -545,10 +544,6 @@ public final class OBAURLSessionAPIClient: OBAAPIClient {
                 // Fallback to raw stop name from references
                 if name == nil || name!.isEmpty {
                     name = rawStop?.name
-                }
-                
-                if name == nil || name!.isEmpty {
-                    print("DEBUG: Missing name for stop \(stopTime.stopId ?? "unknown")")
                 }
                 
                 return OBATripExtendedDetails.StopTime(

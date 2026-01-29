@@ -79,7 +79,8 @@ struct VehiclesView: View {
                             tripID: trip.id,
                             vehicleID: trip.vehicleID,
                             routeShortName: trip.routeShortName,
-                            headsign: trip.tripHeadsign
+                            headsign: trip.tripHeadsign,
+                            initialTrip: trip
                         )
                     } label: {
                         VehicleRow(
@@ -87,7 +88,7 @@ struct VehiclesView: View {
                             routeShortName: trip.routeShortName,
                             tripHeadsign: trip.tripHeadsign,
                             lastUpdateTime: trip.lastUpdateTime,
-                            status: nil as String?,
+                            status: vehicleStatus(trip),
                             phase: nil as String?,
                             tripID: trip.id,
                             latitude: trip.latitude,
@@ -103,6 +104,20 @@ struct VehiclesView: View {
                 Text("Nearby Vehicles")
             }
         }
+    }
+    
+    private func vehicleStatus(_ trip: OBATripForLocation) -> String? {
+        if let deviation = trip.scheduleDeviation {
+            let minutes = abs(deviation) / 60
+            if deviation == 0 { return "On time" }
+            let label = deviation > 0 ? "late" : "early"
+            return "\(minutes)m \(label)"
+        } else if trip.predicted == true || trip.lastUpdateTime != nil {
+            return "On time"
+        } else if trip.predicted == false {
+            return "Scheduled"
+        }
+        return nil
     }
 }
 
