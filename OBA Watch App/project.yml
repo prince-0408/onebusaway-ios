@@ -27,4 +27,4 @@ targets:
         WATCHOS_DEPLOYMENT_TARGET: "11.0"
         INFOPLIST_KEY_WKCompanionAppBundleIdentifier: org.onebusaway.iphone
     dependencies:
-      - target: OBAKitCoreWatch
+      - target: OBAKitCore
