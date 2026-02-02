@@ -25,7 +25,7 @@ final class BookmarksSyncManager {
             WatchAppState.userDefaults.set(encodedData, forKey: storageKey)
             NotificationCenter.default.post(name: Self.bookmarksUpdatedNotification, object: nil)
         } catch {
-            // Error logged if needed
+            Logger.error("updateBookmarks failed: \(error.localizedDescription)")
         }
     }
 

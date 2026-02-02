@@ -185,7 +185,7 @@ public extension OBAAPIClient {
             )
             addUnique(result)
         } catch {
-            // Error logged if needed
+            Logger.error("fetchTripsForLocation failed: \(error.localizedDescription)")
         }
         
         if !allVehicles.isEmpty && hasAnyLocation {
@@ -208,6 +208,7 @@ public extension OBAAPIClient {
                         do {
                             return try await self.fetchTripsForRoute(routeID: route.id)
                         } catch {
+                            Logger.error("fetchTripsForRoute failed for \(route.id): \(error.localizedDescription)")
                             return []
                         }
                     }
@@ -222,7 +223,7 @@ public extension OBAAPIClient {
             
             addUnique(routeTrips)
         } catch {
-            // Error logged if needed
+            Logger.error("searchRoutes failed: \(error.localizedDescription)")
         }
         
         if !allVehicles.isEmpty && hasAnyLocation {
@@ -245,6 +246,7 @@ public extension OBAAPIClient {
                         do {
                             return try await self.fetchVehiclesForAgency(agencyID: agency.agencyID)
                         } catch {
+                            Logger.error("fetchVehiclesForAgency failed for \(agency.agencyID): \(error.localizedDescription)")
                             return []
                         }
                     }
@@ -259,7 +261,7 @@ public extension OBAAPIClient {
             
             addUnique(agencyVehicles, filterByLocation: true)
         } catch {
-            // Error logged if needed
+            Logger.error("fetchAgenciesWithCoverage failed: \(error.localizedDescription)")
         }
         
         return allVehicles

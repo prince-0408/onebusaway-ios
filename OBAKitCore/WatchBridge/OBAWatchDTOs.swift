@@ -111,6 +111,10 @@ struct OBARawArrival: Decodable, Sendable {
             status = .delayed
         }
 
+        if self.stopID == nil || self.tripID == nil || self.routeID == nil {
+            Logger.error("OBARawArrival missing critical IDs: stopID=\(String(describing: self.stopID)), tripID=\(String(describing: self.tripID)), routeID=\(String(describing: self.routeID))")
+        }
+
         let stopID = self.stopID ?? ""
         let tripID = self.tripID ?? ""
         let routeID = self.routeID ?? ""
@@ -269,7 +273,10 @@ struct OBARawVehicleStatus: Decodable, Sendable {
     }
 
     func toDomainVehicle() -> OBAVehicle {
-        OBAVehicle(
+        if vehicleID == nil {
+            Logger.error("OBARawVehicleStatus missing vehicleID")
+        }
+        return OBAVehicle(
             id: vehicleID ?? "unknown",
             lastUpdateTime: lastUpdateTime,
             lastLocationUpdateTime: lastLocationUpdateTime,
@@ -468,18 +475,23 @@ struct OBARawStopResponse: Decodable, Sendable {
     let data: Data
 
     func toDomainStop() -> OBAStop {
-        let stopID = data.entry?.id ?? data.stop?.id ?? data.id ?? "unknown"
-        let name = data.entry?.name ?? data.stop?.name ?? data.name ?? "Unknown"
-        let lat = data.entry?.lat ?? data.stop?.lat ?? data.lat ?? 0.0
-        let lon = data.entry?.lon ?? data.stop?.lon ?? data.lon ?? 0.0
+        let stopID = data.entry?.id ?? data.stop?.id ?? data.id
+        let name = data.entry?.name ?? data.stop?.name ?? data.name
+        let lat = data.entry?.lat ?? data.stop?.lat ?? data.lat
+        let lon = data.entry?.lon ?? data.stop?.lon ?? data.lon
+        
+        if stopID == nil || name == nil || lat == nil || lon == nil {
+            Logger.error("OBARawStopResponse missing critical data: id=\(String(describing: stopID)), name=\(String(describing: name)), lat=\(String(describing: lat)), lon=\(String(describing: lon))")
+        }
+
         let code = data.entry?.code ?? data.stop?.code ?? data.code
         let direction = data.entry?.direction ?? data.stop?.direction ?? data.direction
         
         return OBAStop(
-            id: stopID,
-            name: name,
-            latitude: lat,
-            longitude: lon,
+            id: stopID ?? "unknown",
+            name: name ?? "Unknown",
+            latitude: lat ?? 0.0,
+            longitude: lon ?? 0.0,
             code: code,
             direction: direction
         )
@@ -518,7 +530,10 @@ struct OBARawTripDetails: Decodable, Sendable {
     }
 
     func toDomain() -> OBATripDetails {
-        OBATripDetails(
+        if id == nil || routeID == nil {
+            Logger.error("OBARawTripDetails missing critical IDs: id=\(String(describing: id)), routeID=\(String(describing: routeID))")
+        }
+        return OBATripDetails(
             id: id ?? "unknown",
             routeID: routeID ?? "unknown",
             headsign: tripHeadsign,

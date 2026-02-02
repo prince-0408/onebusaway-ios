@@ -22,7 +22,7 @@ final class ServiceAlertsSyncManager {
             WatchAppState.userDefaults.set(encodedData, forKey: storageKey)
             NotificationCenter.default.post(name: Self.alertsUpdatedNotification, object: nil)
         } catch {
-            // Error logged if needed
+            Logger.error("updateAlerts failed: \(error.localizedDescription)")
         }
     }
 

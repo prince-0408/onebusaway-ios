@@ -669,12 +669,17 @@ public struct OBAStopProblemReport: Sendable {
     public let stopID: OBAStopID
     public let code: String
     public let comment: String?
-    public let location: CLLocation?
+    public let locationLatitude: Double?
+    public let locationLongitude: Double?
+    public let locationHorizontalAccuracy: Double?
+
     public init(stopID: OBAStopID, code: String, comment: String? = nil, location: CLLocation? = nil) {
         self.stopID = stopID
         self.code = code
         self.comment = comment
-        self.location = location
+        self.locationLatitude = location?.coordinate.latitude
+        self.locationLongitude = location?.coordinate.longitude
+        self.locationHorizontalAccuracy = location?.horizontalAccuracy
     }
 }
 
@@ -686,7 +691,10 @@ public struct OBATripProblemReport: Sendable {
     public let code: String
     public let comment: String?
     public let userOnVehicle: Bool
-    public let location: CLLocation?
+    public let locationLatitude: Double?
+    public let locationLongitude: Double?
+    public let locationHorizontalAccuracy: Double?
+
     public init(tripID: String, serviceDate: Date, vehicleID: String? = nil, stopID: OBAStopID? = nil, code: String, comment: String? = nil, userOnVehicle: Bool, location: CLLocation? = nil) {
         self.tripID = tripID
         self.serviceDate = serviceDate
@@ -695,6 +703,8 @@ public struct OBATripProblemReport: Sendable {
         self.code = code
         self.comment = comment
         self.userOnVehicle = userOnVehicle
-        self.location = location
+        self.locationLatitude = location?.coordinate.latitude
+        self.locationLongitude = location?.coordinate.longitude
+        self.locationHorizontalAccuracy = location?.horizontalAccuracy
     }
 }
