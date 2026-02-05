@@ -265,8 +265,12 @@ struct StopRow: View {
             // Content Card
              VStack(alignment: .leading, spacing: 2) {
                  HStack(alignment: .top) {
-                     let name = stopTime.stopHeadsign
-                     let displayName = (name != nil && !name!.isEmpty) ? name! : "Stop \(stopTime.stopId?.components(separatedBy: "_").last ?? "Unknown")"
+                     let displayName: String = {
+                         if let name = stopTime.stopHeadsign, !name.isEmpty {
+                             return name
+                         }
+                         return "Stop \(stopTime.stopId?.components(separatedBy: "_").last ?? "Unknown")"
+                     }()
                      
                      Text(displayName)
                          .font(.system(size: 15, weight: .semibold))

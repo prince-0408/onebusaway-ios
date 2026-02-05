@@ -254,7 +254,8 @@ public final class OBAURLSessionAPIClient: OBAAPIClient {
                 URLQueryItem(name: "minutesAfter", value: String(configuration.minutesAfterArrivals))
             ]
             
-            if let fallbackURL = try? buildURL(path: fallbackPath, queryItems: fallbackQueryItems) {
+            do {
+                let fallbackURL = try buildURL(path: fallbackPath, queryItems: fallbackQueryItems)
                 do {
                     let response: OBARawListResponse<[OBARawArrival]> = try await get(url: fallbackURL)
                     let now = Date()
@@ -278,13 +279,14 @@ public final class OBAURLSessionAPIClient: OBAAPIClient {
                 } catch {
                     Logger.error("Arrivals fallback 1 failed: \(error.localizedDescription)")
                 }
-            } else {
-                Logger.error("Failed to build URL for arrivals fallback 1")
+            } catch {
+                Logger.error("Failed to build URL for arrivals fallback 1: \(error.localizedDescription)")
             }
 
             // Fallback 2: try stop/[ID].json to at least get routes and stop name if arrivals fail
             let stopPath = "/api/where/stop/\(stopID).json"
-            if let stopURL = try? buildURL(path: stopPath, queryItems: apiKeyQueryItem) {
+            do {
+                let stopURL = try buildURL(path: stopPath, queryItems: apiKeyQueryItem)
                 do {
                     let response: OBARawStopResponse = try await get(url: stopURL)
                     let domainStop = response.toDomainStop()
@@ -298,8 +300,8 @@ public final class OBAURLSessionAPIClient: OBAAPIClient {
                 } catch {
                     Logger.error("Arrivals fallback 2 failed: \(error.localizedDescription)")
                 }
-            } else {
-                Logger.error("Failed to build URL for arrivals fallback 2")
+            } catch {
+                Logger.error("Failed to build URL for arrivals fallback 2: \(error.localizedDescription)")
             }
             
             throw error
@@ -356,33 +358,36 @@ public final class OBAURLSessionAPIClient: OBAAPIClient {
             let fallbackPath = "/api/where/routes-for-stop.json"
             let fallbackQueryItems = apiKeyQueryItem + [URLQueryItem(name: "stopId", value: stopID)]
             
-            if let fallbackURL = try? buildURL(path: fallbackPath, queryItems: fallbackQueryItems) {
+            do {
+                let fallbackURL = try buildURL(path: fallbackPath, queryItems: fallbackQueryItems)
                 do {
                     let response: OBARawRoutesForStopResponse = try await get(url: fallbackURL)
                     return response.toDomainRoutes()
                 } catch {
                     Logger.error("RoutesForStop fallback 1 failed: \(error.localizedDescription)")
                 }
-            } else {
-                Logger.error("Failed to build URL for RoutesForStop fallback 1")
+            } catch {
+                Logger.error("Failed to build URL for RoutesForStop fallback 1: \(error.localizedDescription)")
             }
 
             // Fallback 2: try stop/[ID].json (common in MTA)
             let stopPath = "/api/where/stop/\(stopID).json"
-            if let stopURL = try? buildURL(path: stopPath, queryItems: apiKeyQueryItem) {
+            do {
+                let stopURL = try buildURL(path: stopPath, queryItems: apiKeyQueryItem)
                 do {
                     let response: OBARawStopResponse = try await get(url: stopURL)
                     return response.toDomainRoutes()
                 } catch {
                     Logger.error("RoutesForStop fallback 2 failed: \(error.localizedDescription)")
                 }
-            } else {
-                Logger.error("Failed to build URL for RoutesForStop fallback 2")
+            } catch {
+                Logger.error("Failed to build URL for RoutesForStop fallback 2: \(error.localizedDescription)")
             }
 
             // Fallback 3: try arrivals-and-departures-for-stop (often contains stop details in MTA)
             let arrivalsPath = "/api/where/arrivals-and-departures-for-stop/\(stopID).json"
-            if let arrivalsURL = try? buildURL(path: arrivalsPath, queryItems: apiKeyQueryItem) {
+            do {
+                let arrivalsURL = try buildURL(path: arrivalsPath, queryItems: apiKeyQueryItem)
                 do {
                     let response: OBARawListResponse<[OBARawArrival]> = try await get(url: arrivalsURL)
                     if let rawStop = response.stop {
@@ -398,8 +403,8 @@ public final class OBAURLSessionAPIClient: OBAAPIClient {
                 } catch {
                     Logger.error("RoutesForStop fallback 3 failed: \(error.localizedDescription)")
                 }
-            } else {
-                Logger.error("Failed to build URL for RoutesForStop fallback 3")
+            } catch {
+                Logger.error("Failed to build URL for RoutesForStop fallback 3: \(error.localizedDescription)")
             }
             
             throw error
@@ -447,15 +452,16 @@ public final class OBAURLSessionAPIClient: OBAAPIClient {
             fallbackQueryItems.append(URLQueryItem(name: "routeId", value: routeID))
             fallbackQueryItems.append(URLQueryItem(name: "includePolylines", value: "false"))
             
-            if let fallbackURL = try? buildURL(path: fallbackPath, queryItems: fallbackQueryItems) {
+            do {
+                let fallbackURL = try buildURL(path: fallbackPath, queryItems: fallbackQueryItems)
                 do {
                     let response: OBARawStopsForRouteResponse = try await get(url: fallbackURL)
                     return response.data.toDomainDirections()
                 } catch {
                     Logger.error("StopsForRoute fallback failed: \(error.localizedDescription)")
                 }
-            } else {
-                Logger.error("Failed to build URL for StopsForRoute fallback")
+            } catch {
+                Logger.error("Failed to build URL for StopsForRoute fallback: \(error.localizedDescription)")
             }
             throw error
         }
@@ -491,7 +497,8 @@ public final class OBAURLSessionAPIClient: OBAAPIClient {
             var fallbackQueryItems = apiKeyQueryItem
             fallbackQueryItems.append(URLQueryItem(name: "includePolylines", value: "true"))
             
-            if let fallbackURL = try? buildURL(path: fallbackPath, queryItems: fallbackQueryItems) {
+            do {
+                let fallbackURL = try buildURL(path: fallbackPath, queryItems: fallbackQueryItems)
                 do {
                     let response: OBARawStopsForRouteResponse = try await get(url: fallbackURL)
                     // Merge all polylines into one points string if available
@@ -512,8 +519,8 @@ public final class OBAURLSessionAPIClient: OBAAPIClient {
                 } catch {
                     Logger.error("Shape fallback failed: \(error.localizedDescription)")
                 }
-            } else {
-                Logger.error("Failed to build URL for shape fallback")
+            } catch {
+                Logger.error("Failed to build URL for shape fallback: \(error.localizedDescription)")
             }
             throw error
         }

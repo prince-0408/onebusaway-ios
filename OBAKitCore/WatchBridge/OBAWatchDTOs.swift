@@ -313,7 +313,7 @@ struct OBARawStopsForRouteResponse: Decodable, Sendable {
             )
         } else {
             // Fallback for missing/null data
-            Logger.warning("OBARawStopsForRouteResponse: Unable to decode data container, falling back to empty data")
+            Logger.warn("OBARawStopsForRouteResponse: Unable to decode data container, falling back to empty data")
             self.data = OBARawStopsForRoute(references: nil, entry: nil, polylines: nil, stopGroupings: nil)
         }
     }
@@ -655,7 +655,7 @@ struct OBARawAgenciesWithCoverageResponse: Decodable, Sendable {
             self.list = list
         } 
         else {
-            Logger.warning("OBARawAgenciesWithCoverageResponse: Unable to decode data container, falling back to empty list")
+            Logger.warn("OBARawAgenciesWithCoverageResponse: Unable to decode data container, falling back to empty list")
             self.list = []
         }
     }
