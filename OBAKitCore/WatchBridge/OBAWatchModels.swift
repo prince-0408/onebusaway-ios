@@ -475,7 +475,12 @@ public struct OBATripForLocation: Codable, Equatable, Sendable, Identifiable {
             predicted: predicted,
             lastLocationUpdateTime: lastUpdateTime,
             lastUpdateTime: lastUpdateTime,
-            position: (latitude != nil && longitude != nil) ? .init(lat: latitude!, lon: longitude!) : nil,
+            position: {
+                if let lat = latitude, let lon = longitude {
+                    return .init(lat: lat, lon: lon)
+                }
+                return nil
+            }(),
             orientation: orientation
         )
     }
