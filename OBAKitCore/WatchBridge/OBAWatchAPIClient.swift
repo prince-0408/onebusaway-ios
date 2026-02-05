@@ -185,14 +185,14 @@ public extension OBAAPIClient {
             )
             addUnique(result)
         } catch {
-            print("fetchTripsForLocation failed: \(error)")
+            Logger.error("fetchTripsForLocation failed: \(error.localizedDescription)")
         }
         
         if !allVehicles.isEmpty && hasAnyLocation {
             return allVehicles
         }
         
-        // 2. Fallback: Search for nearby routes and fetch vehicles for each
+        // 2. Fallback: Search for nearby routes and fetch vehicles for each in parallel
         let radius = max(latSpan, lonSpan) * 111000.0 // Convert degrees to meters roughly
         do {
             let nearbyRoutes = try await searchRoutes(
@@ -202,23 +202,35 @@ public extension OBAAPIClient {
                 radius: max(radius, 5000.0) // At least 5km
             )
             
-            for route in nearbyRoutes {
-                do {
-                    let routeTrips = try await fetchTripsForRoute(routeID: route.id)
-                    addUnique(routeTrips)
-                } catch {
-                    // Ignore errors for individual routes
+            let routeTrips = await withTaskGroup(of: [OBATripForLocation].self) { group in
+                for route in nearbyRoutes {
+                    group.addTask {
+                        do {
+                            return try await self.fetchTripsForRoute(routeID: route.id)
+                        } catch {
+                            Logger.error("fetchTripsForRoute failed for \(route.id): \(error.localizedDescription)")
+                            return []
+                        }
+                    }
                 }
+                
+                var results: [OBATripForLocation] = []
+                for await trips in group {
+                    results.append(contentsOf: trips)
+                }
+                return results
             }
+            
+            addUnique(routeTrips)
         } catch {
-            print("searchRoutes failed for vehicle fallback: \(error)")
+            Logger.error("searchRoutes failed: \(error.localizedDescription)")
         }
         
         if !allVehicles.isEmpty && hasAnyLocation {
             return allVehicles
         }
         
-        // 3. Last resort: Fetch all vehicles for agencies that have coverage near this location
+        // 3. Last resort: Fetch all vehicles for agencies that have coverage near this location in parallel
         do {
             let agencies = try await fetchAgenciesWithCoverage()
             let nearbyAgencies = agencies.filter { agency in
@@ -228,16 +240,28 @@ public extension OBAAPIClient {
                 return latDiff < 0.5 && lonDiff < 0.5
             }
             
-            for agency in nearbyAgencies {
-                do {
-                    let vehicles = try await fetchVehiclesForAgency(agencyID: agency.agencyID)
-                    addUnique(vehicles, filterByLocation: true)
-                } catch {
-                    // Ignore errors for individual agencies
+            let agencyVehicles = await withTaskGroup(of: [OBATripForLocation].self) { group in
+                for agency in nearbyAgencies {
+                    group.addTask {
+                        do {
+                            return try await self.fetchVehiclesForAgency(agencyID: agency.agencyID)
+                        } catch {
+                            Logger.error("fetchVehiclesForAgency failed for \(agency.agencyID): \(error.localizedDescription)")
+                            return []
+                        }
+                    }
                 }
+                
+                var results: [OBATripForLocation] = []
+                for await vehicles in group {
+                    results.append(contentsOf: vehicles)
+                }
+                return results
             }
+            
+            addUnique(agencyVehicles, filterByLocation: true)
         } catch {
-            print("fetchAgenciesWithCoverage failed for vehicle fallback: \(error)")
+            Logger.error("fetchAgenciesWithCoverage failed: \(error.localizedDescription)")
         }
         
         return allVehicles

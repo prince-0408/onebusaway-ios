@@ -111,6 +111,10 @@ struct OBARawArrival: Decodable, Sendable {
             status = .delayed
         }
 
+        if self.stopID == nil || self.tripID == nil || self.routeID == nil {
+            Logger.error("OBARawArrival missing critical IDs: stopID=\(String(describing: self.stopID)), tripID=\(String(describing: self.tripID)), routeID=\(String(describing: self.routeID))")
+        }
+
         let stopID = self.stopID ?? ""
         let tripID = self.tripID ?? ""
         let routeID = self.routeID ?? ""
@@ -141,7 +145,10 @@ struct OBARawRoutesForStopResponse: Decodable, Sendable {
     let data: Data
 
     func toDomainRoutes() -> [OBARoute] {
-        (data.list ?? data.routes ?? []).map { raw in
+        if data.list == nil && data.routes == nil {
+            Logger.warn("OBARawRoutesForLocationResponse: Missing list and routes in response")
+        }
+        return (data.list ?? data.routes ?? []).map { raw in
             OBARoute(
                 id: raw.id,
                 shortName: raw.shortName,
@@ -228,6 +235,8 @@ struct OBARawVehicleStatus: Decodable, Sendable {
     let phase: String?
     let status: String?
     let tripID: OBATripID?
+    let routeShortName: String?
+    let tripHeadsign: String?
 
     private enum CodingKeys: String, CodingKey {
         case vehicleID = "vehicleId"
@@ -237,6 +246,8 @@ struct OBARawVehicleStatus: Decodable, Sendable {
         case phase
         case status
         case tripID = "tripId"
+        case routeShortName
+        case tripHeadsign
     }
 
     private enum LocationKeys: String, CodingKey {
@@ -252,6 +263,8 @@ struct OBARawVehicleStatus: Decodable, Sendable {
         self.phase = try container.decodeIfPresent(String.self, forKey: .phase)
         self.status = try container.decodeIfPresent(String.self, forKey: .status)
         self.tripID = try container.decodeIfPresent(OBATripID.self, forKey: .tripID)
+        self.routeShortName = try container.decodeIfPresent(String.self, forKey: .routeShortName)
+        self.tripHeadsign = try container.decodeIfPresent(String.self, forKey: .tripHeadsign)
 
         if let locationContainer = try? container.nestedContainer(keyedBy: LocationKeys.self, forKey: .location) {
             self.latitude = try locationContainer.decodeIfPresent(Double.self, forKey: .lat)
@@ -263,7 +276,10 @@ struct OBARawVehicleStatus: Decodable, Sendable {
     }
 
     func toDomainVehicle() -> OBAVehicle {
-        OBAVehicle(
+        if vehicleID == nil {
+            Logger.error("OBARawVehicleStatus missing vehicleID")
+        }
+        return OBAVehicle(
             id: vehicleID ?? "unknown",
             lastUpdateTime: lastUpdateTime,
             lastLocationUpdateTime: lastLocationUpdateTime,
@@ -271,7 +287,9 @@ struct OBARawVehicleStatus: Decodable, Sendable {
             longitude: longitude,
             phase: phase,
             status: status,
-            tripID: tripID
+            tripID: tripID,
+            routeShortName: routeShortName,
+            tripHeadsign: tripHeadsign
         )
     }
 }
@@ -298,6 +316,7 @@ struct OBARawStopsForRouteResponse: Decodable, Sendable {
             )
         } else {
             // Fallback for missing/null data
+            Logger.warn("OBARawStopsForRouteResponse: Missing or malformed data in response, falling back to empty data")
             self.data = OBARawStopsForRoute(references: nil, entry: nil, polylines: nil, stopGroupings: nil)
         }
     }
@@ -460,18 +479,23 @@ struct OBARawStopResponse: Decodable, Sendable {
     let data: Data
 
     func toDomainStop() -> OBAStop {
-        let stopID = data.entry?.id ?? data.stop?.id ?? data.id ?? "unknown"
-        let name = data.entry?.name ?? data.stop?.name ?? data.name ?? "Unknown"
-        let lat = data.entry?.lat ?? data.stop?.lat ?? data.lat ?? 0.0
-        let lon = data.entry?.lon ?? data.stop?.lon ?? data.lon ?? 0.0
+        let stopID = data.entry?.id ?? data.stop?.id ?? data.id
+        let name = data.entry?.name ?? data.stop?.name ?? data.name
+        let lat = data.entry?.lat ?? data.stop?.lat ?? data.lat
+        let lon = data.entry?.lon ?? data.stop?.lon ?? data.lon
+        
+        if stopID == nil || name == nil || lat == nil || lon == nil {
+            Logger.error("OBARawStopResponse missing critical data: id=\(String(describing: stopID)), name=\(String(describing: name)), lat=\(String(describing: lat)), lon=\(String(describing: lon))")
+        }
+
         let code = data.entry?.code ?? data.stop?.code ?? data.code
         let direction = data.entry?.direction ?? data.stop?.direction ?? data.direction
         
         return OBAStop(
-            id: stopID,
-            name: name,
-            latitude: lat,
-            longitude: lon,
+            id: stopID ?? "unknown",
+            name: name ?? "Unknown",
+            latitude: lat ?? 0.0,
+            longitude: lon ?? 0.0,
             code: code,
             direction: direction
         )
@@ -510,7 +534,10 @@ struct OBARawTripDetails: Decodable, Sendable {
     }
 
     func toDomain() -> OBATripDetails {
-        OBATripDetails(
+        if id == nil || routeID == nil {
+            Logger.error("OBARawTripDetails missing critical IDs: id=\(String(describing: id)), routeID=\(String(describing: routeID))")
+        }
+        return OBATripDetails(
             id: id ?? "unknown",
             routeID: routeID ?? "unknown",
             headsign: tripHeadsign,
@@ -567,12 +594,18 @@ struct OBARawScheduleForStopResponse: Decodable, Sendable {
     }
     private let data: Data
     func toDomainSchedule() -> OBAStopSchedule {
+        if data.entry.stopRouteSchedules == nil {
+            Logger.warn("OBARawScheduleForStopResponse: Missing stopRouteSchedules in response")
+        }
         let schedules = data.entry.stopRouteSchedules ?? []
         let directionSchedules = schedules.flatMap { $0.stopRouteDirectionSchedules }
         let stopTimes = directionSchedules.flatMap { $0.scheduleStopTimes }
 
         let domainTimes = stopTimes.map { raw -> OBAStopScheduleStopTime in
             let tripID = raw.tripId ?? "unknown"
+            if raw.tripId == nil {
+                Logger.warn("OBARawScheduleForStopResponse: Missing tripId for stop time")
+            }
             let arrivalDate = Date(timeIntervalSince1970: Double(raw.arrivalTime ?? 0) / 1000.0)
             let departureDate = Date(timeIntervalSince1970: Double(raw.departureTime ?? 0) / 1000.0)
             let headsign = (raw.stopHeadsign?.isEmpty == true) ? nil : raw.stopHeadsign
@@ -586,6 +619,9 @@ struct OBARawScheduleForStopResponse: Decodable, Sendable {
         }
 
         let stopID = data.entry.stopId ?? "unknown"
+        if data.entry.stopId == nil {
+            Logger.warn("OBARawScheduleForStopResponse: Missing stopId in entry")
+        }
         let scheduleDate = Date(timeIntervalSince1970: (data.entry.date ?? 0) / 1000.0)
 
         return OBAStopSchedule(
@@ -631,13 +667,17 @@ struct OBARawAgenciesWithCoverageResponse: Decodable, Sendable {
             self.list = list
         } 
         else {
+            Logger.warn("OBARawAgenciesWithCoverageResponse: Missing or malformed data in response, falling back to empty list")
             self.list = []
         }
     }
 
     func toDomainAgencies() -> [OBAAgencyCoverage] {
         list.map {
-            OBAAgencyCoverage(
+            if $0.agencyId == nil && $0.agency?.id == nil {
+                Logger.warn("OBARawAgenciesWithCoverageResponse: Missing agencyId for coverage item")
+            }
+            return OBAAgencyCoverage(
                 agencyID: $0.agencyId ?? $0.agency?.id ?? "unknown",
                 centerLatitude: $0.lat ?? 0.0,
                 centerLongitude: $0.lon ?? 0.0
@@ -662,7 +702,10 @@ struct OBARawRoutesForLocationResponse: Decodable, Sendable {
     let data: Data
 
     func toDomainRoutes() -> [OBARoute] {
-        (data.list ?? data.routes ?? []).map { raw in
+        if data.list == nil && data.routes == nil {
+            Logger.warn("OBARawRoutesForLocationResponse: Missing list and routes in response")
+        }
+        return (data.list ?? data.routes ?? []).map { raw in
             OBARoute(
                 id: raw.id,
                 shortName: raw.shortName,
@@ -677,6 +720,7 @@ struct OBARawTripsForLocationResponse: Decodable, Sendable {
         let list: [RawTrip]?
         let vehicles: [RawTrip]?
         let trips: [RawTrip]?
+        let references: OBARawStopsForLocationResponse.ReferencesRaw?
     }
 
     struct RawTrip: Decodable, Sendable {
@@ -688,6 +732,35 @@ struct OBARawTripsForLocationResponse: Decodable, Sendable {
         let routeId: String?
         let routeShortName: String?
         let tripHeadsign: String?
+        let scheduleDeviation: Int?
+        let predicted: Bool?
+
+        private enum CodingKeys: String, CodingKey {
+            case tripId
+            case vehicleId
+            case lastUpdateTime
+            case location
+            case orientation
+            case routeId
+            case routeShortName
+            case tripHeadsign
+            case scheduleDeviation
+            case predicted
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            self.tripId = try container.decode(String.self, forKey: .tripId)
+            self.vehicleId = try container.decodeIfPresent(String.self, forKey: .vehicleId)
+            self.lastUpdateTime = try container.decodeIfPresent(Date.self, forKey: .lastUpdateTime)
+            self.location = try container.decodeIfPresent(Location.self, forKey: .location)
+            self.orientation = try container.decodeIfPresent(Double.self, forKey: .orientation)
+            self.routeId = try container.decodeIfPresent(String.self, forKey: .routeId)
+            self.routeShortName = try container.decodeIfPresent(String.self, forKey: .routeShortName)
+            self.tripHeadsign = try container.decodeIfPresent(String.self, forKey: .tripHeadsign)
+            self.scheduleDeviation = try container.decodeIfPresent(Int.self, forKey: .scheduleDeviation)
+            self.predicted = try container.decodeIfPresent(Bool.self, forKey: .predicted)
+        }
 
         struct Location: Decodable, Sendable {
             let lat: Double
@@ -698,17 +771,37 @@ struct OBARawTripsForLocationResponse: Decodable, Sendable {
     let data: Data
 
     func toDomain() -> [OBATripForLocation] {
-        (data.list ?? data.vehicles ?? data.trips ?? []).map { raw in
-            OBATripForLocation(
+        if data.list == nil && data.vehicles == nil && data.trips == nil {
+            Logger.warn("OBARawTripsForLocationResponse: Missing list, vehicles, and trips in response")
+        }
+
+        let trips = data.list ?? data.vehicles ?? data.trips ?? []
+        let routeMap = Dictionary(uniqueKeysWithValues: (data.references?.routes ?? []).compactMap { route in
+            return (route.id, route)
+        })
+
+        return trips.map { raw in
+            var routeShortName = raw.routeShortName
+            let tripHeadsign = raw.tripHeadsign
+
+            if let routeId = raw.routeId, let route = routeMap[routeId] {
+                if routeShortName?.isEmpty ?? true {
+                    routeShortName = route.shortName ?? route.longName
+                }
+            }
+
+            return OBATripForLocation(
                 id: raw.tripId,
                 vehicleID: raw.vehicleId ?? "",
                 latitude: raw.location?.lat,
                 longitude: raw.location?.lon,
                 orientation: raw.orientation,
                 routeID: raw.routeId,
-                routeShortName: raw.routeShortName,
-                tripHeadsign: raw.tripHeadsign,
-                lastUpdateTime: raw.lastUpdateTime
+                routeShortName: routeShortName,
+                tripHeadsign: tripHeadsign,
+                lastUpdateTime: raw.lastUpdateTime,
+                scheduleDeviation: raw.scheduleDeviation,
+                predicted: raw.predicted
             )
         }
     }
@@ -721,7 +814,10 @@ struct OBARawStopsForLocationResponse: Decodable, Sendable {
         let references: ReferencesRaw?
 
         var allStops: [StopRaw] {
-            list ?? stops ?? []
+            if list == nil && stops == nil {
+                Logger.warn("OBARawStopsForLocationResponse: Missing list and stops in response")
+            }
+            return list ?? stops ?? []
         }
     }
 
