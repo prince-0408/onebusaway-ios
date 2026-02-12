@@ -690,9 +690,7 @@ extension Application {
         }
 
         if activationState == .activated {
-            sendBookmarksToWatch()
-            sendAlarmsToWatch()
-            sendServiceAlertsToWatch()
+            sendAllDataToWatch()
         }
     }
 
@@ -720,84 +718,63 @@ extension Application {
     }
 
     private func sendBookmarksToWatch() {
-        let bookmarks = userDataStore.bookmarks
-        let watchBookmarks = bookmarks.map { $0.watchBookmarkObject }
-
-        // Write to shared container (App Group) if possible
-        do {
-            let data = try JSONEncoder().encode(watchBookmarks)
-            userDefaults.set(data, forKey: "watch.bookmarks")
-        } catch {
-            Logger.error("Failed to encode watch bookmarks: \(error)")
-        }
-
-        guard let session = watchSession, session.activationState == .activated else {
-            return
-        }
-
-        let bookmarkData = watchBookmarks.compactMap { watchBookmark -> [String: Any]? in
-            do {
-                let data = try JSONEncoder().encode(watchBookmark)
-                return try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any]
-            } catch {
-                Logger.error("Failed to encode individual watch bookmark: \(error)")
-                return nil
-            }
-        }
-        try? session.updateApplicationContext(["bookmarks": bookmarkData])
+        sendAllDataToWatch()
     }
 
     private func sendAlarmsToWatch() {
-        let alarms = userDataStore.alarms
-        let watchAlarms = alarms.map { $0.watchAlarmItem }
-
-        do {
-            let data = try JSONEncoder().encode(watchAlarms)
-            userDefaults.set(data, forKey: "watch.alarms")
-        } catch {
-            Logger.error("Failed to encode watch alarms: \(error)")
-        }
-
-        guard let session = watchSession, session.activationState == .activated else {
-            return
-        }
-
-        let alarmData = watchAlarms.compactMap { watchAlarm -> [String: Any]? in
-            do {
-                let data = try JSONEncoder().encode(watchAlarm)
-                return try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any]
-            } catch {
-                Logger.error("Failed to encode individual watch alarm: \(error)")
-                return nil
-            }
-        }
-        try? session.updateApplicationContext(["alarms": alarmData])
+        sendAllDataToWatch()
     }
 
     private func sendServiceAlertsToWatch() {
-        let alerts = alertsStore.agencyAlerts
-        let watchAlerts = alerts.map { $0.watchServiceAlert }
+        sendAllDataToWatch()
+    }
 
-        do {
-            let data = try JSONEncoder().encode(watchAlerts)
-            userDefaults.set(data, forKey: "watch.service_alerts")
-        } catch {
-            Logger.error("Failed to encode watch service alerts: \(error)")
-        }
-
+    private func sendAllDataToWatch() {
         guard let session = watchSession, session.activationState == .activated else {
             return
         }
 
-        let alertData = watchAlerts.compactMap { watchAlert -> [String: Any]? in
+        var context: [String: Any] = [:]
+        context["bookmarks"] = buildBookmarkData()
+        context["alarms"] = buildAlarmData()
+        context["alerts"] = buildAlertData()
+
+        do {
+            try session.updateApplicationContext(context)
+        } catch {
+            Logger.error("Failed to update watch application context: \(error)")
+        }
+    }
+
+    private func buildWatchData<T: Encodable>(items: [T], defaultsKey: String, logName: String) -> [[String: Any]] {
+        // Write to shared container (App Group) if possible
+        do {
+            let data = try JSONEncoder().encode(items)
+            userDefaults.set(data, forKey: defaultsKey)
+        } catch {
+            Logger.error("Failed to encode watch \(logName): \(error)")
+        }
+
+        return items.compactMap { item -> [String: Any]? in
             do {
-                let data = try JSONEncoder().encode(watchAlert)
+                let data = try JSONEncoder().encode(item)
                 return try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any]
             } catch {
-                Logger.error("Failed to encode individual watch service alert: \(error)")
+                Logger.error("Failed to encode individual watch \(logName) item: \(error)")
                 return nil
             }
         }
-        try? session.updateApplicationContext(["alerts": alertData])
+    }
+
+    private func buildBookmarkData() -> [[String: Any]] {
+        buildWatchData(items: userDataStore.bookmarks.map { $0.watchBookmarkObject }, defaultsKey: "watch.bookmarks", logName: "bookmarks")
+    }
+
+    private func buildAlarmData() -> [[String: Any]] {
+        buildWatchData(items: userDataStore.alarms.map { $0.watchAlarmItem }, defaultsKey: "watch.alarms", logName: "alarms")
+    }
+
+    private func buildAlertData() -> [[String: Any]] {
+        buildWatchData(items: alertsStore.agencyAlerts.map { $0.watchServiceAlert }, defaultsKey: "watch.service_alerts", logName: "service alerts")
     }
 }
