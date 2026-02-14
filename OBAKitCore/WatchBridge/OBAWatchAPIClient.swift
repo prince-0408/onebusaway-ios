@@ -178,6 +178,7 @@ public extension OBAAPIClient {
         } catch {
             lastError = error
             Logger.error("fetchTripsForLocation failed: \(error.localizedDescription)")
+            lastError = error
         }
 
         if !allVehicles.isEmpty && hasAnyLocation { return allVehicles }
@@ -190,6 +191,7 @@ public extension OBAAPIClient {
         } catch {
             lastError = error
             Logger.error("searchRoutes failed: \(error.localizedDescription)")
+            lastError = error
         }
 
         if !allVehicles.isEmpty && hasAnyLocation { return allVehicles }
@@ -204,6 +206,11 @@ public extension OBAAPIClient {
         } catch {
             lastError = error
             Logger.error("fetchAgenciesWithCoverage failed: \(error.localizedDescription)")
+            lastError = error
+        }
+
+        if allVehicles.isEmpty, let error = lastError {
+            throw error
         }
 
         if allVehicles.isEmpty, let error = lastError { throw error }
