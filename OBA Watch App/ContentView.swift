@@ -196,9 +196,7 @@ struct MoreView: View {
             List {
                 Section {
                     NavigationLink {
-                        // TODO: Implement SettingsView in PR3/PR4
-                        // SettingsView()
-                        Text(OBALoc("settings.coming_soon", value: "Settings Coming Soon", comment: "Placeholder text for settings screen"))
+                        SettingsView()
                     } label: {
                         Label(OBALoc("common.settings", value: "Settings", comment: "Title for settings menu item"), systemImage: "gearshape")
                     }
@@ -283,9 +281,7 @@ struct MainMenuView: View {
             // Search & Map at the top
             Section {
                 NavigationLink {
-                    // TODO: Implement SearchView in PR3/PR4
-                    // SearchView()
-                    Text(OBALoc("search.coming_soon", value: "Search Coming Soon", comment: "Placeholder text for search screen"))
+                    SearchView()
                 } label: {
                     Label(OBALoc("common.search", value: "Search", comment: "Title for search menu item"), systemImage: "magnifyingglass")
                         .font(.headline)
@@ -313,9 +309,7 @@ struct MainMenuView: View {
             // Trip Planning Section - Make this prominent
             Section {
                 NavigationLink {
-                    // TODO: Implement TripPlanningEntryView in PR3/PR4
-                    // TripPlanningEntryView()
-                    Text("Trip Planning Coming Soon")
+                    TripPlanningEntryView()
                 } label: {
                     VStack(alignment: .leading, spacing: 4) {
                         Label("Trip Planner", systemImage: "figure.walk")
@@ -346,9 +340,7 @@ struct MainMenuView: View {
                 }
                 
                 NavigationLink {
-                    // TODO: Implement VehiclesView in PR3/PR4
-                    // VehiclesView()
-                    Text("Vehicles Coming Soon")
+                    VehiclesView()
                 } label: {
                     Label("Vehicles", systemImage: "bus.fill")
                 }
