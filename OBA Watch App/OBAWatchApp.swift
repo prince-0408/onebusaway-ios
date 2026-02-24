@@ -284,7 +284,8 @@ class WatchAppState: NSObject, ObservableObject, CLLocationManagerDelegate, WCSe
                 BookmarksSyncManager.shared.updateBookmarks(bookmarks)
             }
             if let alerts = userInfo["alerts"] as? [[String: Any]] {
-                ServiceAlertsSyncManager.shared.updateAlerts(alerts)
+                // TODO: Implement ServiceAlertsSyncManager in PR3/PR4
+                // ServiceAlertsSyncManager.shared.updateAlerts(alerts)
             }
             if let alarms = userInfo["alarms"] as? [[String: Any]] {
                 AlarmsSyncManager.shared.updateAlarms(alarms)

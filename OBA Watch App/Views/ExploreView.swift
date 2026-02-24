@@ -5,7 +5,9 @@ struct ExploreView: View {
         List {
             Section {
                 NavigationLink {
-                    VehiclesView()
+                    // TODO: Implement VehiclesView in PR3/PR4
+                    // VehiclesView()
+                    Text(OBALoc("explore.vehicles_coming_soon", value: "Vehicles Coming Soon", comment: "Placeholder text for vehicles feature"))
                 } label: {
                     HStack(spacing: 6) {
                         Image(systemName: "bus.fill")
@@ -20,7 +22,9 @@ struct ExploreView: View {
                     .cornerRadius(12)
                 }
                 NavigationLink {
-                    TripPlanningEntryView()
+                    // TODO: Implement TripPlanningEntryView in PR3/PR4
+                    // TripPlanningEntryView()
+                    Text(OBALoc("explore.trip_planning_coming_soon", value: "Trip Planning Coming Soon", comment: "Placeholder text for trip planning feature"))
                 } label: {
                     HStack(spacing: 6) {
                         Image(systemName: "figure.walk")

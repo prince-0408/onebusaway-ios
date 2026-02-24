@@ -196,7 +196,9 @@ struct MoreView: View {
             List {
                 Section {
                     NavigationLink {
-                        SettingsView()
+                        // TODO: Implement SettingsView in PR3/PR4
+                        // SettingsView()
+                        Text(OBALoc("settings.coming_soon", value: "Settings Coming Soon", comment: "Placeholder text for settings screen"))
                     } label: {
                         Label(OBALoc("common.settings", value: "Settings", comment: "Title for settings menu item"), systemImage: "gearshape")
                     }
@@ -281,7 +283,9 @@ struct MainMenuView: View {
             // Search & Map at the top
             Section {
                 NavigationLink {
-                    SearchView()
+                    // TODO: Implement SearchView in PR3/PR4
+                    // SearchView()
+                    Text(OBALoc("search.coming_soon", value: "Search Coming Soon", comment: "Placeholder text for search screen"))
                 } label: {
                     Label(OBALoc("common.search", value: "Search", comment: "Title for search menu item"), systemImage: "magnifyingglass")
                         .font(.headline)
@@ -301,7 +305,7 @@ struct MainMenuView: View {
                 NavigationLink {
                     BookmarksView()
                 } label: {
-                    Label("Bookmarks", systemImage: "bookmark.fill")
+                    Label(OBALoc("common.bookmarks", value: "Bookmarks", comment: "Title for bookmarks menu item"), systemImage: "bookmark.fill")
                         .foregroundColor(.blue)
                 }
             }
@@ -309,20 +313,22 @@ struct MainMenuView: View {
             // Trip Planning Section - Make this prominent
             Section {
                 NavigationLink {
-                    TripPlanningEntryView()
+                    // TODO: Implement TripPlanningEntryView in PR3/PR4
+                    // TripPlanningEntryView()
+                    Text(OBALoc("trip_planner.coming_soon", value: "Trip Planning Coming Soon", comment: "Placeholder text for trip planner"))
                 } label: {
                     VStack(alignment: .leading, spacing: 4) {
-                        Label("Trip Planner", systemImage: "figure.walk")
+                        Label(OBALoc("common.trip_planner", value: "Trip Planner", comment: "Title for trip planner menu item"), systemImage: "figure.walk")
                             .font(.headline)
                             .foregroundColor(.green)
-                        Text("Plan your journey")
+                        Text(OBALoc("main_menu.plan_your_journey", value: "Plan your journey", comment: "Subtitle for trip planner menu item"))
                             .font(.caption2)
                             .foregroundColor(.secondary)
                     }
                     .padding(.vertical, 4)
                 }
             } header: {
-                Text("Plan")
+                Text(OBALoc("main_menu.section.plan", value: "Plan", comment: "Section header for planning"))
             }
             
             // Other useful actions but minimized
@@ -330,22 +336,24 @@ struct MainMenuView: View {
                 NavigationLink {
                     NearbyStopsView()
                 } label: {
-                    Label("Nearby", systemImage: "location.fill")
+                    Label(OBALoc("common.nearby", value: "Nearby", comment: "Title for nearby stops menu item"), systemImage: "location.fill")
                 }
 
                 NavigationLink {
                     RecentStopsView()
                 } label: {
-                    Label("Recents", systemImage: "clock.fill")
+                    Label(OBALoc("common.recents", value: "Recents", comment: "Title for recent stops menu item"), systemImage: "clock.fill")
                 }
                 
                 NavigationLink {
-                    VehiclesView()
+                    // TODO: Implement VehiclesView in PR3/PR4
+                    // VehiclesView()
+                    Text(OBALoc("vehicles.coming_soon", value: "Vehicles Coming Soon", comment: "Placeholder text for vehicles"))
                 } label: {
-                    Label("Vehicles", systemImage: "bus.fill")
+                    Label(OBALoc("common.vehicles", value: "Vehicles", comment: "Title for vehicles menu item"), systemImage: "bus.fill")
                 }
             } header: {
-                Text("Explore")
+                Text(OBALoc("main_menu.section.explore", value: "Explore", comment: "Section header for explore"))
             }
         }
         .navigationTitle(regionName)

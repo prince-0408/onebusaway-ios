@@ -150,10 +150,14 @@ struct StopArrivalsView: View {
             StopDetailView(stopID: stopID)
         }
         .navigationDestination(isPresented: $showStopSchedule) {
-            StopScheduleView(stopID: stopID)
+            // TODO: Implement StopScheduleView in PR3/PR4
+            // StopScheduleView(stopID: stopID)
+            Text(OBALoc("schedule.coming_soon", value: "Schedule Coming Soon", comment: "Placeholder text for schedule screen"))
         }
         .navigationDestination(isPresented: $showStopProblem) {
-            ProblemReportView(mode: .stop(stopID: stopID))
+            // TODO: Implement ProblemReportView in PR3/PR4
+            // ProblemReportView(mode: .stop(stopID: stopID))
+            Text(OBALoc("problem_report.coming_soon", value: "Report Problem Coming Soon", comment: "Placeholder text for problem report screen"))
         }
         .task {
             await viewModel.loadArrivals()
@@ -195,7 +199,8 @@ struct StopArrivalsView: View {
                         showActions = false
                     }
                     Button(OBALoc("common.open_on_iphone", value: "Open on iPhone", comment: "Action to open the stop on iPhone")) {
-                        DeepLinkSyncManager.shared.openStopOnPhone(stopID: stopID)
+                        // TODO: Implement DeepLinkSyncManager in PR3/PR4
+                        // DeepLinkSyncManager.shared.openStopOnPhone(stopID: stopID)
                         showActions = false
                     }
                 }
@@ -351,10 +356,12 @@ struct ArrivalRowView: View {
     }
 }
 
+
+
 extension OBAArrival {
+    /// Formatted time string for the arrival (e.g. "Now", "5 min", "1.2 h")
     var timeString: String {
         let minutes = self.minutesFromNow
-
         if minutes <= 0 {
             return OBALoc("times.now", value: "Now", comment: "Time: now")
         } else if minutes < 60 {
@@ -383,6 +390,7 @@ struct EmptyArrivalsView: View {
     }
 }
 
+
 struct ErrorView: View {
     let message: String
     
@@ -402,6 +410,7 @@ struct ErrorView: View {
         .padding()
     }
 }
+
 
 #Preview {
     NavigationStack {

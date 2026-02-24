@@ -40,12 +40,14 @@ struct ArrivalDetailView: View {
                 // Route details
                 if let routeShortName = arrival.routeShortName {
                     NavigationLink {
-                        RouteDetailView(route: OBARoute(
-                            id: arrival.routeID,
-                            shortName: routeShortName,
-                            longName: nil,
-                            agencyName: nil
-                        ))
+                        // TODO: Implement RouteDetailView in PR3/PR4
+                        // RouteDetailView(route: OBARoute(
+                        //     id: arrival.routeID,
+                        //     shortName: routeShortName,
+                        //     longName: nil,
+                        //     agencyName: nil
+                        // ))
+                        Text(OBALoc("arrival_detail.route_details_coming_soon", value: "Route Details Coming Soon", comment: "Placeholder for route details"))
                     } label: {
                         HStack(spacing: 6) {
                             Image(systemName: "bus.fill")
@@ -66,13 +68,15 @@ struct ArrivalDetailView: View {
                 
                 // Trip Schedule Link
                 NavigationLink {
-                    TripDetailsView(
-                        tripID: arrival.tripID,
-                        vehicleID: arrival.vehicleID,
-                        routeShortName: arrival.routeShortName,
-                        headsign: arrival.headsign,
-                        initialTrip: arrival.toTripForLocation()
-                    )
+                    // TODO: Implement TripDetailsView in PR3/PR4
+                    // TripDetailsView(
+                    //     tripID: arrival.tripID,
+                    //     vehicleID: arrival.vehicleID,
+                    //     routeShortName: arrival.routeShortName,
+                    //     headsign: arrival.headsign,
+                    //     initialTrip: arrival.toTripForLocation()
+                    // )
+                    Text(OBALoc("arrival_detail.trip_details_coming_soon", value: "Trip Details Coming Soon", comment: "Placeholder for trip details"))
                 } label: {
                     HStack(spacing: 6) {
                         Image(systemName: "list.bullet.rectangle.portrait")
@@ -102,7 +106,9 @@ struct ArrivalDetailView: View {
                 // Vehicle Details Link
                 if let vehicleID = arrival.vehicleID {
                     NavigationLink {
-                        VehicleSearchView(initialQuery: vehicleID)
+                        // TODO: Implement VehicleSearchView in PR3/PR4
+                        // VehicleSearchView(initialQuery: vehicleID)
+                        Text(OBALoc("arrival_detail.vehicle_search_coming_soon", value: "Vehicle Search Coming Soon", comment: "Placeholder for vehicle search"))
                     } label: {
                         HStack(spacing: 6) {
                             Image(systemName: "bus")
@@ -136,7 +142,9 @@ struct ArrivalDetailView: View {
         .navigationTitle(arrival.routeShortName ?? OBALoc("common.trip", value: "Trip", comment: "Default title for a trip"))
         .navigationBarTitleDisplayMode(.inline)
         .navigationDestination(isPresented: $showTripProblem) {
-            ProblemReportView(mode: .trip(tripID: arrival.tripID, vehicleID: arrival.vehicleID, stopID: arrival.stopID))
+            // TODO: Implement ProblemReportView in PR3/PR4
+            // ProblemReportView(mode: .trip(tripID: arrival.tripID, vehicleID: arrival.vehicleID, stopID: arrival.stopID))
+            Text(OBALoc("arrival_detail.report_problem_coming_soon", value: "Report Problem Coming Soon", comment: "Placeholder for problem report"))
         }
     }
 }
