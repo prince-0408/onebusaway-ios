@@ -15,12 +15,12 @@ import SafariServices
 
 // swiftlint:disable file_length type_body_length
 
-/// This is the core view controller for displaying information about a transit stop.
+/// Thin UIKit wrapper that hosts `StopDetailView` (SwiftUI) as its primary UI.
 ///
-/// Specifically, `StopViewController` provides you with information about upcoming
-/// arrivals and departures at this stop, along with the ability to create push
-/// notification 'alarms' and bookmarks, view information about the location of a
-/// particular vehicle, and report problems with a trip.
+/// All navigation actions (trip detail, bookmarks, alarms, schedules) are
+/// handled here so the SwiftUI view stays free of UIKit dependencies.
+/// The legacy OBAListView-based implementation is preserved below for reference
+/// and for features not yet migrated (donations, surveys).
 public class StopViewController: UIViewController,
     AlarmBuilderDelegate,
     AgencyAlertListViewConverters,
@@ -126,13 +126,13 @@ public class StopViewController: UIViewController,
             application.userDataStore.addRecentStop(stop, region: region)
         }
         application.analytics?.reportStopViewed(name: stop.name, id: stop.id, stopDistance: analyticsDistanceToStop)
+        title = stop.name
 
         // Disable filtering if all routes are hidden to ensure data visibility
         if isListFiltered {
             let allRoutesHidden = stop.routes.allSatisfy { stopPreferences.hiddenRoutes.contains($0.id) }
             if allRoutesHidden {
                 isListFiltered = false
-                dataDidReload() // Refresh UI to reflect the change
             }
         }
     }
@@ -142,7 +142,6 @@ public class StopViewController: UIViewController,
         didSet {
             if let stopArrivals = stopArrivals {
                 stop = stopArrivals.stop
-                dataDidReload()
                 beginUserActivity()
             }
         }
@@ -199,72 +198,112 @@ public class StopViewController: UIViewController,
 
     // MARK: - UIViewController Overrides
 
+    // MARK: - SwiftUI hosting
+
+    private var stopDetailViewModel: StopDetailViewModel?
+    private var hostingController: UIHostingController<StopDetailView>?
+
+    private func embedSwiftUIView() {
+        let vm = StopDetailViewModel(application: application, stopID: stopID, stop: stop)
+        stopDetailViewModel = vm
+
+        var detailView = StopDetailView(viewModel: vm)
+
+        detailView.onSelectArrivalDeparture = { [weak self] arrDep in
+            guard let self else { return }
+            application.viewRouter.navigateTo(arrivalDeparture: arrDep, from: self)
+        }
+        detailView.onAddBookmarkForStop = { [weak self] in
+            self?.addBookmark(sender: nil)
+        }
+        detailView.onAddBookmarkForArrivalDeparture = { [weak self] arrDep in
+            self?.addBookmark(arrivalDeparture: arrDep)
+        }
+        detailView.onAddAlarm = { [weak self] arrDep in
+            self?.addAlarm(arrivalDeparture: arrDep)
+        }
+        detailView.onShowScheduleForStop = { [weak self] in
+            self?.showScheduleForStop()
+        }
+        detailView.onShowScheduleForRoute = { [weak self] arrDep in
+            guard let self else { return }
+            let scheduleView = ScheduleForRouteView(routeID: arrDep.routeID, application: application)
+            present(UIHostingController(rootView: scheduleView), animated: true)
+        }
+        detailView.onShowServiceAlerts = { [weak self] in
+            guard let self else { return }
+            let alerts = stopDetailViewModel?.serviceAlerts ?? []
+            let controller = ServiceAlertListController(application: application, serviceAlerts: alerts)
+            application.viewRouter.navigate(to: controller, from: self)
+        }
+        detailView.onShowNearbyStops = { [weak self] in
+            guard let self, let stop = self.stop else { return }
+            let nearbyVC = NearbyStopsViewController(coordinate: stop.coordinate, application: application)
+            application.viewRouter.navigate(to: nearbyVC, from: self)
+        }
+        detailView.onShowReportProblem = { [weak self] in
+            self?.showReportProblem()
+        }
+        detailView.onShowFilter = { [weak self] in
+            self?.filter()
+        }
+        detailView.onShowDonations = { [weak self] in
+            self?.showDonationUI()
+        }
+        detailView.onDismissDonations = { [weak self] in
+            self?.showDonationDismissUI()
+        }
+        detailView.onSurveyAnswer = { [weak self] survey, answer in
+            self?.handleSurveyAnswer(survey: survey, answer: answer)
+        }
+        detailView.onSurveyDismiss = { [weak self] survey in
+            self?.handleSurveyDismiss(survey: survey)
+        }
+        detailView.onShareTripStatus = { [weak self] arrDep in
+            self?.shareTripStatus(arrivalDeparture: arrDep)
+        }
+
+        // Pass context to the view model
+        vm.transferContext = transferContext
+        vm.bookmarkContext = bookmarkContext
+
+        let hosting = UIHostingController(rootView: detailView)
+        hostingController = hosting
+
+        addChild(hosting)
+        hosting.view.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(hosting.view)
+        NSLayoutConstraint.activate([
+            hosting.view.topAnchor.constraint(equalTo: view.topAnchor),
+            hosting.view.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            hosting.view.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            hosting.view.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+        ])
+        hosting.didMove(toParent: self)
+    }
+
     public override func viewDidLoad() {
         super.viewDidLoad()
 
-        self.navigationItem.titleView = UIView()
-
         view.backgroundColor = ThemeColors.shared.systemBackground
-
         configureTabBarButtons()
+        embedSwiftUIView()
 
-        listView.obaDelegate = self
-        listView.obaDataSource = self
-        listView.contextMenuDelegate = self
-        listView.collapsibleSectionsDelegate = self
-        listView.formatters = application.formatters
-
-        listView.register(listViewItem: ArrivalDepartureItem.self)
-        listView.register(listViewItem: DonationListItem.self)
-        listView.register(listViewItem: EmptyDataSetItem.self)
-        listView.register(listViewItem: MessageButtonItem.self)
-        listView.register(listViewItem: StopArrivalWalkItem.self)
-        listView.register(listViewItem: StopHeaderItem.self)
-        listView.register(listViewItem: TransferArrivalItem.self)
-        listView.register(listViewItem: SurveyStopListItem.self)
-
-        view.addSubview(statusLabel)
-        view.addSubview(listView)
-
-        listView.translatesAutoresizingMaskIntoConstraints = false
-
-        NSLayoutConstraint.activate([
-            statusLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 4),
-            statusLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
-            statusLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
-
-            listView.topAnchor.constraint(equalTo: statusLabel.bottomAnchor, constant: 4),
-            listView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            listView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            listView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
-        ])
-
-        listView.addSubview(refreshControl)
-
-        if !stopViewShowsServiceAlerts {
-            collapsedSections.insert(ListSections.serviceAlerts.sectionID)
-        }
-
+        // Post VoiceOver screen-changed notification so focus moves to the new content.
+        UIAccessibility.post(notification: .screenChanged, argument: navigationItem.title ?? stop?.name)
     }
 
     public override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-
         disableIdleTimer()
-
-        if stopArrivals != nil {
-            beginUserActivity()
-        }
-
-        Task {
-            await updateData()
-        }
-
+        title = stop?.name ?? Strings.liveArrivals
     }
 
     public override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
+        UIAccessibility.post(notification: .screenChanged, argument: title)
 
+        // Show schedule tip if needed
         if let schedulesButton {
             scheduleTipPresenter.showIfNeeded(sourceItem: schedulesButton) { [weak self] vc in
                 guard let self else { return }
@@ -1376,8 +1415,8 @@ public class StopViewController: UIViewController,
     }
 
     @objc func showScheduleForStop() {
-        let scheduleVC = ScheduleForStopViewController(stopID: stopID, application: application)
-        present(scheduleVC, animated: true)
+        let scheduleView = ScheduleForStopView(stopID: stopID, application: application)
+        present(UIHostingController(rootView: scheduleView), animated: true)
     }
 
     // MARK: - Actions
@@ -1473,10 +1512,12 @@ public class StopViewController: UIViewController,
 
     func enterPreviewMode() {
         inPreviewMode = true
+        stopDetailViewModel?.isPreviewMode = true
     }
 
     func exitPreviewMode() {
         inPreviewMode = false
+        stopDetailViewModel?.isPreviewMode = false
     }
 
     // MARK: - Analytics
