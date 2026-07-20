@@ -43,6 +43,13 @@ targets:
           - group.org.onebusaway.iphone
     info:
       path: ../OBAWatchComplication/Info.plist
+      properties:
+        CFBundleDisplayName: OBA Arrivals
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+        OBAKitConfig:
+          AppGroup: group.org.onebusaway.iphone
+          RESTServerAPIKey: org.onebusaway.iphone
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: org.onebusaway.iphone.watchkitapp.complication
