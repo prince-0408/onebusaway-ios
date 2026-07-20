@@ -212,6 +212,9 @@ class WatchAppState: NSObject, ObservableObject, CLLocationManagerDelegate, WCSe
          }
          
          Self.userDefaults.set(id, forKey: "watch_selected_region_id")
+         // Persist the base URL so the WidgetKit complication extension can
+         // read it without depending on WatchAppState directly.
+         Self.userDefaults.set(url.absoluteString, forKey: "watch_region_base_url")
          
          let config = OBAURLSessionAPIClient.Configuration(
              baseURL: url,

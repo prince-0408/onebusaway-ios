@@ -28,3 +28,26 @@ targets:
         INFOPLIST_KEY_WKCompanionAppBundleIdentifier: org.onebusaway.iphone
     dependencies:
       - target: OBAKitCore
+      - target: OBAWatchComplication
+        embed: true
+
+  OBAWatchComplication:
+    type: app-extension
+    platform: watchOS
+    sources:
+      - path: ../OBAWatchComplication
+    entitlements:
+      path: ../OBAWatchComplication/OBAWatchComplication.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.org.onebusaway.iphone
+    info:
+      path: ../OBAWatchComplication/Info.plist
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: org.onebusaway.iphone.watchkitapp.complication
+        WATCHOS_DEPLOYMENT_TARGET: "11.0"
+        CODE_SIGN_ALLOW_ENTITLEMENTS_MODIFICATION: "YES"
+    dependencies:
+      - target: OBAKitCore
+

@@ -8,6 +8,7 @@
 import Foundation
 import SwiftUI
 import Combine
+import CoreLocation
 import OBAKitCore
 
 @MainActor
@@ -15,6 +16,10 @@ class BookmarksViewModel: ObservableObject {
     @Published var bookmarks: [WatchBookmark] = []
     @Published var isLoading = false
     @Published var errorMessage: String?
+
+    /// The user's current location, injected by the view so bookmarks can be
+    /// sorted by proximity. When `nil`, alphabetical ordering is used instead.
+    var currentLocation: CLLocation?
     
     // Shared storage key that can be written by the iOS app via app group.
     private let storageKey = "watch.bookmarks"
@@ -41,11 +46,33 @@ class BookmarksViewModel: ObservableObject {
         do {
             let decoder = JSONDecoder()
             let decoded = try decoder.decode([WatchBookmark].self, from: data)
-            bookmarks = decoded.sorted { $0.name < $1.name }
+            bookmarks = sort(decoded)
         } catch {
             Logger.error("Failed to decode bookmarks: \(error)")
             errorMessage = OBALoc("bookmarks.load_error", value: "Failed to load bookmarks.", comment: "Error loading bookmarks")
         }
+    }
+
+    /// Sort bookmarks by distance from `currentLocation` when available,
+    /// or alphabetically by name as a fallback.
+    private func sort(_ items: [WatchBookmark]) -> [WatchBookmark] {
+        guard let location = currentLocation else {
+            return items.sorted { $0.name < $1.name }
+        }
+        return items.sorted { a, b in
+            let da = distance(of: a, from: location)
+            let db = distance(of: b, from: location)
+            return da < db
+        }
+    }
+
+    private func distance(of bookmark: WatchBookmark, from location: CLLocation) -> CLLocationDistance {
+        guard let stop = bookmark.stop else {
+            // No coordinate available — treat as very far so it sorts to the bottom.
+            return .greatestFiniteMagnitude
+        }
+        let stopLocation = CLLocation(latitude: stop.latitude, longitude: stop.longitude)
+        return stopLocation.distance(from: location)
     }
     
     func refreshData() async {
@@ -71,7 +98,7 @@ class BookmarksViewModel: ObservableObject {
         var current = bookmarks
         current.removeAll { $0.stopID == bookmark.stopID }
         current.append(bookmark)
-        bookmarks = current.sorted { $0.name < $1.name }
+        bookmarks = sort(current)
 
         do {
             let data = try JSONEncoder().encode(bookmarks)

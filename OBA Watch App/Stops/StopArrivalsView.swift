@@ -162,6 +162,17 @@ struct StopArrivalsView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
+                    Task {
+                        await viewModel.loadArrivals()
+                        WatchFeedbackGenerator.shared.success()
+                    }
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                }
+                .handGestureShortcut(.primaryAction)
+            }
+            ToolbarItem(placement: .confirmationAction) {
+                Button {
                     showActions = true
                 } label: {
                     Image(systemName: "ellipsis.circle")

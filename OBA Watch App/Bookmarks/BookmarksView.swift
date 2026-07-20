@@ -9,6 +9,7 @@ import SwiftUI
 import OBAKitCore
 
 struct BookmarksView: View {
+    @EnvironmentObject private var appState: WatchAppState
     @StateObject private var viewModel: BookmarksViewModel
     
     init() {
@@ -25,7 +26,12 @@ struct BookmarksView: View {
         }
         .navigationTitle(OBALoc("common.bookmarks", value: "Bookmarks", comment: "Title for the Bookmarks screen"))
         .task {
+            viewModel.currentLocation = appState.currentLocation
             await viewModel.refreshData()
+        }
+        .onChange(of: appState.currentLocation) { _, location in
+            viewModel.currentLocation = location
+            viewModel.loadBookmarks()
         }
     }
     

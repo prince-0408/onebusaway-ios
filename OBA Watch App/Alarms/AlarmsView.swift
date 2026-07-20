@@ -48,6 +48,13 @@ struct AlarmsView: View {
             }
         }
         .navigationTitle(OBALoc("alarms.title", value: "Alarms", comment: "Title for alarms screen"))
+        .onAppear {
+            AlarmHapticScheduler.shared.start()
+        }
+        .onDisappear {
+            // Keep scheduler running while alarms are active; it will
+            // self-prune once all alarms expire.
+        }
         .onReceive(NotificationCenter.default.publisher(for: AlarmsSyncManager.alarmsUpdatedNotification)) { _ in
             alarms = AlarmsSyncManager.shared.currentAlarms()
         }
