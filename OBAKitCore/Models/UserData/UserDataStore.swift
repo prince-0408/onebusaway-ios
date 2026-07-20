@@ -225,18 +225,6 @@ public protocol UserDataStore: NSObjectProtocol {
     /// Increments the app launch count by one.
     func incrementAppLaunchCount()
 
-    /// Stores information about a completed survey.
-    func markSurveyCompleted(surveyId: Int, userIdentifier: String)
-
-    /// Checks if a survey has been completed by the user.
-    func isSurveyCompleted(surveyId: Int, userIdentifier: String) -> Bool
-
-    /// Stores information about a survey the user chose to answer later.
-    func markSurveyForLater(surveyId: Int, userIdentifier: String)
-
-    /// Checks if a survey should be shown again based on app launch count.
-    func shouldShowSurveyLater(surveyId: Int, userIdentifier: String) -> Bool
-
     // MARK: - View State/Last Selected Tab
 
     /// Stores the last selected tab that the user viewed.
@@ -873,39 +861,22 @@ public class UserDefaultsStore: NSObject, UserDataStore, StopPreferencesStore {
         userDefaults.set(appLaunchCount + 1, forKey: UserDefaultsKeys.appLaunchCount)
     }
 
-    public func markSurveyCompleted(surveyId: Int, userIdentifier: String) {
-        var completed = completedSurveyKeys
-        completed.insert("\(surveyId):\(userIdentifier)")
-        completedSurveyKeys = completed
-        var forLater = surveysForLaterKeys
-        forLater.removeValue(forKey: "\(surveyId):\(userIdentifier)")
-        surveysForLaterKeys = forLater
+    private var completedSurveys: [CompletedSurvey] {
+        get {
+            return decodeUserDefaultsObjects(type: [CompletedSurvey].self, key: UserDefaultsKeys.completedSurveys) ?? []
+        }
+        set {
+            try! encodeUserDefaultsObjects(newValue, key: UserDefaultsKeys.completedSurveys) // swiftlint:disable:this force_try
+        }
     }
 
-    public func isSurveyCompleted(surveyId: Int, userIdentifier: String) -> Bool {
-        completedSurveyKeys.contains("\(surveyId):\(userIdentifier)")
-    }
-
-    public func markSurveyForLater(surveyId: Int, userIdentifier: String) {
-        var forLater = surveysForLaterKeys
-        forLater["\(surveyId):\(userIdentifier)"] = appLaunchCount
-        surveysForLaterKeys = forLater
-    }
-
-    public func shouldShowSurveyLater(surveyId: Int, userIdentifier: String) -> Bool {
-        guard let markedAt = surveysForLaterKeys["\(surveyId):\(userIdentifier)"] else { return false }
-        let launches = appLaunchCount - markedAt
-        return launches > 0 && launches % 3 == 0
-    }
-
-    private var completedSurveyKeys: Set<String> {
-        get { Set(userDefaults.stringArray(forKey: UserDefaultsKeys.completedSurveys) ?? []) }
-        set { userDefaults.set(Array(newValue), forKey: UserDefaultsKeys.completedSurveys) }
-    }
-
-    private var surveysForLaterKeys: [String: Int] {
-        get { decodeUserDefaultsObjects(type: [String: Int].self, key: UserDefaultsKeys.surveysForLater) ?? [:] }
-        set { try! encodeUserDefaultsObjects(newValue, key: UserDefaultsKeys.surveysForLater) } // swiftlint:disable:this force_try
+    private var surveysForLater: [SurveyForLater] {
+        get {
+            return decodeUserDefaultsObjects(type: [SurveyForLater].self, key: UserDefaultsKeys.surveysForLater) ?? []
+        }
+        set {
+            try! encodeUserDefaultsObjects(newValue, key: UserDefaultsKeys.surveysForLater) // swiftlint:disable:this force_try
+        }
     }
 
     // MARK: - Stop Preferences

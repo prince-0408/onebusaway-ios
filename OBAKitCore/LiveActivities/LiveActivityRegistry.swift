@@ -7,6 +7,7 @@
 //  LICENSE file in the root directory of this source tree.
 //
 
+#if canImport(ActivityKit)
 import Foundation
 import ActivityKit
 
@@ -299,3 +300,4 @@ public final class LiveActivityRegistry {
         }
     }
 }
+#endif

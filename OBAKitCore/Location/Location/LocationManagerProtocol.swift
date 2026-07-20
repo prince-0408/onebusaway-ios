@@ -45,9 +45,11 @@ public protocol LocationManager {
     func stopUpdatingHeading()
 
     // MARK: - Region Monitoring
+#if !os(watchOS)
     func startMonitoring(for region: CLRegion)
     func stopMonitoring(for region: CLRegion)
     var monitoredRegions: Set<CLRegion> { get }
+#endif
 }
 
 extension CLLocationManager: LocationManager {

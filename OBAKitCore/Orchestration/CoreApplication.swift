@@ -192,6 +192,7 @@ open class CoreApplication: NSObject,
 
     // MARK: - Live Activities
 
+#if canImport(ActivityKit)
     /// Owns the Live Activity push subscriptions registered with OBACloud: registration,
     /// unregistration, and the launch-time reconciliation sweep that cleans up activities the
     /// user dismissed while the app wasn't running.
@@ -207,6 +208,7 @@ open class CoreApplication: NSObject,
     /// per-screen on purpose: a Live Activity outlives the view controller that started it, and
     /// so must the observer that unregisters it. See `LiveActivityTracker`.
     public private(set) lazy var liveActivityTracker = LiveActivityTracker(registry: liveActivityRegistry)
+#endif
 
     /// Reloads the Obaco Service stack, including the network queue, api service manager, and model service manager.
     /// This must be called when the region changes.

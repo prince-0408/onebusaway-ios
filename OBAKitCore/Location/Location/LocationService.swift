@@ -23,8 +23,10 @@ public protocol LocationServiceDelegate: NSObjectProtocol {
     @objc optional func locationService(_ service: LocationService, locationChanged location: CLLocation)
     @objc optional func locationService(_ service: LocationService, headingChanged heading: CLHeading?)
     @objc optional func locationService(_ service: LocationService, errorReceived error: Error)
+#if !os(watchOS)
     @objc optional func locationService(_ service: LocationService, didEnterMonitoredRegion identifier: String)
     @objc optional func locationService(_ service: LocationService, monitoringDidFailFor identifier: String?, error: Error)
+#endif
 }
 
 // @preconcurrency: CLLocationManager delivers callbacks on the run loop it was
@@ -123,6 +125,7 @@ public protocol LocationServiceDelegate: NSObjectProtocol {
         }
     }
 
+#if !os(watchOS)
     private func notifyDelegatesDidEnterMonitoredRegion(_ identifier: String) {
         for delegate in delegates.allObjects {
             delegate.locationService?(self, didEnterMonitoredRegion: identifier)
@@ -134,6 +137,7 @@ public protocol LocationServiceDelegate: NSObjectProtocol {
             delegate.locationService?(self, monitoringDidFailFor: identifier, error: error)
         }
     }
+#endif
 
     // MARK: - Authorization
 
@@ -300,6 +304,7 @@ public protocol LocationServiceDelegate: NSObjectProtocol {
         notifyDelegatesErrorReceived(error)
     }
 
+#if !os(watchOS)
     // MARK: - Region Monitoring
 
     static let proximityRegionPrefix = "oba.proximity."
@@ -349,4 +354,5 @@ public protocol LocationServiceDelegate: NSObjectProtocol {
         Logger.error("Region monitoring failed for \(region?.identifier ?? "unknown"): \(error)")
         notifyDelegatesMonitoringDidFail(region?.identifier, error: error)
     }
+#endif
 }
