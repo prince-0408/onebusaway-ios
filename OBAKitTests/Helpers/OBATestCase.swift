@@ -11,12 +11,17 @@ import XCTest
 import OBAKit
 @testable import OBAKitCore
 
+// Main-actor-isolated (inherited by every test class): the frameworks under test
+// are largely @MainActor. XCTest runs sync test methods on the main thread; it is
+// this @MainActor annotation that makes async setUp/tearDown and async test
+// methods hop to main as well.
+@MainActor
 open class OBATestCase: XCTestCase {
 
     var userDefaults: UserDefaults!
 
-    open override func setUp() {
-        super.setUp()
+    open override func setUp() async throws {
+        try await super.setUp()
         NSTimeZone.default = NSTimeZone(forSecondsFromGMT: 0) as TimeZone
         userDefaults = buildUserDefaults()
         userDefaults.removePersistentDomain(forName: userDefaultsSuiteName)
@@ -28,8 +33,8 @@ open class OBATestCase: XCTestCase {
         restService = buildRESTService()
     }
 
-    open override func tearDown() {
-        super.tearDown()
+    open override func tearDown() async throws {
+        try await super.tearDown()
         NSTimeZone.resetSystemTimeZone()
         userDefaults.removePersistentDomain(forName: userDefaultsSuiteName)
     }
@@ -157,6 +162,42 @@ open class OBATestCase: XCTestCase {
 
     var regionsAPIPath: String {
         "/regions-v3.json"
+    }
+
+    // MARK: - Application
+
+    /// Builds a fully-wired `Application` against stubbed regions +
+    /// agencies-with-coverage for tests that need the real object graph
+    /// (e.g. anything that constructs a view controller which reads
+    /// `application.regionsService` / stores at init time).
+    ///
+    /// Test classes still own their own `queue` because a per-test queue
+    /// keeps `cancelAllOperations()` scoped to each `tearDown`.
+    func buildApplication(queue: OperationQueue, dataLoader: MockDataLoader) -> Application {
+        stubRegions(dataLoader: dataLoader)
+        stubAgenciesWithCoverage(dataLoader: dataLoader, baseURL: Fixtures.pugetSoundRegion.OBABaseURL)
+
+        let locManager = MockAuthorizedLocationManager(
+            updateLocation: TestData.mockSeattleLocation,
+            updateHeading: TestData.mockHeading
+        )
+        let locationService = LocationService(userDefaults: userDefaults, locationManager: locManager)
+
+        let config = AppConfig(
+            regionsBaseURL: regionsURL,
+            apiKey: apiKey,
+            appVersion: appVersion,
+            userDefaults: userDefaults,
+            analytics: AnalyticsMock(),
+            queue: queue,
+            locationService: locationService,
+            bundledRegionsFilePath: bundledRegionsPath,
+            regionsAPIPath: regionsAPIPath,
+            dataLoader: dataLoader,
+            fixedRegionName: Fixtures.pugetSoundRegion.name
+        )
+
+        return Application(config: config)
     }
 
     // MARK: - Surveys

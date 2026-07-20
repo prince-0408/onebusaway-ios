@@ -14,6 +14,7 @@ import CoreLocation
 ///
 /// - Note: See `OBAKit.Application` for a richer version of this class suitable for use in an iOS app.
 @objc(OBACoreApplication)
+@MainActor
 open class CoreApplication: NSObject,
     AgencyAlertsDelegate,
     DataMigrationDelegate,
@@ -47,7 +48,7 @@ open class CoreApplication: NSObject,
     @objc public let locationService: LocationService
 
     /// Responsible for managing `Region`s and determining the correct `Region` for the user.
-    @objc public lazy var regionsService = RegionsService(apiService: regionsAPIService, locationService: locationService, userDefaults: userDefaults, bundledRegionsFilePath: self.config.bundledRegionsFilePath, apiPath: self.config.regionsAPIPath)
+    @objc public lazy var regionsService = RegionsService(apiService: regionsAPIService, locationService: locationService, userDefaults: userDefaults, bundledRegionsFilePath: self.config.bundledRegionsFilePath, apiPath: self.config.regionsAPIPath, fixedRegionName: self.config.fixedRegionName, fixedRegionOBABaseURL: self.config.fixedRegionOBABaseURL)
 
     /// Helper property that returns `regionsService.currentRegion`.
     @objc public var currentRegion: Region? {
@@ -118,7 +119,7 @@ open class CoreApplication: NSObject,
     // MARK: - Agency Alerts
 
     public var shouldDisplayRegionalTestAlerts: Bool {
-        return userDefaults.bool(forKey: AgencyAlertsStore.UserDefaultKeys.displayRegionalTestAlerts)
+        return AgencyAlertsStore.shouldDisplayTestAlerts(userDefaults: userDefaults)
     }
 
     public lazy var alertsStore = AgencyAlertsStore(userDefaults: userDefaults, regionsService: regionsService)
@@ -170,7 +171,10 @@ open class CoreApplication: NSObject,
             return
         }
 
-        self.apiService = RESTAPIService(APIServiceConfiguration(baseURL: region.OBABaseURL, apiKey: config.apiKey, uuid: userUUID, appVersion: config.appVersion, regionIdentifier: region.regionIdentifier, surveyBaseURL: region.sidecarBaseURL))
+        self.apiService = RESTAPIService(
+            APIServiceConfiguration(baseURL: region.OBABaseURL, apiKey: config.apiKey, uuid: userUUID, appVersion: config.appVersion, regionIdentifier: region.regionIdentifier, surveyBaseURL: region.sidecarBaseURL),
+            dataLoader: config.dataLoader
+        )
     }
 
     // MARK: - Obaco
@@ -185,6 +189,24 @@ open class CoreApplication: NSObject,
     private var obacoNetworkQueue = OperationQueue()
 
     public let obacoServiceUpdatedNotification = NSNotification.Name("ObacoServiceUpdatedNotification")
+
+    // MARK: - Live Activities
+
+    /// Owns the Live Activity push subscriptions registered with OBACloud: registration,
+    /// unregistration, and the launch-time reconciliation sweep that cleans up activities the
+    /// user dismissed while the app wasn't running.
+    ///
+    /// `obacoService` is resolved lazily on each call because it's recreated when the region
+    /// changes and is nil until a region is available.
+    public private(set) lazy var liveActivityRegistry = LiveActivityRegistry(
+        userDefaults: userDefaults,
+        obacoServiceProvider: { [weak self] in self?.obacoService }
+    )
+
+    /// Owns the ActivityKit observers that feed `liveActivityRegistry`. App-scoped rather than
+    /// per-screen on purpose: a Live Activity outlives the view controller that started it, and
+    /// so must the observer that unregisters it. See `LiveActivityTracker`.
+    public private(set) lazy var liveActivityTracker = LiveActivityTracker(registry: liveActivityRegistry)
 
     /// Reloads the Obaco Service stack, including the network queue, api service manager, and model service manager.
     /// This must be called when the region changes.
@@ -272,12 +294,24 @@ open class CoreApplication: NSObject,
 
     // MARK: - Surveys
 
-    public private(set) lazy var surveyService = SurveyService(apiService: apiService, userDataStore: userDefaultsStore)
+    public private(set) lazy var surveyService = SurveyService(apiService: apiService, userDataStore: userDefaultsStore, application: self)
 
     /// Recreates the survey service when the API service changes (region refresh/change).
     private func refreshSurveysService() {
         Task { @MainActor in
-            self.surveyService = SurveyService(apiService: self.apiService, userDataStore: self.userDefaultsStore)
+            self.surveyService = SurveyService(apiService: self.apiService, userDataStore: self.userDefaultsStore, application: self)
         }
+    }
+}
+
+// MARK: - SurveyURLApplicationContext
+
+extension CoreApplication: SurveyURLApplicationContext {
+    public var currentRegionIdentifier: Int? {
+        regionsService.currentRegion?.regionIdentifier
+    }
+
+    public var currentCoordinate: CLLocationCoordinate2D? {
+        locationService.currentLocation?.coordinate
     }
 }

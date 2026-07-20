@@ -19,8 +19,8 @@ class HighlightChangeLabelTests: OBATestCase {
     
     var label: HighlightChangeLabel!
     
-    override func setUp() {
-        super.setUp()
+    override func setUp() async throws {
+        try await super.setUp()
         label = HighlightChangeLabel(frame: .zero)
     }
     
@@ -75,10 +75,5 @@ class HighlightChangeLabelTests: OBATestCase {
         
         // After configuration, the label should be in a valid state
         expect(self.label.layer).toNot(beNil())
-    }
-    
-    func test_arrivalDepartureDrivenUI_conformance() {
-        // Test that the class conforms to ArrivalDepartureDrivenUI
-        expect(self.label is ArrivalDepartureDrivenUI) == true
     }
 }

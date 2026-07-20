@@ -25,9 +25,12 @@ targets:
           - applinks:sidecar.onebusaway.org
         com.apple.developer.in-app-payments:
           - merchant.org.onebusaway.iphone
+        com.apple.developer.healthkit: true
     info:
       path: Apps/OneBusAway/Info.plist
       properties:
+        NSSupportsLiveActivities: true
+        NSSupportsLiveActivitiesFrequentUpdates: true
         CFBundleDisplayName: OneBusAway
         CFBundleURLTypes: [{CFBundleTypeRole: "Editor", CFBundleURLIconFile: "", CFBundleURLName: "onebusaway", CFBundleURLSchemes: ["onebusaway"]}]
         LSApplicationQueriesSchemes:
@@ -62,6 +65,9 @@ targets:
             Enabled: true
             DonationManagementPortal: "https://opentransitsoftwarefoundation.org/manage-donations"
           ExtensionURLScheme: onebusaway
+          MoreTab:
+            ShowHelpOutSection: true
+            DevelopURL: "https://github.com/oneBusAway/onebusaway-ios"
           PrivacyPolicyURL: https://opentransitsoftwarefoundation.org/onebusaway/privacy/
           PushNotificationAPIKey: d5d0d28a-6091-46cd-9627-0ce01ffa9f9e
           RESTServerAPIKey: org.onebusaway.iphone
@@ -93,7 +99,9 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: org.onebusaway.iphone.OBAWidget
 include:
   - path: OBAKitCore/project.yml
+  - path: OBAKitUITests/project.yml
   - path: Apps/Shared/app_shared.yml
+  - path: Apps/Shared/info_plist.yml
   - path: Apps/Shared/analytics_fx_config.yml
   - path: Apps/Shared/push_config.yml
   - path: OBAKit/project.yml

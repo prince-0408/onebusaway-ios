@@ -11,14 +11,27 @@ import Foundation
 import CoreLocation
 
 @objc(OBALocationServiceDelegate)
+@MainActor
 public protocol LocationServiceDelegate: NSObjectProtocol {
     @objc optional func locationService(_ service: LocationService, authorizationStatusChanged status: CLAuthorizationStatus)
+    /// Fired when the accuracy authorization changes *without* the coarse
+    /// `CLAuthorizationStatus` changing — e.g. the user grants one-shot full
+    /// accuracy ("Allow Once") or toggles Precise Location in Settings. These
+    /// transitions leave `authorizationStatusChanged` silent, so consumers that
+    /// react to accuracy (map status pills, zoom level) must observe this too.
+    @objc optional func locationService(_ service: LocationService, accuracyAuthorizationChanged accuracyAuthorization: CLAccuracyAuthorization)
     @objc optional func locationService(_ service: LocationService, locationChanged location: CLLocation)
     @objc optional func locationService(_ service: LocationService, headingChanged heading: CLHeading?)
     @objc optional func locationService(_ service: LocationService, errorReceived error: Error)
+    @objc optional func locationService(_ service: LocationService, didEnterMonitoredRegion identifier: String)
+    @objc optional func locationService(_ service: LocationService, monitoringDidFailFor identifier: String?, error: Error)
 }
 
-@objc(OBALocationService) public class LocationService: NSObject, CLLocationManagerDelegate {
+// @preconcurrency: CLLocationManager delivers callbacks on the run loop it was
+// created on, which for this service is always the main run loop.
+// Callers of the designated initializer must construct the injected manager
+// on the main thread for the same reason.
+@objc(OBALocationService) @MainActor public class LocationService: NSObject, @preconcurrency CLLocationManagerDelegate {
     private var locationManager: LocationManager
 
     public convenience override init() {
@@ -28,6 +41,7 @@ public protocol LocationServiceDelegate: NSObjectProtocol {
     public init(userDefaults: UserDefaults, locationManager: LocationManager) {
         self.locationManager = locationManager
         authorizationStatus = locationManager.authorizationStatus
+        lastAccuracyAuthorization = locationManager.accuracyAuthorization
         currentLocation = locationManager.location
 
         self.userDefaults = userDefaults
@@ -85,6 +99,12 @@ public protocol LocationServiceDelegate: NSObjectProtocol {
         }
     }
 
+    private func notifyDelegatesAccuracyAuthorizationChanged(_ accuracyAuthorization: CLAccuracyAuthorization) {
+        for delegate in delegates.allObjects {
+            delegate.locationService?(self, accuracyAuthorizationChanged: accuracyAuthorization)
+        }
+    }
+
     private func notifyDelegatesLocationChanged(_ location: CLLocation) {
         for delegate in delegates.allObjects {
             delegate.locationService?(self, locationChanged: location)
@@ -100,6 +120,18 @@ public protocol LocationServiceDelegate: NSObjectProtocol {
     private func notifyDelegatesErrorReceived(_ error: Error) {
         for delegate in delegates.allObjects {
             delegate.locationService?(self, errorReceived: error)
+        }
+    }
+
+    private func notifyDelegatesDidEnterMonitoredRegion(_ identifier: String) {
+        for delegate in delegates.allObjects {
+            delegate.locationService?(self, didEnterMonitoredRegion: identifier)
+        }
+    }
+
+    private func notifyDelegatesMonitoringDidFail(_ identifier: String?, error: Error) {
+        for delegate in delegates.allObjects {
+            delegate.locationService?(self, monitoringDidFailFor: identifier, error: error)
         }
     }
 
@@ -159,6 +191,12 @@ public protocol LocationServiceDelegate: NSObjectProtocol {
         return locationManager.accuracyAuthorization
     }
 
+    /// Last accuracy authorization we notified delegates about. Tracked so a
+    /// `locationManagerDidChangeAuthorization` callback that carries only an
+    /// accuracy change (coarse status unchanged) can still be detected and
+    /// forwarded via `accuracyAuthorizationChanged`.
+    private var lastAccuracyAuthorization: CLAccuracyAuthorization
+
     // MARK: - State Management
 
     public func startUpdates() {
@@ -217,6 +255,16 @@ public protocol LocationServiceDelegate: NSObjectProtocol {
     @available(iOS 14, *)
     public func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         authorizationStatus = manager.authorizationStatus
+
+        // Accuracy can change while the coarse status stays put (e.g. "Allow
+        // Once" elevates a reduced-accuracy session to full). That leaves the
+        // `authorizationStatus` didSet silent, so detect and forward the
+        // accuracy transition on its own channel.
+        let newAccuracy = manager.accuracyAuthorization
+        if newAccuracy != lastAccuracyAuthorization {
+            lastAccuracyAuthorization = newAccuracy
+            notifyDelegatesAccuracyAuthorizationChanged(newAccuracy)
+        }
     }
 
     public var successiveLocationComparisonWindow: TimeInterval = 60.0
@@ -250,5 +298,55 @@ public protocol LocationServiceDelegate: NSObjectProtocol {
 
     public func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
         notifyDelegatesErrorReceived(error)
+    }
+
+    // MARK: - Region Monitoring
+
+    static let proximityRegionPrefix = "oba.proximity."
+
+    /// Starts monitoring a geofence region for the given proximity alert.
+    ///
+    /// - Note: Region monitoring requires `.authorizedAlways` for background delivery.
+    ///   The caller (e.g. ProximityAlertManager) is responsible for ensuring appropriate authorization.
+    public func startMonitoringProximity(for alert: ProximityAlert) {
+        guard isLocationUseAuthorized else { return }
+
+        let region = CLCircularRegion(
+            center: alert.coordinate,
+            radius: alert.radiusMeters,
+            identifier: Self.proximityRegionPrefix + alert.id.uuidString
+        )
+        region.notifyOnEntry = true
+        region.notifyOnExit = false
+        locationManager.startMonitoring(for: region)
+    }
+
+    /// Stops monitoring the geofence region for the given proximity alert.
+    public func stopMonitoringProximity(for alert: ProximityAlert) {
+        let identifier = Self.proximityRegionPrefix + alert.id.uuidString
+        guard let matchingRegion = locationManager.monitoredRegions.first(where: {
+            $0.identifier == identifier
+        }) else {
+            Logger.warn("No monitored region found for proximity alert \(alert.id)")
+            return
+        }
+        locationManager.stopMonitoring(for: matchingRegion)
+    }
+
+    /// Stops monitoring all proximity alert regions without affecting other monitored regions.
+    public func stopMonitoringAllProximityAlerts() {
+        for region in locationManager.monitoredRegions where region.identifier.hasPrefix(Self.proximityRegionPrefix) {
+            locationManager.stopMonitoring(for: region)
+        }
+    }
+
+    public func locationManager(_ manager: CLLocationManager, didEnterRegion region: CLRegion) {
+        guard region is CLCircularRegion, region.identifier.hasPrefix(Self.proximityRegionPrefix) else { return }
+        notifyDelegatesDidEnterMonitoredRegion(region.identifier)
+    }
+
+    public func locationManager(_ manager: CLLocationManager, monitoringDidFailFor region: CLRegion?, withError error: Error) {
+        Logger.error("Region monitoring failed for \(region?.identifier ?? "unknown"): \(error)")
+        notifyDelegatesMonitoringDidFail(region?.identifier, error: error)
     }
 }

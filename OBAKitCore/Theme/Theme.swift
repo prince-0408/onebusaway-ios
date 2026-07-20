@@ -1,6 +1,6 @@
 //
 //  Theme.swift
-//  OBAKit
+//  OBAKitCore
 //
 //  Copyright © Open Transit Software Foundation
 //  This source code is licensed under the Apache 2.0 license found in the
@@ -38,7 +38,8 @@ public class ThemeMetrics: NSObject {
     public static let stopAnnotationCornerRadius: CGFloat = 4.0
 }
 
-public class ThemeColors: NSObject {
+// Every stored property is an immutable UIColor (Sendable); @unchecked only because NSObject is not Sendable.
+public final class ThemeColors: NSObject, @unchecked Sendable {
 
     /// Primary theme color/brand color.
     public private(set) var brand: UIColor = .black

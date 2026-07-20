@@ -49,7 +49,9 @@ public enum StopLocationType: Int, Decodable {
     }
 }
 
-public class Stop: NSObject, Identifiable, Codable, HasReferences {
+// @unchecked Sendable per the HasReferences concurrency contract (see References.swift):
+// mutation is confined to decode + loadReferences, before the instance is shared.
+public final class Stop: NSObject, Identifiable, Codable, HasReferences, @unchecked Sendable {
 
     /// The stop_code field contains a short piece of text or a number that uniquely identifies the stop for passengers.
     ///
@@ -137,7 +139,7 @@ public class Stop: NSObject, Identifiable, Codable, HasReferences {
     /// Denotes the availability of wheelchair boarding at this stop.
     public let wheelchairBoarding: WheelchairBoarding
 
-    public private(set) var regionIdentifier: Int?
+    public internal(set) var regionIdentifier: Int?
 
     private enum CodingKeys: String, CodingKey {
         case code

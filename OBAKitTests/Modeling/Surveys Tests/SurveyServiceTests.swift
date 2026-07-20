@@ -16,8 +16,8 @@ final class SurveyServiceTests: OBATestCase {
     private var mockDataLoader: MockDataLoader!
     private var testRESTService: RESTAPIService!
 
-    override func setUp() {
-        super.setUp()
+    override func setUp() async throws {
+        try await super.setUp()
         mockDataLoader = MockDataLoader(testName: name)
         let config = APIServiceConfiguration(
             baseURL: baseURL,
@@ -539,6 +539,43 @@ final class SurveyServiceTests: OBATestCase {
         expect(survey.heroQuestion?.id).to(equal(10))
         expect(survey.remainingQuestions.count).to(equal(2))
         expect(survey.remainingQuestions.map(\.id)).to(equal([20, 30]))
+    }
+
+    // MARK: - heroQuestionTitle
+
+    func test_heroQuestionTitle_returnsTrimmedHeroText() {
+        let survey = makeSurveyWithHero(labelText: "  Help us improve transit  ")
+        expect(survey.heroQuestionTitle).to(equal("Help us improve transit"))
+    }
+
+    func test_heroQuestionTitle_nilWhenHeroTextIsEmpty() {
+        let survey = makeSurveyWithHero(labelText: "")
+        expect(survey.heroQuestionTitle).to(beNil())
+    }
+
+    func test_heroQuestionTitle_nilWhenHeroTextIsWhitespaceOnly() {
+        let survey = makeSurveyWithHero(labelText: "   \n\t ")
+        expect(survey.heroQuestionTitle).to(beNil())
+    }
+
+    func test_heroQuestionTitle_nilWhenNoHeroQuestion() {
+        // Only a non-hero (position != 1) question exists.
+        let survey = makeSurveyWithHero(labelText: "Question", position: 2)
+        expect(survey.heroQuestionTitle).to(beNil())
+    }
+
+    private func makeSurveyWithHero(labelText: String, position: Int = 1) -> Survey {
+        Survey(
+            id: 1, name: "Test", createdAt: Date(), updatedAt: Date(),
+            showOnMap: true, showOnStops: true, startDate: nil, endDate: nil,
+            visibleStopsList: nil, visibleRoutesList: nil,
+            allowsMultipleResponses: false, alwaysVisible: false,
+            study: Study(id: 1, name: "S", description: nil),
+            questions: [
+                SurveyQuestion(id: 1, position: position, required: false,
+                               content: QuestionContent(labelText: labelText, type: .text))
+            ]
+        )
     }
 
     private func makeResponseFailureMock(_ data: Data, url: URL, statusCode: Int, error: Error? = nil) {

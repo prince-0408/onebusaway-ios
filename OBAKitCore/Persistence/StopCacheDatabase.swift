@@ -12,15 +12,15 @@ import GRDB
 
 /// Manages the SQLite database used to cache transit stops for offline access and faster map rendering.
 /// See: https://github.com/OneBusAway/onebusaway-ios/issues/62
-public final class StopCacheDatabase: @unchecked Sendable {
+public final class StopCacheDatabase: Sendable {
 
     /// The underlying GRDB database queue for serialized access.
     let dbQueue: DatabaseQueue
 
-    /// Creates a persistent database at the specified directory.
+    /// Creates a persistent database at the specified path.
     /// If the database file is corrupted, it is deleted and recreated since this is a cache.
-    /// - Parameter databasePath: The directory in which to create the database file.
-    ///   Defaults to the app's Application Support directory.
+    /// - Parameter databasePath: The full path to the database file.
+    ///   Defaults to `stop_cache.sqlite` in the app's Application Support directory.
     public init(databasePath: String? = nil) throws {
         let path: String
         if let databasePath {
@@ -59,9 +59,12 @@ public final class StopCacheDatabase: @unchecked Sendable {
 
     // MARK: - Migrations
 
+    // swiftlint:disable:next function_body_length
     private func runMigrations() throws {
         var migrator = DatabaseMigrator()
 
+        // v1: Original schema with individual columns for every Stop field.
+        // Kept so GRDB's migrator can track migration history correctly.
         migrator.registerMigration("v1_createCachedStops") { db in
             try db.create(table: "cachedStop", options: .ifNotExists) { t in
                 t.column("id", .text).notNull()
@@ -90,6 +93,38 @@ public final class StopCacheDatabase: @unchecked Sendable {
                 on: "cachedStop",
                 columns: ["regionId", "lastUpdated"],
                 ifNotExists: true
+            )
+        }
+
+        // v2: Replace individual columns with a single stopData blob.
+        // This is a cache — dropping the table and recreating is safe.
+        // Benefits:
+        //   - Compile-time safety: no hardcoded CodingKeys dictionary
+        //   - Preserves full Route objects for cached stops
+        //   - Automatically adapts if Stop fields change
+        migrator.registerMigration("v2_stopDataBlob") { db in
+            try db.drop(table: "cachedStop")
+
+            try db.create(table: "cachedStop") { t in
+                t.column("id", .text).notNull()
+                t.column("regionId", .integer).notNull()
+                t.column("latitude", .double).notNull()
+                t.column("longitude", .double).notNull()
+                t.column("lastUpdated", .double).notNull()
+                t.column("stopData", .blob).notNull()
+                t.primaryKey(["regionId", "id"])
+            }
+
+            try db.create(
+                index: "idx_cachedStop_location",
+                on: "cachedStop",
+                columns: ["regionId", "latitude", "longitude"]
+            )
+
+            try db.create(
+                index: "idx_cachedStop_lastUpdated",
+                on: "cachedStop",
+                columns: ["regionId", "lastUpdated"]
             )
         }
 

@@ -113,6 +113,28 @@ public extension Bundle {
         return dict["AppDevelopersEmailAddress"] as? String
     }
 
+    /// The name of a fixed region to auto-select at launch, bypassing the region picker.
+    /// See: https://github.com/OneBusAway/onebusaway-ios/issues/608
+    var fixedRegionName: String? {
+        OBAKitConfig?["FixedRegionName"] as? String
+    }
+
+    /// The OBA base URL for a fixed region, used as a fallback when `FixedRegionName` doesn't match.
+    var fixedRegionOBABaseURL: URL? {
+        guard let str = OBAKitConfig?["FixedRegionOBABaseURL"] as? String else { return nil }
+        return URL(string: str)
+    }
+
+    // MARK: - More Tab Configuration
+
+    /// Returns the More tab configuration from OBAKitConfig.MoreTab, or defaults.
+    var moreTabConfiguration: MoreTabConfiguration {
+        guard let config = moreTabConfig else {
+            return .default
+        }
+        return MoreTabConfiguration(from: config)
+    }
+
     // MARK: - Bundle/Private
 
     private var OBAKitConfig: [AnyHashable: Any]? {
@@ -125,6 +147,13 @@ public extension Bundle {
         }
 
         return OBAKitConfig["Donations"] as? [AnyHashable: Any]
+    }
+
+    private var moreTabConfig: [AnyHashable: Any]? {
+        guard let OBAKitConfig else {
+            return nil
+        }
+        return OBAKitConfig["MoreTab"] as? [AnyHashable: Any]
     }
 
     private func url(for key: String) -> URL? {
@@ -225,9 +254,27 @@ public extension Sequence where Element == String {
     }
 }
 
-// MARK: - String
+// MARK: - Error
 
-// From https://stackoverflow.com/a/55619708/136839
+public extension Error {
+    /// `true` when this error represents a cancelled operation that should be
+    /// swallowed rather than surfaced to the user. Matches the two shapes a
+    /// cancelled request can arrive as:
+    ///   1. Swift Concurrency's `CancellationError`.
+    ///   2. URLSession's `URLError(.cancelled)`, matched via its `NSError`
+    ///      bridge (domain `NSURLErrorDomain`, code `NSURLErrorCancelled`),
+    ///      which covers both Swift `URLError` values and Objective-C
+    ///      `NSError`s.
+    ///
+    /// Callers should also check `Task.isCancelled` for the case where the
+    /// enclosing Task was cancelled before the error was thrown.
+    var isCancellation: Bool {
+        if self is CancellationError { return true }
+        let nsError = self as NSError
+        return nsError.domain == NSURLErrorDomain && nsError.code == NSURLErrorCancelled
+    }
+}
+
 public extension String {
 
     /// true if the string consists of the characters 0-9 exclusively, and false otherwise.
@@ -402,5 +449,23 @@ public extension UUID {
     init?(optionalUUIDString: String?) {
         guard let optionalUUIDString = optionalUUIDString else { return nil }
         self.init(uuidString: optionalUUIDString)
+    }
+}
+
+// MARK: - Timer
+
+public extension Timer {
+    /// Schedules a timer on the current (main) run loop whose block runs on the
+    /// main actor.
+    ///
+    /// Timers scheduled from the main actor fire on the main thread, so entering
+    /// the actor with `MainActor.assumeIsolated` is safe; this wrapper carries
+    /// that contract once so call sites can pass a plain `@MainActor` closure.
+    @MainActor
+    @discardableResult
+    static func scheduledMainActorTimer(withTimeInterval interval: TimeInterval, repeats: Bool, block: @escaping @MainActor () -> Void) -> Timer {
+        scheduledTimer(withTimeInterval: interval, repeats: repeats) { _ in
+            MainActor.assumeIsolated(block)
+        }
     }
 }

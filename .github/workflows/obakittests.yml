@@ -10,10 +10,25 @@ on:
 # https://github.com/actions/runner-images?tab=readme-ov-file
 # Installed versions of Xcode on macOS 15 are documented at:
 # https://github.com/actions/runner-images/blob/main/images/macos/macos-15-Readme.md
+#
+# Performance note (figures observed 2026-06 — a dated snapshot, not an invariant;
+# they will drift as the suite, runner images, and Xcode change): the OBAKitTests
+# suite itself executes in ~5s locally / ~2-3 min in CI. Everything beyond that is
+# CI infrastructure, not the tests:
+#   - iOS Simulator runtime prep / first boot (can silently download a multi-GB
+#     runtime if the image lags the targeted Xcode point release)
+#   - build-for-testing (~5 min)
+#   - the test-results upload step (~9 min; see the gated upload step below)
+# The steps below make each of those visible and time-boxed so a slow run is
+# obvious rather than a mystery 20-minute gap. If you're investigating "slow
+# tests", check the step timings first — it is almost never the tests.
 
 jobs:
   build:
-    runs-on: macos-15
+    runs-on: macos-26
+    permissions:
+      checks: write
+      contents: read
 
     steps:
     - uses: actions/checkout@v4
@@ -25,38 +40,178 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-spm-
 
-    - name: Switch Xcode
-      # FIX: Updated from 26.0 to 26.2 because 26.0 was removed in the Jan 27 update
-      run: sudo xcode-select -switch /Applications/Xcode_26.2.app
+    # DerivedData cache. The key is intentionally narrow: it busts only when the
+    # resolved dependency graph, the XcodeGen project specs, or this workflow
+    # change. The previous `**/*.yml` glob also matched vendored yml under
+    # .build/checkouts and caused needless cache misses (→ full rebuilds).
+    - uses: actions/cache@v4
+      id: deriveddata-cache
+      with:
+        path: DerivedData
+        key: ${{ runner.os }}-deriveddata-${{ hashFiles('**/Package.resolved', 'project.yml', 'Apps/**/project.yml', '.github/workflows/obakittests.yml') }}
+        restore-keys: |
+          ${{ runner.os }}-deriveddata-
+
+    # A restore-keys fallback restores DerivedData built against a different
+    # dependency graph. Freshly resolved package checkouts then carry newer
+    # mtimes than the cached explicit precompiled modules, and swift-frontend
+    # hard-errors ("file ... has been modified since the module file was
+    # built", exit 65) instead of rebuilding the stale .pcm. Purge the
+    # precompiled modules on inexact restores — they rebuild in a fraction of
+    # the build step, unlike the rest of DerivedData. (Observed 2026-07-19 on
+    # the GRDB 6→7 pin bump, matching the same local failure mode.)
+    - name: Purge stale precompiled modules on inexact cache restore
+      if: steps.deriveddata-cache.outputs.cache-hit != 'true'
+      run: rm -rf DerivedData/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules
+
+    # Pin Xcode deterministically so the set of bundled simulator runtimes is
+    # known, instead of relying on `xcode-select` against whatever the image ships.
+    # 26.6, not 26.2: the Swift 6 migration needs a compiler from the same
+    # generation as local development (Xcode 27 beta / Swift 6.4). Xcode 26.2's
+    # compiler emits implicitly-isolated deinits for MainActor-default classes
+    # whose runtime path double-frees in TaskLocal teardown, crashing the test
+    # suite regardless of simulator runtime (see docs/swift6-migration-plan.md,
+    # "Toolchain/runtime pairing caveat").
+    - name: Setup Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: '26.6'
 
     - name: Install xcodegen
+      env:
+        HOMEBREW_NO_AUTO_UPDATE: 1
+        HOMEBREW_NO_INSTALL_CLEANUP: 1
       run: brew install xcodegen
+
+    # Make iOS runtime acquisition explicit and time-boxed. An iOS 26+ runtime is
+    # REQUIRED, not merely preferred: the runner image also ships older runtimes
+    # (e.g. iOS 18.5), and running the Swift 6 build's tests on those routes every
+    # MainActor class deinit through the isolated-deinit back-deployment shim,
+    # which double-frees in TaskLocal teardown under Xcode 26.2's compiler
+    # (crash: swift_task_deinitOnExecutorMainActorBackDeploy →
+    # BUG_IN_CLIENT_OF_LIBMALLOC, seen 2026-07-16). On an SDK-matched iOS 26
+    # runtime the native runtime entry point is used and the shim never runs.
+    - name: Download iOS platform (if needed)
+      timeout-minutes: 30
+      run: |
+        if xcrun simctl runtime list 2>/dev/null | grep -qE "iOS (2[6-9]|[3-9][0-9])[0-9.]*.*\(Ready\)"; then
+          echo "An iOS 26+ simulator runtime is already installed; skipping download:"
+          xcrun simctl runtime list | grep -E "iOS [0-9]" || true
+        else
+          echo "No iOS 26+ simulator runtime found; downloading…"
+          xcodebuild -downloadPlatform iOS
+        fi
+
+    # Diagnostic preflight: logs whether the iOS runtime is actually installed.
+    # If `simctl runtime list` doesn't show the targeted iOS version as Ready,
+    # the slow runs are paying for a runtime download (see header note).
+    - name: Simulator diagnostics
+      run: |
+        echo "=== Installed simulator runtimes ==="
+        xcrun simctl runtime list || true
+        echo "=== Available SDKs ==="
+        xcodebuild -showsdks || true
+
+    # Pick an iPhone simulator on the NEWEST installed iOS runtime and capture its
+    # UDID. Using `id=` in the destination (rather than `name=iPhone 16`) avoids the
+    # "multiple matching destinations" ambiguity. Newest-runtime matters: older
+    # runtimes on the image (iOS 18.x) crash the Swift 6 test suite in the
+    # isolated-deinit back-deploy shim (see the download step's note). Booting it
+    # here isolates first-boot cost from the test step.
+    - name: Prepare iOS Simulator
+      run: |
+        set -euo pipefail
+        xcrun simctl list devices available -j > /tmp/devices.json
+        UDID=$(python3 <<'PY'
+        import json, re
+        data = json.load(open('/tmp/devices.json'))['devices']
+        def version(key):
+            m = re.search(r'iOS-(\d+)-(\d+)', key)
+            return (int(m.group(1)), int(m.group(2))) if m else (0, 0)
+        for key in sorted(data, key=version, reverse=True):
+            phones = [d for d in data[key] if d['name'].startswith('iPhone')]
+            if phones:
+                print(phones[0]['udid'])
+                break
+        PY
+        )
+        [ -n "$UDID" ] || { echo "::error::No available iPhone simulator found"; exit 1; }
+        echo "SIMULATOR_UDID=$UDID" >> "$GITHUB_ENV"
+        echo "Using simulator UDID: $UDID"
+        xcrun simctl boot "$UDID" || true
+        xcrun simctl bootstatus "$UDID" || true
 
     - name: Generate xcodeproj for OneBusAway
       run: scripts/generate_project OneBusAway
 
-    # Build
+    # Build. Output is teed to a log so the concurrency ratchet step can count
+    # strict-concurrency warnings (`-quiet` still prints warnings and errors).
     - name: Build OneBusAway
-      run: xcodebuild clean build-for-testing
-        -scheme 'App'
-        -destination 'platform=iOS Simulator,name=iPhone 16'
-        -quiet
+      timeout-minutes: 20
+      run: |
+        set -o pipefail
+        xcodebuild build-for-testing \
+          -scheme 'App' \
+          -destination "platform=iOS Simulator,id=${SIMULATOR_UDID}" \
+          -derivedDataPath DerivedData \
+          -quiet \
+          | tee xcodebuild-build.log
 
-    # Unit Test
+    # Swift 6 migration ratchet (docs/swift6-migration-plan.md): the number of
+    # strict-concurrency warnings may only go down. Enforcing since 2026-07-16.
+    # The checked-in baseline (39) was measured on Xcode 27 beta 3; CI's Xcode
+    # 26.6 counts 37 for the same code, so the baseline is the max across the
+    # supported toolchains — don't "lower it to match CI" or local builds fail.
+    # All remaining warnings are in OBAKitTests (pinned to Swift 5, see its
+    # project.yml); every Swift 6 target is at zero and additionally locked by
+    # SWIFT_WARNINGS_AS_ERRORS_GROUPS in Apps/Shared/app_shared.yml.
+    - name: Concurrency warning ratchet
+      run: scripts/concurrency_ratchet xcodebuild-build.log
+
+    # Unit Test. Output is teed to a log so the "Report slowest tests" step can
+    # surface per-test timing. `set -o pipefail` keeps xcodebuild's exit code
+    # through the pipe so a test failure still fails the step.
     - name: OBAKit Unit Test
-      run: xcodebuild test-without-building
-        -only-testing:OBAKitTests
-        -project 'OBAKit.xcodeproj'
-        -scheme 'App'
-        -destination 'platform=iOS Simulator,name=iPhone 16'
-        -resultBundlePath OBAKitTests.xcresult
-        -quiet
+      timeout-minutes: 15
+      run: |
+        set -o pipefail
+        xcodebuild test-without-building \
+          -only-testing:OBAKitTests \
+          -project 'OBAKit.xcodeproj' \
+          -scheme 'App' \
+          -destination "platform=iOS Simulator,id=${SIMULATOR_UDID}" \
+          -derivedDataPath DerivedData \
+          -enableCodeCoverage NO \
+          -resultBundlePath OBAKitTests.xcresult \
+          | tee xcodebuild-test.log
 
-    # Upload results
-    - uses: kishikawakatsumi/xcresulttool@v1.7.0
-      continue-on-error: true
-      with:
-        show-passed-tests: false    # Avoid truncation of annotations by GitHub by omitting succeeding tests.
-        path: |
-          OBAKitTests.xcresult
+    # Surface the slowest tests in the job summary so a regression in *test*
+    # time (vs. infra time) is easy to spot without re-running the investigation.
+    # Parses the classic XCTest "passed (N seconds)" log format; if the suite ever
+    # moves to swift-testing/xcbeautify output the list just comes up empty.
+    - name: Report slowest tests
       if: success() || failure()
+      run: |
+        {
+          echo "### Slowest 20 tests"
+          echo '```'
+          grep -oE "'-\[OBAKitTests\.[^]]+\]' passed \([0-9.]+ seconds\)" xcodebuild-test.log \
+            | sed -E "s/'-\[OBAKitTests\.(.+)\]' passed \(([0-9.]+) seconds\)/\2  \1/" \
+            | sort -rn | head -20
+          echo '```'
+        } >> "$GITHUB_STEP_SUMMARY" || true
+
+    # Upload results only when the run fails — parsing/uploading the xcresult
+    # bundle takes ~9 min and is wasted effort on green runs. Trade-off: this is
+    # the only consumer of the `checks: write` permission, so green runs no longer
+    # publish the per-test GitHub Checks summary; the "Report slowest tests" step
+    # writes a lighter summary to $GITHUB_STEP_SUMMARY instead. If test-retry flags
+    # are ever added, broaden this to `always()` so flaky-but-passing runs still
+    # surface which tests retried.
+    - uses: slidoapp/xcresulttool@v3.1.1
+      continue-on-error: true
+      if: failure()
+      with:
+         path: OBAKitTests.xcresult
+         show-passed-tests: false
+         show-code-coverage: false

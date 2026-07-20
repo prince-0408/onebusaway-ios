@@ -81,6 +81,28 @@ class RegionsEncodingTests: OBATestCase {
         expect(bounds[1].lonSpan).to(beCloseTo(0.3967700000000036))
     }
 
+    func testUmamiAnalyticsDecoding() {
+        let regions = try! Fixtures.loadRESTAPIPayload(type: [Region].self, fileName: "regions-v3.json")
+
+        // Present: region 0 decodes url + id.
+        let umami = regions[0].umamiAnalytics
+        expect(umami?.url) == URL(string: "https://analytics.onebusawaycloud.com")!
+        expect(umami?.id) == "abc-123-uuid"
+
+        // Explicit JSON null (region 1) → nil.
+        expect(regions[1].umamiAnalytics).to(beNil())
+
+        // Absent key (region 2) → nil.
+        expect(regions[2].umamiAnalytics).to(beNil())
+
+        // Survives a property-list encode → decode round trip (Region is persisted to disk).
+        let plist = try! PropertyListEncoder().encode(regions)
+        let roundTripped = try! PropertyListDecoder().decode([Region].self, from: plist)
+        expect(roundTripped[0].umamiAnalytics?.url) == URL(string: "https://analytics.onebusawaycloud.com")!
+        expect(roundTripped[0].umamiAnalytics?.id) == "abc-123-uuid"
+        expect(roundTripped[1].umamiAnalytics).to(beNil())
+    }
+
     func testCustomRegions_creation() {
         let customRegion = Fixtures.customMinneapolisRegion
 
@@ -108,5 +130,48 @@ class RegionsEncodingTests: OBATestCase {
         expect(customRegionRT.serviceRect.origin.coordinate.longitude).to(beCloseTo(-93.2650, within: 0.1))
         expect(customRegionRT.serviceRect.height).to(beCloseTo(9485.2270, within: 0.1))
         expect(customRegionRT.serviceRect.width).to(beCloseTo(9453.3477, within: 0.1))
+    }
+
+    // MARK: - UmamiAnalyticsConfig inits
+
+    func testUmamiConfig_memberwiseInit() {
+        let config = UmamiAnalyticsConfig(url: URL(string: "https://analytics.example.com")!, id: "site-123")
+        expect(config.url.absoluteString) == "https://analytics.example.com"
+        expect(config.id) == "site-123"
+    }
+
+    func testUmamiConfig_failableInit_bothPresent() {
+        let config = UmamiAnalyticsConfig(url: URL(string: "https://analytics.example.com"), id: "site-123")
+        expect(config?.id) == "site-123"
+    }
+
+    func testUmamiConfig_failableInit_trimsID() {
+        let config = UmamiAnalyticsConfig(url: URL(string: "https://analytics.example.com"), id: "  site-123 \n")
+        expect(config?.id) == "site-123"
+    }
+
+    func testUmamiConfig_failableInit_partialPairsCollapseToNil() {
+        expect(UmamiAnalyticsConfig(url: nil, id: "site-123")).to(beNil())
+        expect(UmamiAnalyticsConfig(url: URL(string: "https://analytics.example.com"), id: nil)).to(beNil())
+        expect(UmamiAnalyticsConfig(url: URL(string: "https://analytics.example.com"), id: "")).to(beNil())
+        expect(UmamiAnalyticsConfig(url: URL(string: "https://analytics.example.com"), id: "   ")).to(beNil())
+        expect(UmamiAnalyticsConfig(url: nil, id: nil)).to(beNil())
+    }
+
+    func testCustomRegions_creation_withSidecarAndUmami() {
+        let region = Fixtures.customRegionWithSidecarAndUmami
+        expect(region.sidecarBaseURL?.absoluteString) == "https://obaco.example.com"
+        expect(region.umamiAnalytics?.url.absoluteString) == "https://analytics.example.com"
+        expect(region.umamiAnalytics?.id) == "site-uuid-123"
+    }
+
+    func testCustomRegions_roundtripping_withSidecarAndUmami() {
+        let plistData = try! PropertyListEncoder().encode([Fixtures.customRegionWithSidecarAndUmami])
+        let rt = try! PropertyListDecoder().decode([Region].self, from: plistData)[0]
+
+        expect(rt.sidecarBaseURL?.absoluteString) == "https://obaco.example.com"
+        expect(rt.umamiAnalytics?.url.absoluteString) == "https://analytics.example.com"
+        expect(rt.umamiAnalytics?.id) == "site-uuid-123"
+        expect(rt.isCustom) == true
     }
 }

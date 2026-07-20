@@ -67,6 +67,8 @@ class VehiclesViewModel: ObservableObject {
 
     // MARK: - Public Methods
 
+    // swiftlint:disable function_body_length
+
     /// Fetches vehicle positions for all agencies in the current region
     func fetchVehicles() async {
         guard
@@ -123,7 +125,9 @@ class VehiclesViewModel: ObservableObject {
             allVehicles = results.flatMap { $0.vehicles }
             allStatuses.append(contentsOf: results.map { $0.status })
 
-            self.vehicles = allVehicles
+            withAnimation(.easeInOut(duration: 0.5)) {
+                self.vehicles = allVehicles
+            }
             self.feedStatuses = allStatuses.sorted { $0.agencyName < $1.agencyName }
             self.lastUpdated = Date()
         } catch {
@@ -132,6 +136,8 @@ class VehiclesViewModel: ObservableObject {
 
         isLoading = false
     }
+
+    // swiftlint:enable function_body_length
 
     /// Starts automatic refresh of vehicle positions
     func startAutoRefresh() {
@@ -236,8 +242,6 @@ class VehiclesViewModel: ObservableObject {
                 return ([], status)
             }
 
-            let totalEntities = message.entity.count
-            let vehicleEntities = message.entity.filter { $0.hasVehicle }
             let withPosition = message.entity.filter { $0.hasVehicle && $0.vehicle.hasPosition }
 
             let vehicles = withPosition.map { RealtimeVehicle(from: $0, agency: agency) }

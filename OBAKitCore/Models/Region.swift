@@ -52,6 +52,9 @@ public class Region: NSObject, Identifiable, Codable {
     /// The base URL for reporting analytics to a Plausible Analytics server
     public let plausibleAnalyticsServerURL: URL?
 
+    /// Per-region Umami analytics config, or `nil` when analytics is disabled for this region.
+    public let umamiAnalytics: UmamiAnalyticsConfig?
+
     /// The base URL for making Service Interface for Real Time Information (SIRI) requests.
     ///
     /// true if this OBA instance supports using the SIRI Real-time APIs to find out real-time
@@ -170,6 +173,7 @@ public class Region: NSObject, Identifiable, Codable {
         case isExperimental = "experimental"
         case sidecarBaseURL = "sidecarBaseUrl"
         case plausibleAnalyticsServerURL = "plausibleAnalyticsServerUrl"
+        case umamiAnalytics
         case OBABaseURL = "obaBaseUrl"
         case siriBaseURL = "siriBaseUrl"
         case openTripPlannerURL = "otpBaseUrl"
@@ -202,8 +206,10 @@ public class Region: NSObject, Identifiable, Codable {
     /// - Parameter coordinateRegion: The coordinate region that circumscribes this region.
     /// - Parameter contactEmail: The contact email address for this region.
     /// - Parameter regionIdentifier: The identifier for this region. If unassigned, it will be given a random value.
-    /// - Parameter regionIdentifier: The identifier for this region. If unassigned, it will be given a random value.
-    public required init(name: String, OBABaseURL: URL, coordinateRegion: MKCoordinateRegion, contactEmail: String, regionIdentifier: Int? = nil, openTripPlannerURL: URL? = nil) {
+    /// - Parameter openTripPlannerURL: Optional URL for the region's OpenTripPlanner server.
+    /// - Parameter sidecarBaseURL: Optional base URL for the Obaco sidecar server.
+    /// - Parameter umamiAnalytics: Optional Umami analytics configuration.
+    public required init(name: String, OBABaseURL: URL, coordinateRegion: MKCoordinateRegion, contactEmail: String, regionIdentifier: Int? = nil, openTripPlannerURL: URL? = nil, sidecarBaseURL: URL? = nil, umamiAnalytics: UmamiAnalyticsConfig? = nil) {
         self.name = name
         self.regionIdentifier = regionIdentifier ?? 1000 + Int.random(in: 0...999)
         isActive = true
@@ -211,7 +217,7 @@ public class Region: NSObject, Identifiable, Codable {
         isCustom = true
 
         self.OBABaseURL = OBABaseURL
-        self.sidecarBaseURL = nil
+        self.sidecarBaseURL = sidecarBaseURL
 
         let bound = RegionBound(lat: coordinateRegion.center.latitude, lon: coordinateRegion.center.longitude, latSpan: coordinateRegion.span.latitudeDelta, lonSpan: coordinateRegion.span.longitudeDelta)
         regionBounds = [bound]
@@ -231,6 +237,7 @@ public class Region: NSObject, Identifiable, Codable {
         paymentiOSAppStoreIdentifier = nil
         paymentiOSAppURLScheme = nil
         plausibleAnalyticsServerURL = nil
+        self.umamiAnalytics = umamiAnalytics
         siriBaseURL = nil
         stopInfoURL = nil
         supportsEmbeddedSocial = false
@@ -257,6 +264,7 @@ public class Region: NSObject, Identifiable, Codable {
         openTripPlannerURL = try? container.decodeIfPresent(URL.self, forKey: .openTripPlannerURL)
         stopInfoURL = try? container.decodeIfPresent(URL.self, forKey: .stopInfoURL)
         plausibleAnalyticsServerURL = try? container.decodeIfPresent(URL.self, forKey: .plausibleAnalyticsServerURL)
+        umamiAnalytics = try? container.decodeIfPresent(UmamiAnalyticsConfig.self, forKey: .umamiAnalytics)
 
         regionBounds = try container.decode([RegionBound].self, forKey: .regionBounds)
 
@@ -295,6 +303,7 @@ public class Region: NSObject, Identifiable, Codable {
         try container.encode(OBABaseURL, forKey: .OBABaseURL)
         try container.encode(sidecarBaseURL, forKey: .sidecarBaseURL)
         try container.encode(plausibleAnalyticsServerURL, forKey: .plausibleAnalyticsServerURL)
+        try container.encodeIfPresent(umamiAnalytics, forKey: .umamiAnalytics)
         try container.encodeIfPresent(siriBaseURL, forKey: .siriBaseURL)
         try container.encodeIfPresent(openTripPlannerURL, forKey: .openTripPlannerURL)
         try container.encodeIfPresent(stopInfoURL, forKey: .stopInfoURL)
@@ -338,6 +347,7 @@ public class Region: NSObject, Identifiable, Codable {
             siriBaseURL == rhs.siriBaseURL &&
             openTripPlannerURL == rhs.openTripPlannerURL &&
             plausibleAnalyticsServerURL == rhs.plausibleAnalyticsServerURL &&
+            umamiAnalytics == rhs.umamiAnalytics &&
             stopInfoURL == rhs.stopInfoURL &&
             open311Servers == rhs.open311Servers &&
             supportsEmbeddedSocial == rhs.supportsEmbeddedSocial &&
@@ -369,6 +379,7 @@ public class Region: NSObject, Identifiable, Codable {
         hasher.combine(sidecarBaseURL)
         hasher.combine(siriBaseURL)
         hasher.combine(plausibleAnalyticsServerURL)
+        hasher.combine(umamiAnalytics)
         hasher.combine(openTripPlannerURL)
         hasher.combine(stopInfoURL)
         hasher.combine(open311Servers)
@@ -517,6 +528,35 @@ public class Region: NSObject, Identifiable, Codable {
         }
 
         return URL(string: String(format: "%@://onebusaway", paymentiOSAppURLScheme))
+    }
+}
+
+// MARK: - UmamiAnalyticsConfig
+
+/// Per-region Umami analytics discovery info, published in the region feed.
+///
+/// `nil` (a JSON `null` or an absent key) means analytics is disabled for the
+/// region and no events should be emitted.
+public struct UmamiAnalyticsConfig: Codable, Equatable, Hashable {
+    /// The Umami host to POST events to, e.g. `https://analytics.onebusawaycloud.com`.
+    public let url: URL
+
+    /// The Umami website UUID that events are keyed/routed by.
+    public let id: String
+
+    public init(url: URL, id: String) {
+        self.url = url
+        self.id = id
+    }
+
+    /// The single source of truth for the both-or-nothing rule: a config exists
+    /// only when both a URL and a non-blank website ID are present. Partial
+    /// pairs collapse to `nil`, which means "analytics disabled."
+    public init?(url: URL?, id: String?) {
+        guard let url, let id = id?.strip(), !id.isEmpty else {
+            return nil
+        }
+        self.init(url: url, id: id)
     }
 }
 

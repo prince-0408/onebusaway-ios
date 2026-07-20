@@ -74,6 +74,18 @@ class Fixtures {
         return Region(name: "Custom Region", OBABaseURL: URL(string: "http://www.example.com")!, coordinateRegion: coordinateRegion, contactEmail: "contact@example.com")
     }
 
+    class var customRegionWithSidecarAndUmami: Region {
+        let coordinateRegion = MKCoordinateRegion(center: CLLocationCoordinate2D(latitude: 44.9778, longitude: -93.2650), latitudinalMeters: 1000.0, longitudinalMeters: 1000.0)
+
+        return Region(
+            name: "Custom Region",
+            OBABaseURL: URL(string: "http://www.example.com")!,
+            coordinateRegion: coordinateRegion,
+            contactEmail: "contact@example.com",
+            sidecarBaseURL: URL(string: "https://obaco.example.com")!,
+            umamiAnalytics: UmamiAnalyticsConfig(url: URL(string: "https://analytics.example.com")!, id: "site-uuid-123"))
+    }
+
     class var pugetSoundRegion: Region {
         let regions = try! loadSomeRegions()
         return regions[1]
@@ -90,5 +102,15 @@ class Fixtures {
             request.url!.absoluteString.contains("/api/gtfs_realtime/alerts-for-agency")
             || request.url!.absoluteString.contains("alerts.pb")
         }
+    }
+
+    class func createRoute(id: String) throws -> Route {
+        let dictionary: [String: Any] = [
+            "agencyId": "test_agency",
+            "id": id,
+            "shortName": "1",
+            "type": 3
+        ]
+        return try dictionaryToModel(type: Route.self, dictionary: dictionary)
     }
 }

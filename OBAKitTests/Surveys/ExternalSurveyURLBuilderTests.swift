@@ -21,8 +21,8 @@ final class ExternalSurveyURLBuilderTests: OBATestCase {
 
     // MARK: - Setup
 
-    override func setUp() {
-        super.setUp()
+    override func setUp() async throws {
+        try await super.setUp()
         userDefaultsStore = UserDefaultsStore(userDefaults: userDefaults)
         applicationContext = MockSurveyURLApplicationContext()
 
@@ -33,11 +33,11 @@ final class ExternalSurveyURLBuilderTests: OBATestCase {
         )
     }
 
-    override func tearDown() {
+    override func tearDown() async throws {
         builder = nil
         applicationContext = nil
         userDefaultsStore = nil
-        super.tearDown()
+        try await super.tearDown()
     }
 
     // MARK: - buildURL
@@ -64,6 +64,7 @@ final class ExternalSurveyURLBuilderTests: OBATestCase {
         expect(url).toNot(beNil())
         expect(url?.host).to(equal("oba.co"))
         expect(url?.path).to(equal("/survey"))
+        expect(url?.absoluteString).to(equal("https://oba.co/survey"))
     }
 
     func test_buildURL_preservesExistingQueryItems() {
@@ -299,6 +300,32 @@ final class ExternalSurveyURLBuilderTests: OBATestCase {
         expect(self.queryValue(in: url, for: "route_id")).to(equal("1_40,1_44"))
         expect(self.queryValue(in: url, for: "recent_stop_ids")).to(contain("1_75403"))
         expect(self.queryValue(in: url, for: "current_location")).to(equal("47.6062,-122.3321"))
+    }
+
+    // MARK: - Lifecycle
+
+    func test_builder_doesNotRetainApplicationContext() {
+        weak var weakContext: MockSurveyURLApplicationContext?
+        let localBuilder: ExternalSurveyURLBuilder = {
+            let ctx = MockSurveyURLApplicationContext()
+            ctx.currentRegionIdentifier = 5
+            weakContext = ctx
+            return ExternalSurveyURLBuilder(
+                userStore: userDefaultsStore,
+                userID: "u",
+                application: ctx
+            )
+        }()
+
+        // ctx is released at the end of the closure. If the builder held a strong
+        // reference, weakContext would still be non-nil.
+        expect(weakContext).to(beNil())
+
+        // And with the context gone, region_id resolves to nil instead of crashing.
+        let survey = SurveysTestHelpers.makeSurvey(questions: [
+            SurveysTestHelpers.makeSurveyQuestion(url: "https://oba.co/s", embeddedDataFields: ["region_id"])
+        ])
+        expect(self.queryValue(in: localBuilder.buildURL(for: survey, stop: nil), for: "region_id")).to(beNil())
     }
 
     // MARK: - Helpers
