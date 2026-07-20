@@ -10,40 +10,44 @@
 import UIKit
 import OBAKitCore
 
+public struct ActivityIndicatedButtonConfiguration {
+    /// The text to display in the title.
+    var text: String
+
+    /// Image to display alongside the text when using the large content viewer.
+    var largeContentImage: UIImage?
+
+    /// Upon tapping the button, the view displays an activity indicator until the `config` is updated.
+    var showsActivityIndicatorOnTap: Bool
+
+    var action: VoidBlock
+
+    /// - parameter text: The localized string to display in the title.
+    /// - parameter largeContentImage: Image to display alongside the text when using the large content viewer. Optional, but recommended.
+    /// - parameter showsActivityIndicatorOnTap: On tap, the button is replaced by activity indicator. It is recommended you set this to `true` for async operations that may take a while or should be atomic.
+    /// - parameter action: The action to perform when the button is tapped.
+    public init(text: String,
+                largeContentImage: UIImage?,
+                showsActivityIndicatorOnTap: Bool = true,
+                action: @escaping VoidBlock) {
+        self.text = text
+        self.largeContentImage = largeContentImage
+        self.showsActivityIndicatorOnTap = showsActivityIndicatorOnTap
+        self.action = action
+    }
+}
+
+extension ActivityIndicatedButtonConfiguration: Equatable {
+    nonisolated public static func == (lhs: ActivityIndicatedButtonConfiguration, rhs: ActivityIndicatedButtonConfiguration) -> Bool {
+        return lhs.text == rhs.text &&
+            lhs.largeContentImage == rhs.largeContentImage &&
+            lhs.showsActivityIndicatorOnTap == rhs.showsActivityIndicatorOnTap
+    }
+}
+
 /// A button can be replaced with an activity indicator.
 public class ActivityIndicatedButton: UIView {
-    public struct Configuration: Equatable {
-        /// The text to display in the title.
-        var text: String
-
-        /// Image to display alongside the text when using the large content viewer.
-        var largeContentImage: UIImage?
-
-        /// Upon tapping the button, the view displays an activity indicator until the `config` is updated.
-        var showsActivityIndicatorOnTap: Bool
-
-        var action: VoidBlock
-
-        /// - parameter text: The localized string to display in the title.
-        /// - parameter largeContentImage: Image to display alongside the text when using the large content viewer. Optional, but recommended.
-        /// - parameter showsActivityIndicatorOnTap: On tap, the button is replaced by activity indicator. It is recommended you set this to `true` for async operations that may take a while or should be atomic.
-        /// - parameter action: The action to perform when the button is tapped.
-        public init(text: String,
-                    largeContentImage: UIImage?,
-                    showsActivityIndicatorOnTap: Bool = true,
-                    action: @escaping VoidBlock) {
-            self.text = text
-            self.largeContentImage = largeContentImage
-            self.showsActivityIndicatorOnTap = showsActivityIndicatorOnTap
-            self.action = action
-        }
-
-        public static func == (lhs: Configuration, rhs: Configuration) -> Bool {
-            return lhs.text == rhs.text &&
-                lhs.largeContentImage == rhs.largeContentImage &&
-                lhs.showsActivityIndicatorOnTap == rhs.showsActivityIndicatorOnTap
-        }
-    }
+    public typealias Configuration = ActivityIndicatedButtonConfiguration
 
     // MARK: - State
     public var config: Configuration? {

@@ -16,7 +16,7 @@ public class DepartureTimeBadge: UILabel, ArrivalDepartureDrivenUI {
         var displayText: String
         var backgroundColor: CGColor
 
-        public init(arrivalDepartureMinutes: Int,
+        nonisolated public init(arrivalDepartureMinutes: Int,
                     arrivalDepartureStatus: ArrivalDepartureStatus,
                     temporalState: TemporalState,
                     scheduleStatus: ScheduleStatus,
@@ -26,7 +26,7 @@ public class DepartureTimeBadge: UILabel, ArrivalDepartureDrivenUI {
             self.backgroundColor = formatters.backgroundColorForScheduleStatus(scheduleStatus).cgColor
         }
 
-        public init(withArrivalDeparture arrivalDeparture: ArrivalDeparture, formatters: Formatters) {
+        nonisolated public init(withArrivalDeparture arrivalDeparture: ArrivalDeparture, formatters: Formatters) {
             self.init(arrivalDepartureMinutes: arrivalDeparture.arrivalDepartureMinutes,
                       arrivalDepartureStatus: arrivalDeparture.arrivalDepartureStatus,
                       temporalState: arrivalDeparture.temporalState,
@@ -34,7 +34,7 @@ public class DepartureTimeBadge: UILabel, ArrivalDepartureDrivenUI {
                       formatters: formatters)
         }
 
-        public init(accessibilityLabel: String, displayText: String, backgroundColor: CGColor) {
+        nonisolated public init(accessibilityLabel: String, displayText: String, backgroundColor: CGColor) {
             self.accessibilityLabel = accessibilityLabel
             self.displayText = displayText
             self.backgroundColor = backgroundColor

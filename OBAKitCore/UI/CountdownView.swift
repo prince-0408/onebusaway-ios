@@ -4,6 +4,7 @@
 //  LICENSE file in the root directory of this source tree.
 //
 
+#if !os(watchOS)
 import SwiftUI
 
 /// The "{n}m" countdown with its real-time glyph. Public so the widget extension can use it.
@@ -33,3 +34,4 @@ public struct CountdownView: View {
         .accessibilityHidden(true)
     }
 }
+#endif

@@ -28,17 +28,17 @@ public enum ErrorClassifier {
     /// - Parameters:
     ///   - error: The original error thrown during a network or decoding operation.
     ///   - regionName: The display name of the current region, used in server-down messages.
-    public static func classify(_ error: Error, regionName: String?) -> Error {
+    public static func classify(_ error: Error, regionName: String?, isCellularDataRestricted: Bool = false) -> Error {
         // If it's already a well-classified APIError with good user messages, return as-is
         // — except for requestFailure, which we can upgrade to serverUnavailable.
         if let apiError = error as? APIError {
-            return classifyAPIError(apiError, regionName: regionName)
+            return classifyAPIError(apiError, regionName: regionName, isCellularDataRestricted: isCellularDataRestricted)
         }
 
         // Classify NSURLError codes (timeout, no connection, etc.)
         let nsError = error as NSError
         if nsError.domain == NSURLErrorDomain {
-            return classifyURLError(nsError, regionName: regionName)
+            return classifyURLError(nsError, regionName: regionName, isCellularDataRestricted: isCellularDataRestricted)
         }
 
         // Classify DecodingErrors: these surface as raw Swift messages
@@ -65,7 +65,7 @@ public enum ErrorClassifier {
 
     // MARK: - Private Classification Methods
 
-    private static func classifyAPIError(_ apiError: APIError, regionName: String?) -> Error {
+    private static func classifyAPIError(_ apiError: APIError, regionName: String?, isCellularDataRestricted: Bool) -> Error {
         switch apiError {
         case .requestFailure(let response) where isServerError(statusCode: response.statusCode):
             // Upgrade generic requestFailure with 5xx status to a region-aware server-down message.
@@ -91,7 +91,7 @@ public enum ErrorClassifier {
         }
     }
 
-    private static func classifyURLError(_ nsError: NSError, regionName: String?) -> Error {
+    private static func classifyURLError(_ nsError: NSError, regionName: String?, isCellularDataRestricted: Bool) -> Error {
         switch nsError.code {
         case NSURLErrorNotConnectedToInternet,
              NSURLErrorNetworkConnectionLost,

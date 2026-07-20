@@ -64,7 +64,7 @@ nonisolated struct EmptyDataSetItem: OBAListViewItem {
                 icon = UIImage(systemName: "bolt.horizontal.circle")
             case .requestNotFound:
                 icon = UIImage(systemName: "questionmark.square.dashed")
-            case .serverUnavailable:
+            case .serverError, .serverUnavailable:
                 icon = UIImage(systemName: "server.rack")
             case .surveyServiceNotConfigured:
                 icon = UIImage(systemName: "doc.text.magnifyingglass")

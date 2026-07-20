@@ -10,12 +10,25 @@
 import UIKit
 import OBAKitCore
 
+public enum EmptyDataSetAlignment {
+    case top, center
+}
+
+extension EmptyDataSetAlignment: Equatable {
+    nonisolated public static func == (lhs: EmptyDataSetAlignment, rhs: EmptyDataSetAlignment) -> Bool {
+        switch (lhs, rhs) {
+        case (.top, .top), (.center, .center):
+            return true
+        default:
+            return false
+        }
+    }
+}
+
 /// Provides a implementation of the 'empty data set' UI pattern.
 /// To add a button, set `button.config`. See `ActivityIndicatedButton.Configuration` for more details.
 public class EmptyDataSetView: UIView {
-    public enum EmptyDataSetAlignment {
-        case top, center
-    }
+    public typealias EmptyDataSetAlignment = OBAKit.EmptyDataSetAlignment
 
     // MARK: - Constants
 

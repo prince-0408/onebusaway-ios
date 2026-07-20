@@ -21,7 +21,7 @@ class StopArrivalsViewModel: ObservableObject {
     
     private let apiClientProvider: () -> OBAAPIClient
     private let stopID: OBAStopID
-    private var updateTimer: Timer?
+    private var refreshTask: Task<Void, Never>?
     
     init(apiClientProvider: @escaping () -> OBAAPIClient, stopID: OBAStopID) {
         self.apiClientProvider = apiClientProvider
@@ -34,15 +34,20 @@ class StopArrivalsViewModel: ObservableObject {
         }
         
         // Auto-refresh every 30 seconds
-        updateTimer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: true) { [weak self] _ in
-            Task { @MainActor in
+        refreshTask = Task { [weak self] in
+            while !Task.isCancelled {
+                do {
+                    try await Task.sleep(nanoseconds: 30_000_000_000)
+                } catch {
+                    break
+                }
                 await self?.loadArrivals()
             }
         }
     }
     
     deinit {
-        updateTimer?.invalidate()
+        refreshTask?.cancel()
     }
     
     func loadArrivals() async {

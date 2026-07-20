@@ -7,6 +7,7 @@
 //  LICENSE file in the root directory of this source tree.
 //
 
+#if !os(watchOS)
 import SwiftUI
 
 /// Lock-screen Live Activity card that matches the grouped route card header from StopPageView:
@@ -126,3 +127,4 @@ public struct TripLiveActivityCardView: View {
         return Color(uiColor: UIColor(hex: hex) ?? ThemeColors.shared.brand)
     }
 }
+#endif

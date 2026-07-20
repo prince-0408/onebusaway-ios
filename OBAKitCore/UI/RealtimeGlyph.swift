@@ -4,6 +4,7 @@
 //  LICENSE file in the root directory of this source tree.
 //
 
+#if !os(watchOS)
 import SwiftUI
 
 /// Animated wave glyph for real-time trips, static clock for scheduled-only. Public so the widget can use it.
@@ -29,3 +30,4 @@ public struct RealtimeGlyph: View {
             .accessibilityHidden(true)
     }
 }
+#endif

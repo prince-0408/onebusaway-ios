@@ -22,6 +22,9 @@ public enum APIError: Error, LocalizedError {
     /// The user has disabled cellular data for this app in iOS Settings.
     case cellularDataRestricted
 
+    /// The regional server returned a 500 error.
+    case serverError(regionName: String)
+
     /// The regional server returned a 5xx error or timed out.
     case serverUnavailable(regionName: String, statusCode: Int?)
 
@@ -88,18 +91,26 @@ public enum APIError: Error, LocalizedError {
             )
             return String(format: fmt, response.url?.absoluteString ?? "(nil)")
         case .cellularDataRestricted:
-            return OBALoc(
+            let fmt = OBALoc(
                 "api_error.cellular_data_restricted",
-                value: "OneBusAway is not currently allowed to access cellular data. To fix this, go to Settings > Cellular and enable cellular data for OneBusAway, or connect to a WiFi network.",
+                value: "%@ is not currently allowed to access cellular data. To fix this, go to Settings > Cellular and enable cellular data for %@, or connect to a WiFi network.",
                 comment: "An error that tells the user that cellular data access is disabled for this app in iOS Settings."
             )
+            return String(format: fmt, Bundle.main.appName, Bundle.main.appName)
+        case .serverError(let regionName):
+            let fmt = OBALoc(
+                "api_error.server_error_fmt",
+                value: "The server for %@ encountered an error while handling your request. Please try again.",
+                comment: "An error shown when the server returns a 500 Internal Server Error. The substituted value is the region name, e.g. 'Puget Sound'."
+            )
+            return String(format: fmt, regionName)
         case .serverUnavailable(let regionName, _):
             let fmt = OBALoc(
                 "api_error.server_unavailable_fmt",
-                value: "The server for %@ appears to be down right now, so OneBusAway isn't able to show transit information for this region. The app should start working again once the server is back up.",
-                comment: "An error shown when the regional transit server is unavailable. The substituted value is the region name, e.g. 'Puget Sound'."
+                value: "The server for %@ appears to be down right now, so %@ isn't able to show transit information for this region. The app should start working again once the server is back up.",
+                comment: "An error shown when the regional transit server is unavailable. The first substituted value is the region name, e.g. 'Tampa', and the second is the app name."
             )
-            return String(format: fmt, regionName)
+            return String(format: fmt, regionName, Bundle.main.appName)
         case .surveyServiceNotConfigured:
             return OBALoc("api_error.survey_service_not_configured", value: "Survey service is not available in this region.", comment: "An error message that tells the user that surveys are not available.")
         case .noRegionSelected:

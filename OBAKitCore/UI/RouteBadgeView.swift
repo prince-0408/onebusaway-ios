@@ -4,6 +4,7 @@
 //  LICENSE file in the root directory of this source tree.
 //
 
+#if !os(watchOS)
 import SwiftUI
 
 /// Rounded-square route identity badge. Public so the widget extension can use it.
@@ -32,3 +33,4 @@ public struct RouteBadgeView: View {
             .accessibilityHidden(true)
     }
 }
+#endif

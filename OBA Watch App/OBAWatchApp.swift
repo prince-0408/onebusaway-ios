@@ -331,49 +331,58 @@ class WatchAppState: NSObject, ObservableObject, CLLocationManagerDelegate, WCSe
     }
 
     nonisolated func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String : Any]) {
-        processWatchData(applicationContext)
+        if let plistData = try? PropertyListSerialization.data(fromPropertyList: applicationContext, format: .binary, options: 0) {
+            Task { @MainActor in
+                self.processWatchData(plistData)
+            }
+        }
     }
 
     nonisolated func session(_ session: WCSession, didReceiveUserInfo userInfo: [String : Any] = [:]) {
-        processWatchData(userInfo)
+        if let plistData = try? PropertyListSerialization.data(fromPropertyList: userInfo, format: .binary, options: 0) {
+            Task { @MainActor in
+                self.processWatchData(plistData)
+            }
+        }
     }
 
-    nonisolated private func processWatchData(_ data: [String: Any]) {
+    @MainActor private func processWatchData(_ plistData: Data) {
+        guard let data = try? PropertyListSerialization.propertyList(from: plistData, options: [], format: nil) as? [String: Any] else {
+            return
+        }
         // Forward to managers
-        Task { @MainActor in
-            if let bookmarks = data["bookmarks"] as? [[String: Any]] {
-                BookmarksSyncManager.shared.updateBookmarks(bookmarks)
-            } else if let rawBookmarks = data["bookmarks"] {
-                Logger.error("Received 'bookmarks' in unexpected format: \(type(of: rawBookmarks))")
-            }
+        if let bookmarks = data["bookmarks"] as? [[String: Any]] {
+            BookmarksSyncManager.shared.updateBookmarks(bookmarks)
+        } else if let rawBookmarks = data["bookmarks"] {
+            Logger.error("Received 'bookmarks' in unexpected format: \(type(of: rawBookmarks))")
+        }
 
-            if let alerts = data["alerts"] as? [[String: Any]] {
-                ServiceAlertsSyncManager.shared.updateAlerts(alerts)
-            } else if let rawAlerts = data["alerts"] {
-                Logger.error("Received 'alerts' in unexpected format: \(type(of: rawAlerts))")
-            }
+        if let alerts = data["alerts"] as? [[String: Any]] {
+            ServiceAlertsSyncManager.shared.updateAlerts(alerts)
+        } else if let rawAlerts = data["alerts"] {
+            Logger.error("Received 'alerts' in unexpected format: \(type(of: rawAlerts))")
+        }
 
-            if let alarms = data["alarms"] as? [[String: Any]] {
-                AlarmsSyncManager.shared.updateAlarms(alarms)
-            } else if let rawAlarms = data["alarms"] {
-                Logger.error("Received 'alarms' in unexpected format: \(type(of: rawAlarms))")
-            }
+        if let alarms = data["alarms"] as? [[String: Any]] {
+            AlarmsSyncManager.shared.updateAlarms(alarms)
+        } else if let rawAlarms = data["alarms"] {
+            Logger.error("Received 'alarms' in unexpected format: \(type(of: rawAlarms))")
+        }
 
-            if let regionsData = data["regions"] as? [Data] {
-                do {
-                    let decodedRegions = try regionsData.map { try JSONDecoder().decode(RegionOption.self, from: $0) }
-                    if !decodedRegions.isEmpty {
-                        self.regions = decodedRegions
-                    }
-                } catch {
-                    Logger.error("Failed to decode regions from watch data: \(error)")
+        if let regionsData = data["regions"] as? [Data] {
+            do {
+                let decodedRegions = try regionsData.map { try JSONDecoder().decode(RegionOption.self, from: $0) }
+                if !decodedRegions.isEmpty {
+                    self.regions = decodedRegions
                 }
+            } catch {
+                Logger.error("Failed to decode regions from watch data: \(error)")
             }
+        }
 
-            let knownKeys: Set<String> = ["bookmarks", "alerts", "alarms", "regions"]
-            for key in data.keys where !knownKeys.contains(key) {
-                Logger.error("Received unrecognized key in watch data: '\(key)'")
-            }
+        let knownKeys: Set<String> = ["bookmarks", "alerts", "alarms", "regions"]
+        for key in data.keys where !knownKeys.contains(key) {
+            Logger.error("Received unrecognized key in watch data: '\(key)'")
         }
     }
 
@@ -427,8 +436,9 @@ class WatchAppState: NSObject, ObservableObject, CLLocationManagerDelegate, WCSe
     // MARK: - CLLocationManagerDelegate
 
     nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        let status = manager.authorizationStatus
         Task { @MainActor in
-            self.authorizationStatus = manager.authorizationStatus
+            self.authorizationStatus = status
         }
     }
 

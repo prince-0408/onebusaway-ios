@@ -185,6 +185,11 @@ class ScheduleForRouteViewModel: ObservableObject {
         return sortedDepartureTimes
     }
 
+    var uses12HourClock: Bool {
+        Locale.current.hourCycle == .oneToTwelve ||
+        Locale.current.hourCycle == .zeroToEleven
+    }
+
     /// Calculates the actual start time for a trip by finding the earliest departure across all stops.
     /// This is used for sorting trips chronologically, since some trips may not serve the first stop.
     private func actualStartTime(for trip: ScheduleForRoute.TripWithStopTimes, scheduleDate: Date) -> Date? {
