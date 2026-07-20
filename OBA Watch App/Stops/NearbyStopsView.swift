@@ -223,56 +223,6 @@ struct NearbyStopRow: View {
     }
 }
 
-/// Simple map-based view of nearby stops.
-struct NearbyMapView: View {
-    let stops: [OBAStop]
-    let currentLocation: CLLocation?
-    let mapStyle: MapStyle
-
-    var body: some View {
-        Map {
-            UserAnnotation()
-            
-            ForEach(stops.prefix(20)) { stop in
-                let icon = stop.locationType == 1 ? "train.side.front.car" : "bus"
-                Marker(stop.name, systemImage: icon, coordinate: CLLocationCoordinate2D(latitude: stop.latitude, longitude: stop.longitude))
-                    .tint(.green)
-            }
-        }
-        .mapStyle(mapStyle)
-    }
-}
-
 #Preview {
     NearbyStopsView()
-}
-
-/// A shared container view for displaying nearby stops with consistent loading, error, and empty states.
-struct NearbyStopsContainerView<Content: View, EmptyView: View>: View {
-    let isLoading: Bool
-    let errorMessage: String?
-    let hasStops: Bool
-    let title: String
-    let refreshAction: () async -> Void
-    @ViewBuilder let content: () -> Content
-    @ViewBuilder let emptyState: () -> EmptyView
-    
-    var body: some View {
-        Group {
-            if isLoading {
-                ProgressView()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if let errorMessage {
-                ErrorView(message: errorMessage)
-            } else if !hasStops {
-                emptyState()
-            } else {
-                content()
-            }
-        }
-        .navigationTitle(title)
-        .refreshable {
-            await refreshAction()
-        }
-    }
 }

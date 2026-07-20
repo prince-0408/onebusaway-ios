@@ -324,19 +324,6 @@ struct EmptyArrivalsView: View {
 }
 
 
-struct ErrorView: View {
-    let message: String
-    
-    var body: some View {
-        EmptyStateView(
-            systemImage: "exclamationmark.triangle",
-            title: OBALoc("common.error", value: "Error", comment: "Error title"),
-            message: message
-        )
-    }
-}
-
-
 #Preview {
     NavigationStack {
         StopArrivalsView(stopID: "1_12345", stopName: "Preview Stop")
