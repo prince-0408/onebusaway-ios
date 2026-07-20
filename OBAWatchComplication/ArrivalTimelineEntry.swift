@@ -29,6 +29,15 @@ struct ArrivalTimelineEntry: TimelineEntry {
 
     /// Human-readable minutes until arrival, e.g. "4 min", "Now", "Scheduled".
     var minutesUntilArrival: String {
+        let text = minutesOnlyText
+        if Int(text) != nil {
+            return String(format: NSLocalizedString("complication.minutes_fmt", value: "%@ min", comment: "Minutes until arrival format"), text)
+        }
+        return text
+    }
+
+    /// Just the number (e.g. "4") or a localized string ("Now", "Scheduled").
+    var minutesOnlyText: String {
         guard let arrival = arrivalDate else {
             return NSLocalizedString("complication.scheduled", value: "Scheduled", comment: "Arrival is only scheduled, no real-time data")
         }
@@ -36,7 +45,7 @@ struct ArrivalTimelineEntry: TimelineEntry {
         if minutes <= 0 {
             return NSLocalizedString("complication.now", value: "Now", comment: "Bus is arriving now")
         }
-        return String(format: NSLocalizedString("complication.minutes_fmt", value: "%d min", comment: "Minutes until arrival format"), minutes)
+        return "\(minutes)"
     }
 
     /// Short display suitable for the corner complication, e.g. "10 • 4m".

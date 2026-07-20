@@ -25,7 +25,7 @@ struct CircularComplication: View {
                 )
 
             VStack(spacing: 0) {
-                Text(minuteCountText)
+                Text(entry.minutesOnlyText)
                     .font(.system(size: 20, weight: .bold, design: .rounded))
                     .foregroundStyle(tintColor)
                     .minimumScaleFactor(0.6)
@@ -41,12 +41,6 @@ struct CircularComplication: View {
     }
 
     // MARK: - Helpers
-
-    private var minuteCountText: String {
-        guard let arrival = entry.arrivalDate else { return "—" }
-        let min = max(0, Int(arrival.timeIntervalSinceNow / 60))
-        return min == 0 ? "Now" : "\(min)"
-    }
 
     private var tintColor: Color {
         entry.isPredicted ? .green : .gray
