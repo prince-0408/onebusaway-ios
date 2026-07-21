@@ -6,8 +6,11 @@
 //
 
 import XCTest
-@testable import OBAKitCore
+import Nimble
+import MapKit
 import CoreLocation
+@testable import OBAKit
+@testable import OBAKitCore
 
 class OBAWatchDTOsTests: XCTestCase {
     

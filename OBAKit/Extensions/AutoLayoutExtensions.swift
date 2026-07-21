@@ -57,6 +57,13 @@ extension UIView {
         public let bottom: NSLayoutConstraint
         public let leading: NSLayoutConstraint
         public let trailing: NSLayoutConstraint
+
+        public init(top: NSLayoutConstraint, bottom: NSLayoutConstraint, leading: NSLayoutConstraint, trailing: NSLayoutConstraint) {
+            self.top = top
+            self.bottom = bottom
+            self.leading = leading
+            self.trailing = trailing
+        }
     }
 
     private func pinToSuperview(_ pinTargets: DirectionalPinTargets, insets: NSDirectionalEdgeInsets = .zero, editConstraints: ((LayoutConstraints) -> Void)? = nil) {
