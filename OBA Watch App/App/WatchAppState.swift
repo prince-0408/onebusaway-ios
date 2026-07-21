@@ -318,6 +318,16 @@ class WatchAppState: NSObject, ObservableObject, CLLocationManagerDelegate, WCSe
     nonisolated func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
         if let error = error {
             Logger.error("WCSession activation failed: \(error)")
+            return
+        }
+
+        if activationState == .activated {
+            let context = session.receivedApplicationContext
+            if !context.isEmpty, let plistData = try? PropertyListSerialization.data(fromPropertyList: context, format: .binary, options: 0) {
+                Task { @MainActor in
+                    self.processWatchData(plistData)
+                }
+            }
         }
     }
 
