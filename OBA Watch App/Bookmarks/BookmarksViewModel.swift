@@ -64,6 +64,14 @@ class BookmarksViewModel: ObservableObject {
         }
     }
 
+    /// Updates location and re-sorts current bookmarks without re-querying disk.
+    func updateCurrentLocation(_ location: CLLocation?) {
+        self.currentLocation = location
+        if !bookmarks.isEmpty {
+            self.bookmarks = sort(bookmarks)
+        }
+    }
+
     /// Sort bookmarks by distance from `currentLocation` when available,
     /// or alphabetically by name as a fallback.
     private func sort(_ items: [WatchBookmark]) -> [WatchBookmark] {

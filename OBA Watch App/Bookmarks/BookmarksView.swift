@@ -30,22 +30,31 @@ struct BookmarksView: View {
             await viewModel.refreshData()
         }
         .onChange(of: appState.currentLocation) { _, location in
-            viewModel.currentLocation = location
-            viewModel.loadBookmarks()
+            viewModel.updateCurrentLocation(location)
         }
     }
     
     private var emptyStateView: some View {
         VStack(spacing: 8) {
             Image(systemName: "bookmark")
-                .font(.system(size: 40))
+                .font(.system(size: 36))
                 .foregroundColor(.secondary)
             Text(OBALoc("bookmarks.no_bookmarks", value: "No Bookmarks", comment: "Empty state title for bookmarks"))
                 .font(.headline)
             Text(OBALoc("bookmarks.add_in_ios_app", value: "Add bookmarks in the iOS app", comment: "Empty state description for bookmarks"))
-                .font(.caption)
+                .font(.caption2)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
+
+            Button {
+                appState.requestSyncFromPhone()
+                viewModel.loadBookmarks()
+            } label: {
+                Label("Sync from iPhone", systemImage: "arrow.clockwise")
+                    .font(.caption2)
+            }
+            .buttonStyle(.borderedProminent)
+            .padding(.top, 4)
         }
         .padding()
     }
