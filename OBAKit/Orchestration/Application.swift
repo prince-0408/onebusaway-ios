@@ -160,6 +160,7 @@ public class Application: CoreApplication, PushServiceDelegate, WCSessionDelegat
         super.init(config: config)
 
         NotificationCenter.default.addObserver(self, selector: #selector(bookmarksUpdated(_:)), name: .OBABookmarksUpdated, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(bookmarksUpdated(_:)), name: .bookmarksDidChange, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(alarmsUpdated(_:)), name: .OBAAlarmsUpdated, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(serviceAlertsUpdated(_:)), name: .OBAServiceAlertsUpdated, object: nil)
 
@@ -168,14 +169,14 @@ public class Application: CoreApplication, PushServiceDelegate, WCSessionDelegat
     }
 
     private func configureWatchSession() {
-        // Perform an initial sync of all current data (bookmarks, alarms, regions) to shared storage
-        sendAllDataToWatch()
-
         if WCSession.isSupported() {
             watchSession = WCSession.default
             watchSession?.delegate = self
             watchSession?.activate()
         }
+
+        // Perform an initial sync of all current data (bookmarks, alarms, regions) to shared storage
+        sendAllDataToWatch()
     }
 
     private func configureTipKit() {
