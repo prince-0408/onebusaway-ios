@@ -46,6 +46,11 @@ class StopArrivalsViewModel: ObservableObject {
         }
     }
     
+    func cancelRefresh() {
+        refreshTask?.cancel()
+        refreshTask = nil
+    }
+
     deinit {
         refreshTask?.cancel()
     }

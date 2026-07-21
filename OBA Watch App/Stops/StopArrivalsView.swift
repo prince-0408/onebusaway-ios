@@ -242,6 +242,9 @@ struct StopArrivalsView: View {
             userActivity.userInfo = ["stop_id": stopID]
             userActivity.isEligibleForHandoff = true
         }
+        .onDisappear {
+            viewModel.cancelRefresh()
+        }
     }
 
     private var displayedArrivals: [OBAArrival] {

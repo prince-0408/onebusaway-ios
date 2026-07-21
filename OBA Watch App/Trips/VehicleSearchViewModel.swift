@@ -123,9 +123,7 @@ final class VehicleSearchViewModel: ObservableObject {
                 do {
                     response = try await search.start()
                 } catch {
-                    self.errorMessage = (error as? LocalizedError)?.errorDescription ?? OBALoc("search.error.unexpected", value: "An unexpected error occurred during local search.", comment: "Unexpected error")
-                    self.isLoading = false
-                    return
+                    Logger.info("MKLocalSearch error for '\(trimmed)': \(error). Proceeding to vehicle search.")
                 }
 
                 if let mapItem = response?.mapItems.first, let location = mapItem.placemark.location {

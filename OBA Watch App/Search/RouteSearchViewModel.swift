@@ -70,15 +70,15 @@ final class RouteSearchViewModel: ObservableObject {
             do {
                 response = try await search.start()
             } catch {
-                self.errorMessage = (error as? LocalizedError)?.errorDescription ?? OBALoc("search.error.unexpected", value: "An unexpected error occurred during local search.", comment: "Unexpected error")
-                isLoading = false
-                return
+                Logger.info("MKLocalSearch error for '\(trimmed)': \(error). Falling back to REST API search.")
             }
 
             if let mapItem = response?.mapItems.first, let loc = mapItem.placemark.location {
                 await self.executeSearch(trimmed: trimmed, location: loc, searchRegion: (mapItem.placemark.region as? CLCircularRegion)?.toMKMapRect())
             } else if let searchLoc = searchLocation {
                 await self.executeSearch(trimmed: trimmed, location: searchLoc, searchRegion: searchRegion)
+            } else if let fallbackLoc = locationProvider() {
+                await self.executeSearch(trimmed: trimmed, location: fallbackLoc, searchRegion: nil)
             } else {
                 self.errorMessage = OBALoc("search.error.location_required", value: "Location required for route search", comment: "Location required error message")
             }

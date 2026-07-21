@@ -57,16 +57,15 @@ class StopSearchViewModel: ObservableObject {
                 do {
                     response = try await search.start()
                 } catch {
-                    Logger.error("Search failed: \(error)")
-                    self.errorMessage = (error as? LocalizedError)?.errorDescription ?? OBALoc("search.error.unexpected", value: "An unexpected error occurred during local search.", comment: "Unexpected error")
-                    isLoading = false
-                    return
+                    Logger.info("MKLocalSearch error for '\(query)': \(error). Falling back to REST API stop search.")
                 }
 
                 if let mapItem = response?.mapItems.first, let loc = mapItem.placemark.location {
                     await self.executeSearch(trimmed: query, location: loc, searchRegion: (mapItem.placemark.region as? CLCircularRegion)?.toMKMapRect())
                 } else if let searchLoc = searchLocation {
                     await self.executeSearch(trimmed: query, location: searchLoc, searchRegion: searchRegion)
+                } else if let fallbackLoc = locationProvider() {
+                    await self.executeSearch(trimmed: query, location: fallbackLoc, searchRegion: nil)
                 } else {
                     self.errorMessage = OBALoc("search.error.location_required", value: "Location required for search", comment: "Location required")
                 }
