@@ -108,6 +108,20 @@ class WatchAppState: NSObject, ObservableObject, CLLocationManagerDelegate, WCSe
     /// Hardcoded regions as fallback. These will be updated from the iOS app via WCSession if available.
     static let fallbackRegions: [RegionOption] = [
         .init(
+            id: "kiedybus-iplaner",
+            name: OBALoc("region.kiedybus_iplaner", value: "Poland (KiedyBus iPlaner)", comment: "Region: KiedyBus iPlaner"),
+            coordinate: .init(latitude: 52.2297, longitude: 21.0122),
+            obaBaseURL: URL(string: "https://obaztmapi.iplaner.pl/"),
+            otpBaseURL: nil
+        ),
+        .init(
+            id: "kiedybus-poland",
+            name: OBALoc("region.kiedybus_poland", value: "Poland (KiedyBus)", comment: "Region: KiedyBus Poland"),
+            coordinate: .init(latitude: 52.2297, longitude: 21.0122),
+            obaBaseURL: URL(string: "https://kiedybus.pl/"),
+            otpBaseURL: nil
+        ),
+        .init(
             id: "tampa-bay",
             name: OBALoc("region.tampa_bay", value: "Tampa Bay", comment: "Region: Tampa Bay"),
             coordinate: .init(latitude: 27.9506, longitude: -82.4572),
