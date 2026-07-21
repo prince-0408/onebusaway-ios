@@ -168,6 +168,9 @@ public class Application: CoreApplication, PushServiceDelegate, WCSessionDelegat
     }
 
     private func configureWatchSession() {
+        // Perform an initial sync of all current data (bookmarks, alarms, regions) to shared storage
+        sendAllDataToWatch()
+
         if WCSession.isSupported() {
             watchSession = WCSession.default
             watchSession?.delegate = self

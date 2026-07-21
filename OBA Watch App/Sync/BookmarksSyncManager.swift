@@ -15,6 +15,7 @@ final class BookmarksSyncManager {
 
     /// Updates local bookmarks from data received via WatchConnectivity.
     func updateBookmarks(_ bookmarks: [[String: Any]]) {
+        guard !bookmarks.isEmpty else { return }
         do {
             let data = try JSONSerialization.data(withJSONObject: bookmarks, options: [])
             // We decode to [WatchBookmark] first to ensure compatibility, then encode back to Data
@@ -25,8 +26,7 @@ final class BookmarksSyncManager {
             WatchAppState.userDefaults.set(encodedData, forKey: storageKey)
             NotificationCenter.default.post(name: Self.bookmarksUpdatedNotification, object: nil)
         } catch {
-            Logger.error("updateBookmarks failed: \(error). Clearing stale data.")
-            WatchAppState.userDefaults.removeObject(forKey: storageKey)
+            Logger.error("updateBookmarks failed: \(error). Preserving existing stored data.")
             NotificationCenter.default.post(name: Self.bookmarksUpdatedNotification, object: nil)
         }
     }
