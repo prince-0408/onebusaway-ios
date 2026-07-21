@@ -38,13 +38,16 @@ class BookmarksViewModel: ObservableObject {
     }
     
     func loadBookmarks(from defaults: UserDefaults = WatchAppState.userDefaults) {
+        print("[WatchOS Debug] BookmarksViewModel.loadBookmarks called")
         let syncedBookmarks = BookmarksSyncManager.shared.getBookmarks()
         if !syncedBookmarks.isEmpty {
+            print("[WatchOS Debug] BookmarksViewModel loaded \(syncedBookmarks.count) synced bookmarks")
             bookmarks = sort(syncedBookmarks)
             return
         }
 
         guard let data = defaults.data(forKey: storageKey) else {
+            print("[WatchOS Debug] BookmarksViewModel: no data in defaults")
             bookmarks = []
             return
         }
@@ -52,8 +55,10 @@ class BookmarksViewModel: ObservableObject {
         do {
             let decoder = JSONDecoder()
             let decoded = try decoder.decode([WatchBookmark].self, from: data)
+            print("[WatchOS Debug] BookmarksViewModel loaded \(decoded.count) bookmarks directly from defaults")
             bookmarks = sort(decoded)
         } catch {
+            print("[WatchOS Debug] BookmarksViewModel failed to decode defaults data: \(error)")
             Logger.error("Failed to decode bookmarks: \(error)")
             errorMessage = OBALoc("bookmarks.load_error", value: "Failed to load bookmarks.", comment: "Error loading bookmarks")
         }

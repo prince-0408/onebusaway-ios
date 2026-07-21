@@ -357,7 +357,16 @@ class WatchAppState: NSObject, ObservableObject, CLLocationManagerDelegate, WCSe
 
     // MARK: - WCSessionDelegate
 
+    func requestSyncFromPhone() {
+        print("[WatchOS Debug] requestSyncFromPhone called. isSupported=\(WCSession.isSupported()), activationState=\(session.activationState.rawValue), isReachable=\(session.isReachable)")
+        guard WCSession.isSupported(), session.activationState == .activated else { return }
+        session.sendMessage(["request": "sync_all"], replyHandler: nil) { error in
+            print("[WatchOS Debug] requestSyncFromPhone sendMessage error: \(error.localizedDescription)")
+        }
+    }
+
     nonisolated func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
+        print("[WatchOS Debug] WCSession activationDidCompleteWith state=\(activationState.rawValue), error=\(String(describing: error))")
         if let error = error {
             Logger.error("WCSession activation failed: \(error)")
             return
@@ -365,15 +374,20 @@ class WatchAppState: NSObject, ObservableObject, CLLocationManagerDelegate, WCSe
 
         if activationState == .activated {
             let context = session.receivedApplicationContext
+            print("[WatchOS Debug] WCSession activated. receivedApplicationContext keys: \(context.keys)")
             if !context.isEmpty, let jsonData = try? JSONSerialization.data(withJSONObject: context, options: []) {
                 Task { @MainActor in
                     self.processWatchData(jsonData)
                 }
             }
+            Task { @MainActor in
+                self.requestSyncFromPhone()
+            }
         }
     }
 
     nonisolated func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String : Any]) {
+        print("[WatchOS Debug] didReceiveApplicationContext keys: \(applicationContext.keys)")
         if let jsonData = try? JSONSerialization.data(withJSONObject: applicationContext, options: []) {
             Task { @MainActor in
                 self.processWatchData(jsonData)
@@ -382,7 +396,17 @@ class WatchAppState: NSObject, ObservableObject, CLLocationManagerDelegate, WCSe
     }
 
     nonisolated func session(_ session: WCSession, didReceiveUserInfo userInfo: [String : Any] = [:]) {
+        print("[WatchOS Debug] didReceiveUserInfo keys: \(userInfo.keys)")
         if let jsonData = try? JSONSerialization.data(withJSONObject: userInfo, options: []) {
+            Task { @MainActor in
+                self.processWatchData(jsonData)
+            }
+        }
+    }
+
+    nonisolated func session(_ session: WCSession, didReceiveMessage message: [String : Any]) {
+        print("[WatchOS Debug] didReceiveMessage keys: \(message.keys)")
+        if let jsonData = try? JSONSerialization.data(withJSONObject: message, options: []) {
             Task { @MainActor in
                 self.processWatchData(jsonData)
             }
@@ -391,13 +415,18 @@ class WatchAppState: NSObject, ObservableObject, CLLocationManagerDelegate, WCSe
 
     @MainActor private func processWatchData(_ jsonData: Data) {
         guard let data = try? JSONSerialization.jsonObject(with: jsonData, options: []) as? [String: Any] else {
+            print("[WatchOS Debug] processWatchData: Failed to deserialize JSON data")
             return
         }
+        print("[WatchOS Debug] processWatchData processing keys: \(data.keys)")
+
         // Forward to managers
         if let bookmarks = data["bookmarks"] as? [[String: Any]] {
+            print("[WatchOS Debug] processWatchData found \(bookmarks.count) raw bookmarks")
             BookmarksSyncManager.shared.updateBookmarks(bookmarks)
         } else if let rawBookmarks = data["bookmarks"] {
             Logger.error("Received 'bookmarks' in unexpected format: \(type(of: rawBookmarks))")
+            print("[WatchOS Debug] Unexpected 'bookmarks' format: \(type(of: rawBookmarks))")
         }
 
         if let alerts = data["alerts"] as? [[String: Any]] {

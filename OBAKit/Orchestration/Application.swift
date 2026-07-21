@@ -851,20 +851,22 @@ public class Application: CoreApplication, PushServiceDelegate, WCSessionDelegat
     ///
     /// `.off` means that a feature is simply unavailable in this app.
     /// `.notRunning` means that a feature is available, but not fully configured. This might be due to a race condition, for instance, and the caller should assume that the feature may be available in the future.
-    /// `.running` means that the feature is ready to use.
+                    /// `.running` means that the feature is ready to use.
     public lazy var features = FeatureAvailability(config: self.config, application: self)
 }
 
 // MARK: - WCSessionDelegate
 extension Application {
     public nonisolated func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
+        print("[iOS Debug] WCSession activationDidCompleteWith state=\(activationState.rawValue), error=\(String(describing: error))")
         if let error = error {
             Logger.error("WCSession activation failed: \(error)")
             return
         }
 
         Task { @MainActor in
-            if activationState == .activated && self.pendingWatchSync {
+            if activationState == .activated {
+                print("[iOS Debug] WCSession activated, calling sendAllDataToWatch()")
                 self.sendAllDataToWatch()
             }
         }
@@ -878,12 +880,20 @@ extension Application {
         // Re-activate the session
         WCSession.default.activate()
     }
+
+    public nonisolated func session(_ session: WCSession, didReceiveMessage message: [String : Any]) {
+        print("[iOS Debug] Received message from Watch: \(message)")
+        Task { @MainActor in
+            self.sendAllDataToWatch()
+        }
+    }
 }
 
 extension Application {
     // MARK: - Watch Sync
 
     @objc private func bookmarksUpdated(_ notification: Notification) {
+        print("[iOS Debug] bookmarksUpdated notification received")
         sendBookmarksToWatch()
     }
 
@@ -912,16 +922,17 @@ extension Application {
     }
 
     private func sendAllDataToWatch() {
-        // Build data & populate shared App Group container (group.org.onebusaway.iphone) unconditionally.
-        // This ensures bookmark sync works 100% reliably on Simulators and offline states.
         let bookmarkData = buildBookmarkData()
         let alarmData = buildAlarmData()
         let alertData = buildAlertData()
         let regionData = buildRegionData()
 
+        print("[iOS Debug] sendAllDataToWatch: bookmarks count=\(userDataStore.bookmarks.count), built bookmarkData count=\(bookmarkData?.count ?? 0)")
+
         guard let session = watchSession, session.activationState == .activated else {
             pendingWatchSync = true
             Logger.info("Watch sync queued for WCSession activation. Shared App Group container updated.")
+            print("[iOS Debug] watchSession not active. Queued pendingWatchSync. watchSession=\(String(describing: watchSession))")
             return
         }
 
@@ -934,9 +945,16 @@ extension Application {
         do {
             try session.updateApplicationContext(context)
             session.transferUserInfo(context)
+            if session.isReachable {
+                session.sendMessage(context, replyHandler: nil) { err in
+                    print("[iOS Debug] sendMessage error: \(err.localizedDescription)")
+                }
+            }
             pendingWatchSync = false
+            print("[iOS Debug] Watch sync sent successfully via updateApplicationContext & transferUserInfo. Reachable=\(session.isReachable)")
         } catch {
             Logger.error("Watch sync failed: \(error)")
+            print("[iOS Debug] updateApplicationContext error: \(error). Falling back to transferUserInfo.")
             session.transferUserInfo(context)
         }
     }
