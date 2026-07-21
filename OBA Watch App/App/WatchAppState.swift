@@ -365,32 +365,32 @@ class WatchAppState: NSObject, ObservableObject, CLLocationManagerDelegate, WCSe
 
         if activationState == .activated {
             let context = session.receivedApplicationContext
-            if !context.isEmpty, let plistData = try? PropertyListSerialization.data(fromPropertyList: context, format: .binary, options: 0) {
+            if !context.isEmpty, let jsonData = try? JSONSerialization.data(withJSONObject: context, options: []) {
                 Task { @MainActor in
-                    self.processWatchData(plistData)
+                    self.processWatchData(jsonData)
                 }
             }
         }
     }
 
     nonisolated func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String : Any]) {
-        if let plistData = try? PropertyListSerialization.data(fromPropertyList: applicationContext, format: .binary, options: 0) {
+        if let jsonData = try? JSONSerialization.data(withJSONObject: applicationContext, options: []) {
             Task { @MainActor in
-                self.processWatchData(plistData)
+                self.processWatchData(jsonData)
             }
         }
     }
 
     nonisolated func session(_ session: WCSession, didReceiveUserInfo userInfo: [String : Any] = [:]) {
-        if let plistData = try? PropertyListSerialization.data(fromPropertyList: userInfo, format: .binary, options: 0) {
+        if let jsonData = try? JSONSerialization.data(withJSONObject: userInfo, options: []) {
             Task { @MainActor in
-                self.processWatchData(plistData)
+                self.processWatchData(jsonData)
             }
         }
     }
 
-    @MainActor private func processWatchData(_ plistData: Data) {
-        guard let data = try? PropertyListSerialization.propertyList(from: plistData, options: [], format: nil) as? [String: Any] else {
+    @MainActor private func processWatchData(_ jsonData: Data) {
+        guard let data = try? JSONSerialization.jsonObject(with: jsonData, options: []) as? [String: Any] else {
             return
         }
         // Forward to managers
