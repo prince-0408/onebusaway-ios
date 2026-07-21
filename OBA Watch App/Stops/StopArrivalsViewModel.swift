@@ -24,6 +24,7 @@ class StopArrivalsViewModel: ObservableObject {
     private var refreshTask: Task<Void, Never>?
     
     init(apiClientProvider: @escaping () -> OBAAPIClient, stopID: OBAStopID) {
+        print("[WatchOS Debug] StopArrivalsViewModel.init called for stopID: \(stopID)")
         self.apiClientProvider = apiClientProvider
         self.stopID = stopID
         
@@ -47,11 +48,13 @@ class StopArrivalsViewModel: ObservableObject {
     }
     
     func cancelRefresh() {
+        print("[WatchOS Debug] StopArrivalsViewModel.cancelRefresh called for stopID: \(stopID)")
         refreshTask?.cancel()
         refreshTask = nil
     }
 
     deinit {
+        print("[WatchOS Debug] StopArrivalsViewModel.deinit called for stopID: \(stopID)")
         refreshTask?.cancel()
     }
     

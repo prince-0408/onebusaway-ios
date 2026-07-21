@@ -4,6 +4,8 @@ targets:
     platform: watchOS
     sources: 
       - path: .
+        excludes:
+          - "Assets.xcassets"
     entitlements:
       path: OBA Watch App.entitlements
       properties:

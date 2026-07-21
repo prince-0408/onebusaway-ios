@@ -48,7 +48,7 @@ public struct OBAArrivalsResult: Codable, Equatable, Sendable {
     }
 }
 
-public struct OBAStop: Codable, Equatable, Sendable, Identifiable {
+public struct OBAStop: Codable, Equatable, Hashable, Sendable, Identifiable {
     public let id: OBAStopID
     public let name: String
     public let latitude: Double
@@ -231,7 +231,7 @@ public struct OBATrip: Codable, Equatable, Sendable, Identifiable {
 }
 
 /// A lightweight bookmark model for watchOS.
-public struct WatchBookmark: Identifiable, Codable, Equatable, Sendable {
+public struct WatchBookmark: Identifiable, Codable, Equatable, Hashable, Sendable {
     public let id: UUID
     public let stopID: OBAStopID
     public let name: String

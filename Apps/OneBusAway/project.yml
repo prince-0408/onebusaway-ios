@@ -97,6 +97,10 @@ targets:
       base:
         DEVELOPMENT_TEAM: 4ZQCMA634J
         PRODUCT_BUNDLE_IDENTIFIER: org.onebusaway.iphone.OBAWidget
+  OBAWatchApp:
+    sources: ["OBA Watch App/Assets.xcassets"]
+  OBAWatchComplication:
+    sources: ["OBA Watch App/Assets.xcassets"]
 include:
   - path: OBAKitCore/project.yml
   - path: OBAKitUITests/project.yml

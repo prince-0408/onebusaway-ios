@@ -21,6 +21,8 @@ class BookmarksViewModel: ObservableObject {
     /// sorted by proximity. When `nil`, alphabetical ordering is used instead.
     var currentLocation: CLLocation?
     
+    var isViewActive: Bool = false
+    
     // Shared storage key that can be written by the iOS app via app group.
     private let storageKey = "watch.bookmarks"
     private var cancellables = Set<AnyCancellable>()
@@ -32,7 +34,8 @@ class BookmarksViewModel: ObservableObject {
         NotificationCenter.default.publisher(for: BookmarksSyncManager.bookmarksUpdatedNotification)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
-                self?.loadBookmarks()
+                guard let self = self, self.isViewActive else { return }
+                self.loadBookmarks()
             }
             .store(in: &cancellables)
     }
@@ -67,6 +70,7 @@ class BookmarksViewModel: ObservableObject {
     /// Updates location and re-sorts current bookmarks without re-querying disk.
     func updateCurrentLocation(_ location: CLLocation?) {
         self.currentLocation = location
+        guard isViewActive else { return }
         if !bookmarks.isEmpty {
             self.bookmarks = sort(bookmarks)
         }

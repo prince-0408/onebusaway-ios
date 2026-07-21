@@ -23,6 +23,7 @@ struct StopArrivalsView: View {
     @State private var showStopProblem: Bool = false
     
     init(stopID: OBAStopID, stopName: String? = nil) {
+        print("[WatchOS Debug] StopArrivalsView.init called for stopID: \(stopID)")
         self.stopID = stopID
         self.stopName = stopName
         _viewModel = StateObject(wrappedValue: StopArrivalsViewModel(
@@ -163,17 +164,25 @@ struct StopArrivalsView: View {
         }
         .navigationTitle(OBALoc("stop_arrivals.title", value: "Arrivals", comment: "Title for stop arrivals screen"))
         .navigationBarTitleDisplayMode(.inline)
-        .navigationDestination(isPresented: $showNearbyStops) {
-            NearbyStopsView()
+        .sheet(isPresented: $showNearbyStops) {
+            NavigationStack {
+                NearbyStopsView()
+            }
         }
-        .navigationDestination(isPresented: $showStopDetails) {
-            StopDetailView(stopID: stopID)
+        .sheet(isPresented: $showStopDetails) {
+            NavigationStack {
+                StopDetailView(stopID: stopID)
+            }
         }
-        .navigationDestination(isPresented: $showStopSchedule) {
-            StopScheduleView(stopID: stopID)
+        .sheet(isPresented: $showStopSchedule) {
+            NavigationStack {
+                StopScheduleView(stopID: stopID)
+            }
         }
-        .navigationDestination(isPresented: $showStopProblem) {
-            ProblemReportView(mode: .stop(stopID: stopID))
+        .sheet(isPresented: $showStopProblem) {
+            NavigationStack {
+                ProblemReportView(mode: .stop(stopID: stopID))
+            }
         }
         .refreshable {
             await viewModel.loadArrivals()
@@ -244,7 +253,11 @@ struct StopArrivalsView: View {
             userActivity.userInfo = ["stop_id": stopID]
             userActivity.isEligibleForHandoff = true
         }
+        .onAppear {
+            print("[WatchOS Debug] StopArrivalsView.onAppear called for stopID: \(stopID)")
+        }
         .onDisappear {
+            print("[WatchOS Debug] StopArrivalsView.onDisappear called for stopID: \(stopID)")
             viewModel.cancelRefresh()
         }
     }

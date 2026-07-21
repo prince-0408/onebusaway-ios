@@ -29,6 +29,16 @@ struct BookmarksView: View {
             viewModel.currentLocation = appState.currentLocation
             await viewModel.refreshData()
         }
+        .onAppear {
+            print("[WatchOS Debug] BookmarksView.onAppear called")
+            viewModel.isViewActive = true
+            viewModel.currentLocation = appState.currentLocation
+            viewModel.loadBookmarks()
+        }
+        .onDisappear {
+            print("[WatchOS Debug] BookmarksView.onDisappear called")
+            viewModel.isViewActive = false
+        }
         .onChange(of: appState.currentLocation) { _, location in
             viewModel.updateCurrentLocation(location)
         }
@@ -63,7 +73,7 @@ struct BookmarksView: View {
         List {
             ForEach(viewModel.bookmarks) { bookmark in
                 NavigationLink {
-                    StopArrivalsView(stopID: bookmark.stopID, stopName: bookmark.name)
+                    LazyView(StopArrivalsView(stopID: bookmark.stopID, stopName: bookmark.name))
                 } label: {
                     BookmarkRow(bookmark: bookmark)
                 }
