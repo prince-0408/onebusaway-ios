@@ -23,7 +23,6 @@ struct StopArrivalsView: View {
     @State private var showStopProblem: Bool = false
     
     init(stopID: OBAStopID, stopName: String? = nil) {
-        print("[WatchOS Debug] StopArrivalsView.init called for stopID: \(stopID)")
         self.stopID = stopID
         self.stopName = stopName
         _viewModel = StateObject(wrappedValue: StopArrivalsViewModel(
@@ -253,11 +252,7 @@ struct StopArrivalsView: View {
             userActivity.userInfo = ["stop_id": stopID]
             userActivity.isEligibleForHandoff = true
         }
-        .onAppear {
-            print("[WatchOS Debug] StopArrivalsView.onAppear called for stopID: \(stopID)")
-        }
         .onDisappear {
-            print("[WatchOS Debug] StopArrivalsView.onDisappear called for stopID: \(stopID)")
             viewModel.cancelRefresh()
         }
     }

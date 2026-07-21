@@ -30,13 +30,11 @@ struct BookmarksView: View {
             await viewModel.refreshData()
         }
         .onAppear {
-            print("[WatchOS Debug] BookmarksView.onAppear called")
             viewModel.isViewActive = true
             viewModel.currentLocation = appState.currentLocation
             viewModel.loadBookmarks()
         }
         .onDisappear {
-            print("[WatchOS Debug] BookmarksView.onDisappear called")
             viewModel.isViewActive = false
         }
         .onChange(of: appState.currentLocation) { _, location in

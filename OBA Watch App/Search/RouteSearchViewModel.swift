@@ -32,7 +32,6 @@ final class RouteSearchViewModel: ObservableObject {
 
     private func _performSearch() async {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        print("[WatchOS Debug] _performSearch start. query = '\(trimmed)'")
         
         isLoading = true
         errorMessage = nil
@@ -46,9 +45,7 @@ final class RouteSearchViewModel: ObservableObject {
                 let resolved = try await LocationResolver.resolve(query: trimmed.isEmpty ? nil : trimmed, geocoder: geocoder, apiClient: apiClient, locationProvider: locationProvider)
                 searchLocation = resolved.0
                 searchRegion = resolved.1
-                print("[WatchOS Debug] resolved searchLocation = \(String(describing: searchLocation?.coordinate)), searchRegion = \(String(describing: searchRegion))")
             } catch {
-                print("[WatchOS Debug] LocationResolver failed with error: \(error)")
                 self.errorMessage = error.watchOSUserFacingMessage
                 isLoading = false
                 return
@@ -76,7 +73,6 @@ final class RouteSearchViewModel: ObservableObject {
 
     private func executeSearch(trimmed: String, location: CLLocation, searchRegion: MKMapRect?) async {
         let queryForAPI: String = trimmed.contains(" ") ? "" : trimmed
-        print("[WatchOS Debug] executeSearch start. queryForAPI = '\(queryForAPI)', lat = \(location.coordinate.latitude), lon = \(location.coordinate.longitude)")
         do {
             let fetched = try await apiClient.searchRoutes(
                 query: queryForAPI,
@@ -84,10 +80,8 @@ final class RouteSearchViewModel: ObservableObject {
                 longitude: location.coordinate.longitude,
                 radius: 150000.0
             )
-            print("[WatchOS Debug] searchRoutes returned \(fetched.count) routes: \(fetched.map { $0.shortName ?? "?" })")
             self.routes = fetched
         } catch {
-            print("[WatchOS Debug] searchRoutes failed with error: \(error)")
             self.errorMessage = error.watchOSUserFacingMessage
         }
     }
