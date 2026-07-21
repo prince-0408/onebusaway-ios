@@ -62,7 +62,10 @@ class WatchAppState: NSObject, ObservableObject, CLLocationManagerDelegate, WCSe
     }
 
     /// Default region ID used across the app
-    static let defaultRegionID = "mta-new-york"
+    static var defaultRegionID: String {
+        let bundleID = Bundle.main.bundleIdentifier ?? ""
+        return bundleID.contains("kiedybus") ? "ztm-poznan" : "mta-new-york"
+    }
 
     struct RegionOption: Identifiable, Codable {
         let id: String
@@ -164,7 +167,7 @@ class WatchAppState: NSObject, ObservableObject, CLLocationManagerDelegate, WCSe
             otpBaseURL: URL(string: "https://otp.prod.sound.obaweb.org/otp/routers/default/")
         ),
         .init(
-            id: defaultRegionID,
+            id: "mta-new-york",
             name: OBALoc("region.mta_new_york", value: "MTA New York", comment: "Region: MTA New York"),
             coordinate: .init(latitude: 40.7128, longitude: -74.0060),
             obaBaseURL: URL(string: "https://bustime.mta.info/"),
@@ -293,19 +296,25 @@ class WatchAppState: NSObject, ObservableObject, CLLocationManagerDelegate, WCSe
             "watch_share_current_location": true
         ])
 
-        // Use the saved region if available, otherwise fall back to MTA New York.
-        let savedRegionID = defaults.string(forKey: "watch_selected_region_id") ?? "mta-new-york"
+        // Use the saved region if available, otherwise fall back to default region.
+        var savedRegionID = defaults.string(forKey: "watch_selected_region_id") ?? Self.defaultRegionID
+        let bundleID = Bundle.main.bundleIdentifier ?? ""
+        if bundleID.contains("kiedybus") {
+            let polishRegionIDs = ["ztm-poznan", "pks-poznan", "gzm-katowice", "sroda-wlkp", "kornik", "mpk-wroclaw"]
+            if !polishRegionIDs.contains(savedRegionID) {
+                savedRegionID = "ztm-poznan"
+                defaults.set(savedRegionID, forKey: "watch_selected_region_id")
+            }
+        }
         let savedRegion = Self.fallbackRegions.first(where: { $0.id == savedRegionID })
         
         // Ensure we have a valid URL without force unwrapping
         var baseURL: URL
         if let regionURL = savedRegion?.obaBaseURL {
             baseURL = regionURL
-        } else if let defaultURL = URL(string: "https://bustime.mta.info") {
-            baseURL = defaultURL
         } else {
-            // This fallback should never be needed if the hardcoded URL is valid
-            baseURL = URL(fileURLWithPath: "/")
+            let defaultRegion = Self.fallbackRegions.first(where: { $0.id == Self.defaultRegionID })
+            baseURL = defaultRegion?.obaBaseURL ?? URL(string: "https://obaztmapi.iplaner.pl/")!
         }
         
         let obaConfig = Bundle.main.object(forInfoDictionaryKey: "OBAKitConfig") as? [String: Any]

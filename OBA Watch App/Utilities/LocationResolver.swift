@@ -36,14 +36,26 @@ struct LocationResolver {
             }
         }
 
-        if searchLocation == nil {
+        // Verify location proximity to the active region coverage center.
+        do {
             if agencies == nil {
                 agencies = try await apiClient.fetchAgenciesWithCoverage()
             }
             if let first = agencies?.first {
-                searchLocation = CLLocation(latitude: first.centerLatitude, longitude: first.centerLongitude)
-                searchRegion = first.agencyRegionBound.serviceRect
+                let regionCenter = CLLocation(latitude: first.centerLatitude, longitude: first.centerLongitude)
+                if let deviceLoc = searchLocation {
+                    let distance = deviceLoc.distance(from: regionCenter)
+                    if distance > 150_000 {
+                        searchLocation = regionCenter
+                        searchRegion = first.agencyRegionBound.serviceRect
+                    }
+                } else {
+                    searchLocation = regionCenter
+                    searchRegion = first.agencyRegionBound.serviceRect
+                }
             }
+        } catch {
+            Logger.error("LocationResolver failed to verify agency coverage proximity: \(error)")
         }
 
         guard let finalLocation = searchLocation else {

@@ -32,6 +32,7 @@ final class RouteSearchViewModel: ObservableObject {
 
     private func _performSearch() async {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        print("[WatchOS Debug] _performSearch start. query = '\(trimmed)'")
         
         isLoading = true
         errorMessage = nil
@@ -45,7 +46,9 @@ final class RouteSearchViewModel: ObservableObject {
                 let resolved = try await LocationResolver.resolve(query: trimmed.isEmpty ? nil : trimmed, geocoder: geocoder, apiClient: apiClient, locationProvider: locationProvider)
                 searchLocation = resolved.0
                 searchRegion = resolved.1
+                print("[WatchOS Debug] resolved searchLocation = \(String(describing: searchLocation?.coordinate)), searchRegion = \(String(describing: searchRegion))")
             } catch {
+                print("[WatchOS Debug] LocationResolver failed with error: \(error)")
                 self.errorMessage = error.watchOSUserFacingMessage
                 isLoading = false
                 return
@@ -57,25 +60,7 @@ final class RouteSearchViewModel: ObservableObject {
                 return
             }
 
-            let request = MKLocalSearch.Request()
-            request.naturalLanguageQuery = trimmed
-            if let region = searchRegion {
-                request.region = MKCoordinateRegion(region)
-            } else if let location = searchLocation {
-                request.region = MKCoordinateRegion(center: location.coordinate, latitudinalMeters: 40000, longitudinalMeters: 40000)
-            }
-
-            let search = MKLocalSearch(request: request)
-            var response: MKLocalSearch.Response?
-            do {
-                response = try await search.start()
-            } catch {
-                Logger.info("MKLocalSearch error for '\(trimmed)': \(error). Falling back to REST API search.")
-            }
-
-            if let mapItem = response?.mapItems.first, let loc = mapItem.placemark.location {
-                await self.executeSearch(trimmed: trimmed, location: loc, searchRegion: (mapItem.placemark.region as? CLCircularRegion)?.toMKMapRect())
-            } else if let searchLoc = searchLocation {
+            if let searchLoc = searchLocation {
                 await self.executeSearch(trimmed: trimmed, location: searchLoc, searchRegion: searchRegion)
             } else if let fallbackLoc = locationProvider() {
                 await self.executeSearch(trimmed: trimmed, location: fallbackLoc, searchRegion: nil)
@@ -90,16 +75,19 @@ final class RouteSearchViewModel: ObservableObject {
     }
 
     private func executeSearch(trimmed: String, location: CLLocation, searchRegion: MKMapRect?) async {
+        let queryForAPI: String = trimmed.contains(" ") ? "" : trimmed
+        print("[WatchOS Debug] executeSearch start. queryForAPI = '\(queryForAPI)', lat = \(location.coordinate.latitude), lon = \(location.coordinate.longitude)")
         do {
-            let queryForAPI: String = trimmed.contains(" ") ? "" : trimmed
             let fetched = try await apiClient.searchRoutes(
                 query: queryForAPI,
                 latitude: location.coordinate.latitude,
                 longitude: location.coordinate.longitude,
-                radius: 40000.0
+                radius: 150000.0
             )
+            print("[WatchOS Debug] searchRoutes returned \(fetched.count) routes: \(fetched.map { $0.shortName ?? "?" })")
             self.routes = fetched
         } catch {
+            print("[WatchOS Debug] searchRoutes failed with error: \(error)")
             self.errorMessage = error.watchOSUserFacingMessage
         }
     }
