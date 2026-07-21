@@ -171,17 +171,6 @@ struct StopArrivalsView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
-                    Task {
-                        await viewModel.loadArrivals()
-                        WatchFeedbackGenerator.shared.success()
-                    }
-                } label: {
-                    Image(systemName: "arrow.clockwise")
-                }
-                .handGestureShortcut(.primaryAction)
-            }
-            ToolbarItem(placement: .confirmationAction) {
-                Button {
                     showActions = true
                 } label: {
                     Image(systemName: "ellipsis.circle")
@@ -191,32 +180,43 @@ struct StopArrivalsView: View {
         .sheet(isPresented: $showActions) {
             List {
                 Section {
-                    Button(OBALoc("common.add_bookmark", value: "Add Bookmark", comment: "Action to add a bookmark")) {
-                        infoMessage = OBALoc("stop_arrivals.add_bookmark_instruction", value: "Use the iPhone app to add bookmarks for this stop.", comment: "Instruction on how to add bookmarks")
+                    Button(OBALoc("common.refresh", value: "Refresh", comment: "Refresh button")) {
                         showActions = false
+                        Task {
+                            await viewModel.loadArrivals()
+                            WatchFeedbackGenerator.shared.success()
+                        }
                     }
                     Button(OBALoc("stop_details.title", value: "Stop Details", comment: "Title for stop details screen")) {
-                        showStopDetails = true
                         showActions = false
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            showStopDetails = true
+                        }
                     }
                     Button(OBALoc("common.schedules", value: "Schedules", comment: "Action to view schedules")) {
-                        showStopSchedule = true
                         showActions = false
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            showStopSchedule = true
+                        }
                     }
                     Button(OBALoc("common.nearby_stops", value: "Nearby Stops", comment: "Action to view nearby stops")) {
-                        showNearbyStops = true
                         showActions = false
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            showNearbyStops = true
+                        }
                     }
                     Button(OBALoc("problem_report.title", value: "Report a Problem", comment: "Action to report a problem")) {
-                        showStopProblem = true
                         showActions = false
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            showStopProblem = true
+                        }
                     }
                     Button(OBALoc("common.open_on_iphone", value: "Open on iPhone", comment: "Action to open the stop on iPhone")) {
+                        showActions = false
                         let ok = DeepLinkSyncManager.shared.openStopOnPhone(stopID: stopID)
                         if !ok {
                             infoMessage = OBALoc("deeplink.failure", value: "Unable to contact iPhone. Make sure your devices are connected.", comment: "Deep link failure")
                         }
-                        showActions = false
                     }
                 }
 
