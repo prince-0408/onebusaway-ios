@@ -1,4 +1,5 @@
 import Foundation
+import WatchConnectivity
 import OBAKitCore
 
 /// Handles incoming bookmark data from the paired iPhone.
@@ -33,12 +34,27 @@ final class BookmarksSyncManager {
 
     /// Retrieves the current list of bookmarks.
     func getBookmarks() -> [WatchBookmark] {
-        guard let data = WatchAppState.userDefaults.data(forKey: storageKey) else { return [] }
-        do {
-            return try JSONDecoder().decode([WatchBookmark].self, from: data)
-        } catch {
-            Logger.error("Failed to decode bookmarks: \(error)")
-            return []
+        if let data = WatchAppState.userDefaults.data(forKey: storageKey) {
+            do {
+                let decoded = try JSONDecoder().decode([WatchBookmark].self, from: data)
+                if !decoded.isEmpty {
+                    return decoded
+                }
+            } catch {
+                Logger.error("Failed to decode bookmarks: \(error)")
+            }
         }
+
+        // Fallback: check WCSession receivedApplicationContext directly
+        if WCSession.isSupported() {
+            let context = WCSession.default.receivedApplicationContext
+            if let bookmarksArray = context["bookmarks"] as? [[String: Any]], !bookmarksArray.isEmpty,
+               let jsonData = try? JSONSerialization.data(withJSONObject: bookmarksArray, options: []),
+               let decoded = try? JSONDecoder().decode([WatchBookmark].self, from: jsonData) {
+                return decoded
+            }
+        }
+
+        return []
     }
 }

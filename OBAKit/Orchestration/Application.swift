@@ -933,9 +933,11 @@ extension Application {
 
         do {
             try session.updateApplicationContext(context)
+            session.transferUserInfo(context)
             pendingWatchSync = false
         } catch {
             Logger.error("Watch sync failed: \(error)")
+            session.transferUserInfo(context)
         }
     }
 

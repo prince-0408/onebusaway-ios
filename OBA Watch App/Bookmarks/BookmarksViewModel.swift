@@ -38,6 +38,12 @@ class BookmarksViewModel: ObservableObject {
     }
     
     func loadBookmarks(from defaults: UserDefaults = WatchAppState.userDefaults) {
+        let syncedBookmarks = BookmarksSyncManager.shared.getBookmarks()
+        if !syncedBookmarks.isEmpty {
+            bookmarks = sort(syncedBookmarks)
+            return
+        }
+
         guard let data = defaults.data(forKey: storageKey) else {
             bookmarks = []
             return
