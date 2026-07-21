@@ -15,6 +15,7 @@ struct MainMenuView: View {
     /// Becomes true only after the debounce window closes without a successful sync,
     /// preventing a flash on normal fast launches.
     @State private var showTimeSyncWarning: Bool = false
+    @State private var showingMore: Bool = false
 
     private var regionName: String {
         return appState.regions.first(where: { $0.id == selectedRegionID })?.name ?? OBALoc("common.app_name", value: "OneBusAway", comment: "The name of the application")
@@ -120,8 +121,20 @@ struct MainMenuView: View {
             } header: {
                 Text(OBALoc("main_menu.section.explore", value: "Explore", comment: "Section header for explore"))
             }
+
+            Section {
+                Button {
+                    showingMore = true
+                } label: {
+                    Label(OBALoc("common.settings", value: "Settings", comment: "Title for settings menu item"), systemImage: "gearshape")
+                        .foregroundColor(.secondary)
+                }
+            }
         }
         .navigationTitle(regionName)
+        .sheet(isPresented: $showingMore) {
+            MoreView()
+        }
         .onAppear {
             // Show the warning only after a 15-second window, so it doesn't
             // flash briefly on fast connections where sync completes quickly.

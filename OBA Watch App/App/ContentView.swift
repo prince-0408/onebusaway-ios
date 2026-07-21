@@ -27,19 +27,6 @@ struct ContentView: View {
                 }
             }
             .navigationTitle(OBALoc("common.app_name", value: "OneBusAway", comment: "The name of the application"))
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button {
-                        showingMore = true
-                    } label: {
-                        Image(systemName: "gearshape")
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .sheet(isPresented: $showingMore) {
-                MoreView()
-            }
         }
     }
 }

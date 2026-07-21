@@ -35,17 +35,28 @@ struct StopArrivalsView: View {
         List {
             Section {
                 VStack(alignment: .leading, spacing: 12) {
-                    if let stopName = viewModel.stopName ?? stopName {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(stopName)
-                                .font(.system(size: 16, weight: .bold))
-                                .foregroundColor(.white)
-                                .lineLimit(2)
-                            Text(String(format: OBALoc("stop_arrivals.stop_id_fmt", value: "Stop %@", comment: "Stop ID format"), stopID))
-                                .font(.system(size: 12))
-                                .foregroundColor(.secondary)
-                                .lineLimit(1)
+                    HStack(alignment: .top) {
+                        if let stopName = viewModel.stopName ?? stopName {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(stopName)
+                                    .font(.system(size: 16, weight: .bold))
+                                    .foregroundColor(.white)
+                                    .lineLimit(2)
+                                Text(String(format: OBALoc("stop_arrivals.stop_id_fmt", value: "Stop %@", comment: "Stop ID format"), stopID))
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.secondary)
+                                    .lineLimit(1)
+                            }
                         }
+                        Spacer()
+                        Button {
+                            showActions = true
+                        } label: {
+                            Image(systemName: "ellipsis.circle")
+                                .font(.system(size: 20))
+                                .foregroundColor(.blue)
+                        }
+                        .buttonStyle(.plain)
                     }
 
                     if viewModel.isOfflineMode {
@@ -167,15 +178,6 @@ struct StopArrivalsView: View {
         .refreshable {
             await viewModel.loadArrivals()
             WatchFeedbackGenerator.shared.success()
-        }
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    showActions = true
-                } label: {
-                    Image(systemName: "ellipsis.circle")
-                }
-            }
         }
         .sheet(isPresented: $showActions) {
             List {
