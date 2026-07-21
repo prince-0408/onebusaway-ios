@@ -427,9 +427,8 @@ class WatchAppState: NSObject, ObservableObject, CLLocationManagerDelegate, WCSe
     // MARK: - CLLocationManagerDelegate
 
     nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
-        let status = manager.authorizationStatus
         Task { @MainActor in
-            self.authorizationStatus = status
+            self.authorizationStatus = self.locationManager.authorizationStatus
         }
     }
 

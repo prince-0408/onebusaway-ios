@@ -854,22 +854,24 @@ public class Application: CoreApplication, PushServiceDelegate, WCSessionDelegat
 
 // MARK: - WCSessionDelegate
 extension Application {
-    public func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
+    public nonisolated func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
         if let error = error {
             Logger.error("WCSession activation failed: \(error)")
             return
         }
 
-        if activationState == .activated && pendingWatchSync {
-            sendAllDataToWatch()
+        Task { @MainActor in
+            if activationState == .activated && self.pendingWatchSync {
+                self.sendAllDataToWatch()
+            }
         }
     }
 
-    public func sessionDidBecomeInactive(_ session: WCSession) {
+    public nonisolated func sessionDidBecomeInactive(_ session: WCSession) {
         // nop
     }
 
-    public func sessionDidDeactivate(_ session: WCSession) {
+    public nonisolated func sessionDidDeactivate(_ session: WCSession) {
         // Re-activate the session
         WCSession.default.activate()
     }
