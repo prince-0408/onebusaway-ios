@@ -359,9 +359,23 @@ class WatchAppState: NSObject, ObservableObject, CLLocationManagerDelegate, WCSe
 
     func requestSyncFromPhone() {
         print("[WatchOS Debug] requestSyncFromPhone called. isSupported=\(WCSession.isSupported()), activationState=\(session.activationState.rawValue), isReachable=\(session.isReachable)")
-        guard WCSession.isSupported(), session.activationState == .activated else { return }
-        session.sendMessage(["request": "sync_all"], replyHandler: nil) { error in
-            print("[WatchOS Debug] requestSyncFromPhone sendMessage error: \(error.localizedDescription)")
+        guard WCSession.isSupported() else { return }
+
+        if session.activationState != .activated {
+            print("[WatchOS Debug] WCSession not activated yet (state=\(session.activationState.rawValue)). Activating WCSession now...")
+            session.delegate = self
+            session.activate()
+        }
+
+        let message: [String: Any] = ["request": "sync_all"]
+        if session.isReachable {
+            session.sendMessage(message, replyHandler: nil) { [weak self] error in
+                print("[WatchOS Debug] requestSyncFromPhone sendMessage error: \(error.localizedDescription)")
+                self?.session.transferUserInfo(message)
+            }
+        } else {
+            print("[WatchOS Debug] Companion phone app is not reachable right now. Queued transferUserInfo request.")
+            session.transferUserInfo(message)
         }
     }
 
