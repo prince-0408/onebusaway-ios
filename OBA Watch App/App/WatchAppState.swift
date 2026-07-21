@@ -108,17 +108,45 @@ class WatchAppState: NSObject, ObservableObject, CLLocationManagerDelegate, WCSe
     /// Hardcoded regions as fallback. These will be updated from the iOS app via WCSession if available.
     static let fallbackRegions: [RegionOption] = [
         .init(
-            id: "kiedybus-iplaner",
-            name: OBALoc("region.kiedybus_iplaner", value: "Poland (KiedyBus iPlaner)", comment: "Region: KiedyBus iPlaner"),
-            coordinate: .init(latitude: 52.2297, longitude: 21.0122),
+            id: "ztm-poznan",
+            name: OBALoc("region.ztm_poznan", value: "ZTM Poznań", comment: "Region: ZTM Poznań"),
+            coordinate: .init(latitude: 52.407014, longitude: 16.926709),
             obaBaseURL: URL(string: "https://obaztmapi.iplaner.pl/"),
+            otpBaseURL: URL(string: "https://otp.iplaner.pl/otp")
+        ),
+        .init(
+            id: "pks-poznan",
+            name: OBALoc("region.pks_poznan", value: "PKS Poznań", comment: "Region: PKS Poznań"),
+            coordinate: .init(latitude: 52.407014, longitude: 16.926709),
+            obaBaseURL: URL(string: "https://apioba.pksonline.pl/"),
+            otpBaseURL: URL(string: "https://otp.pksonline.pl/otp")
+        ),
+        .init(
+            id: "gzm-katowice",
+            name: OBALoc("region.gzm_katowice", value: "GZM Katowice", comment: "Region: GZM Katowice"),
+            coordinate: .init(latitude: 50.264348, longitude: 19.023545),
+            obaBaseURL: URL(string: "https://obagzmapi.iplaner.pl/"),
             otpBaseURL: nil
         ),
         .init(
-            id: "kiedybus-poland",
-            name: OBALoc("region.kiedybus_poland", value: "Poland (KiedyBus)", comment: "Region: KiedyBus Poland"),
-            coordinate: .init(latitude: 52.2297, longitude: 21.0122),
-            obaBaseURL: URL(string: "https://kiedybus.pl/"),
+            id: "sroda-wlkp",
+            name: OBALoc("region.sroda_wlkp", value: "Środa Wlkp.", comment: "Region: Środa Wlkp."),
+            coordinate: .init(latitude: 52.229030, longitude: 17.276135),
+            obaBaseURL: URL(string: "https://obasrodaapi.iplaner.pl/?key=web"),
+            otpBaseURL: nil
+        ),
+        .init(
+            id: "kornik",
+            name: OBALoc("region.kornik", value: "Kórnik", comment: "Region: Kórnik"),
+            coordinate: .init(latitude: 52.253154, longitude: 17.090688),
+            obaBaseURL: URL(string: "https://obakombusapi.iplaner.pl?key=web"),
+            otpBaseURL: nil
+        ),
+        .init(
+            id: "mpk-wroclaw",
+            name: OBALoc("region.mpk_wroclaw", value: "MPK Wrocław", comment: "Region: MPK Wrocław"),
+            coordinate: .init(latitude: 51.11, longitude: 17.03),
+            obaBaseURL: URL(string: "https://obawroclawapi.iplaner.pl/"),
             otpBaseURL: nil
         ),
         .init(
