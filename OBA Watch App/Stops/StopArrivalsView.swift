@@ -48,7 +48,16 @@ struct StopArrivalsView: View {
                         }
                     }
 
-                    if let updated = viewModel.lastUpdated {
+                    if viewModel.isOfflineMode {
+                        HStack(spacing: 4) {
+                            Image(systemName: "wifi.slash")
+                                .font(.system(size: 10))
+                                .foregroundColor(.orange)
+                            Text(OBALoc("stop_arrivals.offline_cached", value: "Offline (Cached Schedule)", comment: "Offline cached schedule banner"))
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundColor(.orange)
+                        }
+                    } else if let updated = viewModel.lastUpdated {
                         Text(String(format: OBALoc("stop_arrivals.updated_fmt", value: "Updated: %@", comment: "Last updated time format"), relativeUpdateString(from: updated)))
                             .font(.system(size: 10))
                             .foregroundColor(.secondary)
@@ -295,6 +304,12 @@ struct ArrivalRowView: View {
             }
             
             Spacer()
+
+            if arrival.hasServiceAlert {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundColor(.yellow)
+            }
         }
         .padding(.vertical, 4)
     }

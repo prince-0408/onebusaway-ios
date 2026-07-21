@@ -553,6 +553,11 @@ public struct OBAArrival: Codable, Equatable, Sendable, Identifiable {
     /// mirroring ``ScheduleStatus`` from the iOS ArrivalDeparture model.
     public let scheduleStatus: OBAScheduleStatus
 
+    /// Service alert advisory information, if any apply to this route or trip.
+    public let hasServiceAlert: Bool
+    public let alertTitle: String?
+    public let alertDescription: String?
+
     public func toTripForLocation() -> OBATripForLocation {
         OBATripForLocation(
             id: tripID,
@@ -579,7 +584,10 @@ public struct OBAArrival: Codable, Equatable, Sendable, Identifiable {
         headsign: String? = nil,
         minutesFromNow: Int,
         isPredicted: Bool,
-        scheduleStatus: OBAScheduleStatus = .unknown
+        scheduleStatus: OBAScheduleStatus = .unknown,
+        hasServiceAlert: Bool = false,
+        alertTitle: String? = nil,
+        alertDescription: String? = nil
     ) {
         self.id = id
         self.stopID = stopID
@@ -591,6 +599,9 @@ public struct OBAArrival: Codable, Equatable, Sendable, Identifiable {
         self.minutesFromNow = minutesFromNow
         self.isPredicted = isPredicted
         self.scheduleStatus = scheduleStatus
+        self.hasServiceAlert = hasServiceAlert
+        self.alertTitle = alertTitle
+        self.alertDescription = alertDescription
     }
 }
 

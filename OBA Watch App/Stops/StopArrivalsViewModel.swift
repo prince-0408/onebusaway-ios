@@ -50,6 +50,31 @@ class StopArrivalsViewModel: ObservableObject {
         refreshTask?.cancel()
     }
     
+    @Published var isOfflineMode = false
+
+    private func cacheKey(for id: OBAStopID) -> String {
+        "cache.arrivals.\(id)"
+    }
+
+    private func saveToCache(_ result: OBAArrivalsResult) {
+        if let data = try? JSONEncoder().encode(result) {
+            UserDefaults.standard.set(data, forKey: cacheKey(for: stopID))
+        }
+    }
+
+    private func loadFromCache() -> Bool {
+        guard let data = UserDefaults.standard.data(forKey: cacheKey(for: stopID)),
+              let result = try? JSONDecoder().decode(OBAArrivalsResult.self, from: data) else {
+            return false
+        }
+        arrivals = result.arrivals
+        if !result.routes.isEmpty { routes = result.routes }
+        if let name = result.stopName { stopName = name }
+        isOfflineMode = true
+        errorMessage = nil
+        return true
+    }
+    
     func loadArrivals() async {
         guard !isLoading else { return }
         
@@ -61,6 +86,8 @@ class StopArrivalsViewModel: ObservableObject {
         do {
             let result = try await apiClient.fetchArrivals(for: stopID)
             arrivals = result.arrivals
+            isOfflineMode = false
+            saveToCache(result)
             
             // Update routes if we got them from the arrivals response
             if !result.routes.isEmpty {
@@ -83,9 +110,10 @@ class StopArrivalsViewModel: ObservableObject {
             
             lastUpdated = Date()
         } catch {
-            errorMessage = error.watchOSUserFacingMessage
+            if !loadFromCache() {
+                errorMessage = error.watchOSUserFacingMessage
+            }
         }
-        
     }
 
     private func saveToRecentStops(

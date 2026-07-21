@@ -1,10 +1,12 @@
 import SwiftUI
+import MapKit
 import OBAKitCore
 
 struct ArrivalDetailView: View {
     let arrival: OBAArrival
 
     @State private var showTripProblem = false
+    @State private var showAlertSheet = false
 
     var body: some View {
         ScrollView {
@@ -34,6 +36,51 @@ struct ArrivalDetailView: View {
                         Text(status)
                             .font(.caption2)
                             .foregroundColor(.secondary)
+                    }
+                }
+
+                // Service Alert Banner & Sheet Trigger
+                if arrival.hasServiceAlert {
+                    Button {
+                        showAlertSheet = true
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundColor(.yellow)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(arrival.alertTitle ?? OBALoc("alerts.service_advisory", value: "Service Advisory", comment: "Service advisory title"))
+                                    .font(.subheadline)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.yellow)
+                                    .lineLimit(1)
+                                Text(OBALoc("alerts.tap_for_details", value: "Tap to read alert details", comment: "Tap for alert details"))
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                            }
+                            Spacer()
+                        }
+                        .padding(8)
+                        .background(Color.yellow.opacity(0.15))
+                        .cornerRadius(10)
+                    }
+                    .buttonStyle(.plain)
+                    .sheet(isPresented: $showAlertSheet) {
+                        ScrollView {
+                            VStack(alignment: .leading, spacing: 8) {
+                                HStack {
+                                    Image(systemName: "exclamationmark.triangle.fill")
+                                        .foregroundColor(.yellow)
+                                    Text(arrival.alertTitle ?? OBALoc("alerts.service_advisory", value: "Service Advisory", comment: "Service advisory title"))
+                                        .font(.headline)
+                                        .foregroundColor(.yellow)
+                                }
+                                Divider()
+                                Text(arrival.alertDescription ?? OBALoc("alerts.no_details", value: "No additional details available.", comment: "No alert details"))
+                                    .font(.body)
+                                    .foregroundColor(.white)
+                            }
+                            .padding()
+                        }
                     }
                 }
 
@@ -126,6 +173,32 @@ struct ArrivalDetailView: View {
                     Text(arrival.timeString)
                         .font(.title3)
                         .fontWeight(.semibold)
+                }
+
+                // Mini Live Map (if stop coordinates are present)
+                let tripLoc = arrival.toTripForLocation()
+                if let lat = tripLoc.latitude,
+                   let lon = tripLoc.longitude {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(OBALoc("arrival_detail.live_location", value: "Live Bus Location", comment: "Live vehicle map title"))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+
+                        Map(initialPosition: .region(MKCoordinateRegion(
+                            center: CLLocationCoordinate2D(latitude: lat, longitude: lon),
+                            span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
+                        ))) {
+                            Marker(
+                                arrival.routeShortName ?? "Bus",
+                                systemImage: "bus.fill",
+                                coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon)
+                            )
+                            .tint(.green)
+                        }
+                        .frame(height: 120)
+                        .cornerRadius(12)
+                    }
+                    .padding(.top, 4)
                 }
 
                 Spacer(minLength: 0)
