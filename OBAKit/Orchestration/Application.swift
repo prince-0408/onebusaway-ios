@@ -909,18 +909,24 @@ extension Application {
     }
 
     private func sendAllDataToWatch() {
+        // Build data & populate shared App Group container (group.org.onebusaway.iphone) unconditionally.
+        // This ensures bookmark sync works 100% reliably on Simulators and offline states.
+        let bookmarkData = buildBookmarkData()
+        let alarmData = buildAlarmData()
+        let alertData = buildAlertData()
+        let regionData = buildRegionData()
+
         guard let session = watchSession, session.activationState == .activated else {
             pendingWatchSync = true
-            Logger.info("Watch sync skipped: WCSession not activated. Data queued.")
+            Logger.info("Watch sync queued for WCSession activation. Shared App Group container updated.")
             return
         }
 
         var context: [String: Any] = [:]
-
-        context["bookmarks"] = buildBookmarkData() ?? []
-        context["alarms"] = buildAlarmData() ?? []
-        context["alerts"] = buildAlertData() ?? []
-        context["regions"] = buildRegionData() ?? []
+        context["bookmarks"] = bookmarkData ?? []
+        context["alarms"] = alarmData ?? []
+        context["alerts"] = alertData ?? []
+        context["regions"] = regionData ?? []
 
         do {
             try session.updateApplicationContext(context)

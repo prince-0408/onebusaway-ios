@@ -237,6 +237,11 @@ struct StopArrivalsView: View {
         } message: {
             Text(infoMessage ?? "")
         }
+        .userActivity("org.onebusaway.iphone.user_activity.stop") { userActivity in
+            userActivity.title = stopName ?? "Stop \(stopID)"
+            userActivity.userInfo = ["stop_id": stopID]
+            userActivity.isEligibleForHandoff = true
+        }
     }
 
     private var displayedArrivals: [OBAArrival] {

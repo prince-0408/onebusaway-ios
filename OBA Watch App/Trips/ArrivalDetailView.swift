@@ -211,6 +211,15 @@ struct ArrivalDetailView: View {
         .navigationDestination(isPresented: $showTripProblem) {
             ProblemReportView(mode: .trip(tripID: arrival.tripID, vehicleID: arrival.vehicleID, stopID: arrival.stopID))
         }
+        .userActivity("org.onebusaway.iphone.user_activity.trip") { userActivity in
+            userActivity.title = "Trip \(arrival.routeShortName ?? arrival.tripID)"
+            userActivity.userInfo = [
+                "trip_id": arrival.tripID,
+                "stop_id": arrival.stopID,
+                "vehicle_id": arrival.vehicleID ?? ""
+            ]
+            userActivity.isEligibleForHandoff = true
+        }
     }
 }
 
