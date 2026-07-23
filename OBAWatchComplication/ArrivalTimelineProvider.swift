@@ -84,19 +84,41 @@ struct ArrivalTimelineProvider: TimelineProvider {
             let result = try await apiClient.fetchArrivals(for: primary.stopID)
 
             // OBAArrival uses minutesFromNow (Int) — filter to upcoming only.
-            let upcoming = result.arrivals.filter { $0.minutesFromNow >= 0 }
-            let next = upcoming.min(by: { $0.minutesFromNow < $1.minutesFromNow })
+            let upcoming = result.arrivals.filter { $0.minutesFromNow >= 0 }.sorted(by: { $0.minutesFromNow < $1.minutesFromNow })
+            let next = upcoming.first
 
             let arrivalDate: Date? = next.map { date.addingTimeInterval(TimeInterval($0.minutesFromNow * 60)) }
             let isPredicted = next?.isPredicted ?? false
             let routeName = next?.routeShortName ?? primary.routeShortName
+            let headsign = next?.headsign
+
+            let statusText: String? = {
+                guard let status = next?.scheduleStatus else { return nil }
+                switch status {
+                case .onTime: return NSLocalizedString("complication.on_time", value: "On Time", comment: "On time arrival")
+                case .early: return NSLocalizedString("complication.early", value: "Early", comment: "Early arrival")
+                case .delayed: return NSLocalizedString("complication.delayed", value: "Delayed", comment: "Delayed arrival")
+                case .unknown: return nil
+                }
+            }()
+
+            let nextArrivals: [ArrivalTimelineEntry.NextArrival] = upcoming.dropFirst().prefix(2).map { arrival in
+                ArrivalTimelineEntry.NextArrival(
+                    routeShortName: arrival.routeShortName,
+                    minutesOnlyText: "\(arrival.minutesFromNow)",
+                    isPredicted: arrival.isPredicted
+                )
+            }
 
             return ArrivalTimelineEntry(
                 date: date,
                 stopName: primary.name,
                 routeShortName: routeName,
+                headsign: headsign,
                 arrivalDate: arrivalDate,
-                isPredicted: isPredicted
+                isPredicted: isPredicted,
+                scheduleStatusText: statusText,
+                nextArrivals: nextArrivals
             )
         } catch {
             return ArrivalTimelineEntry(

@@ -24,7 +24,8 @@ struct OBAWatchComplicationWidget: Widget {
         .supportedFamilies([
             .accessoryCircular,
             .accessoryRectangular,
-            .accessoryCorner
+            .accessoryCorner,
+            .accessoryInline
         ])
     }
 }
@@ -42,6 +43,8 @@ struct OBAWatchComplicationEntryView: View {
             RectangularComplication(entry: entry)
         case .accessoryCorner:
             CornerComplication(entry: entry)
+        case .accessoryInline:
+            InlineComplication(entry: entry)
         default:
             CircularComplication(entry: entry)
         }
