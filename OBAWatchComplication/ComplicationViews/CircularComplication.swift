@@ -58,9 +58,10 @@ struct CircularComplication: View {
                 }
 
                 Text(entry.minutesOnlyText)
-                    .font(.system(size: 19, weight: .heavy, design: .rounded))
+                    .font(.system(size: 16, weight: .heavy, design: .rounded))
                     .monospacedDigit()
                     .minimumScaleFactor(0.55)
+                    .lineLimit(1)
                     .widgetAccentable()
             }
         }

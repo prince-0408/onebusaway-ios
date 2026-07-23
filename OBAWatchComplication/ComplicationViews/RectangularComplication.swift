@@ -63,11 +63,11 @@ struct RectangularComplication: View {
             HStack(alignment: .center, spacing: 4) {
                 HStack(alignment: .firstTextBaseline, spacing: 2) {
                     Text(entry.minutesOnlyText)
-                        .font(.system(size: 22, weight: .heavy, design: .rounded))
+                        .font(.system(size: 19, weight: .heavy, design: .rounded))
                         .monospacedDigit()
                         .foregroundStyle(entry.isPredicted ? Color.primary : Color.cyan)
                         .widgetAccentable()
-                        .minimumScaleFactor(0.75)
+                        .minimumScaleFactor(0.7)
 
                     if let min = minutesInt, min > 0 {
                         Text(NSLocalizedString("complication.min_suffix", value: "min", comment: "Minutes suffix for complication"))
