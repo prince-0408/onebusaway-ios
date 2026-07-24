@@ -21,6 +21,7 @@ struct RouteDetailView: View {
             if !viewModel.shapeCoordinates.isEmpty {
                 RouteShapeMapView(
                     coordinates: viewModel.shapeCoordinates,
+                    vehicleCoordinates: viewModel.vehicleCoordinates,
                     mapStyle: appState.mapStyle
                 )
                     .frame(maxWidth: .infinity)
@@ -30,32 +31,32 @@ struct RouteDetailView: View {
                     .listRowBackground(Color.clear)
             }
 
-            Section {
-                VStack(alignment: .leading, spacing: 4) {
-                    if let short = route.shortName, !short.isEmpty {
-                        Text(short)
-                            .font(.system(size: 22, weight: .bold))
-                            .foregroundColor(.white)
+            if let alert = viewModel.serviceAlerts.first {
+                Section {
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .font(.system(size: 13, weight: .bold))
+                                .foregroundColor(.yellow)
+                            Text(alert.title)
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundColor(.white)
+                                .lineLimit(2)
+                        }
+                        if let body = alert.body, !body.isEmpty {
+                            Text(body)
+                                .font(.system(size: 10))
+                                .foregroundColor(.secondary)
+                                .lineLimit(3)
+                        }
                     }
-                    if let long = route.longName, !long.isEmpty {
-                        Text(long)
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(.white)
-                            .multilineTextAlignment(.leading)
-                    }
-                    if let agency = route.agencyName, !agency.isEmpty {
-                        Text(agency)
-                            .font(.system(size: 12))
-                            .foregroundColor(.secondary)
-                    }
+                    .padding(.vertical, 4)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.vertical, 4)
+                .listRowBackground(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color.yellow.opacity(0.2))
+                )
             }
-            .listRowBackground(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(Color.white.opacity(0.1))
-            )
 
             if viewModel.isLoading {
                 Section {
@@ -121,16 +122,20 @@ struct RouteDetailView: View {
 
 struct RouteShapeMapView: View {
     let coordinates: [CLLocationCoordinate2D]
+    let vehicleCoordinates: [CLLocationCoordinate2D]
     let mapStyle: MapStyle
 
     @State private var mapPosition: MapCameraPosition
 
-    init(coordinates: [CLLocationCoordinate2D], mapStyle: MapStyle = .standard) {
+    init(coordinates: [CLLocationCoordinate2D], vehicleCoordinates: [CLLocationCoordinate2D] = [], mapStyle: MapStyle = .standard) {
         self.coordinates = coordinates
+        self.vehicleCoordinates = vehicleCoordinates
         self.mapStyle = mapStyle
 
         let center: CLLocationCoordinate2D
-        if let first = coordinates.first {
+        if let firstVehicle = vehicleCoordinates.first {
+            center = firstVehicle
+        } else if let first = coordinates.first {
             center = first
         } else {
             center = CLLocationCoordinate2D(latitude: 0, longitude: 0)
@@ -149,22 +154,38 @@ struct RouteShapeMapView: View {
                     .stroke(.green, lineWidth: 3)
             }
             
-            // Show a few icons along the route to indicate vehicle type
-            let sampleCount = 3
-            let step = max(1, coordinates.count / (sampleCount + 1))
-            let sampleIndices = (1...sampleCount).map { $0 * step }.filter { $0 < coordinates.count }
-            
-            ForEach(sampleIndices, id: \.self) { index in
-                Annotation("", coordinate: coordinates[index]) {
-                    ZStack {
-                        Circle()
-                            .fill(Color.green)
-                            .frame(width: 20, height: 20)
-                            .shadow(radius: 2)
-                        
-                        Image(systemName: "bus.fill")
-                            .font(.system(size: 10))
-                            .foregroundColor(.white)
+            if !vehicleCoordinates.isEmpty {
+                ForEach(0..<vehicleCoordinates.count, id: \.self) { idx in
+                    Annotation("", coordinate: vehicleCoordinates[idx]) {
+                        ZStack {
+                            Circle()
+                                .fill(Color.blue)
+                                .frame(width: 22, height: 22)
+                                .shadow(radius: 3)
+                            
+                            Image(systemName: "bus.fill")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundColor(.white)
+                        }
+                    }
+                }
+            } else {
+                let sampleCount = 3
+                let step = max(1, coordinates.count / (sampleCount + 1))
+                let sampleIndices = (1...sampleCount).map { $0 * step }.filter { $0 < coordinates.count }
+                
+                ForEach(sampleIndices, id: \.self) { index in
+                    Annotation("", coordinate: coordinates[index]) {
+                        ZStack {
+                            Circle()
+                                .fill(Color.green)
+                                .frame(width: 20, height: 20)
+                                .shadow(radius: 2)
+                            
+                            Image(systemName: "bus.fill")
+                                .font(.system(size: 10))
+                                .foregroundColor(.white)
+                        }
                     }
                 }
             }

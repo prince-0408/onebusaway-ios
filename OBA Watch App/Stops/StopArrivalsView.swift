@@ -81,6 +81,47 @@ struct StopArrivalsView: View {
                     .fill(Color.white.opacity(0.1))
             )
 
+            if viewModel.availableRouteFilters.count > 1 {
+                Section {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 6) {
+                            Button {
+                                viewModel.selectedRouteFilter = nil
+                            } label: {
+                                Text(OBALoc("common.all", value: "All", comment: "All filter button"))
+                                    .font(.system(size: 11, weight: .bold))
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(viewModel.selectedRouteFilter == nil ? Color.blue : Color.white.opacity(0.15))
+                                    .foregroundColor(.white)
+                                    .cornerRadius(8)
+                            }
+                            .buttonStyle(.plain)
+
+                            ForEach(viewModel.availableRouteFilters, id: \.self) { routeFilter in
+                                Button {
+                                    if viewModel.selectedRouteFilter == routeFilter {
+                                        viewModel.selectedRouteFilter = nil
+                                    } else {
+                                        viewModel.selectedRouteFilter = routeFilter
+                                    }
+                                } label: {
+                                    Text(routeFilter)
+                                        .font(.system(size: 11, weight: .bold))
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 4)
+                                        .background(viewModel.selectedRouteFilter == routeFilter ? Color.blue : Color.white.opacity(0.15))
+                                        .foregroundColor(.white)
+                                        .cornerRadius(8)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+                }
+                .listRowBackground(Color.clear)
+            }
+
             if viewModel.isLoading {
                 Section {
                     HStack {
@@ -95,7 +136,7 @@ struct StopArrivalsView: View {
                     ErrorView(message: error)
                 }
                 .listRowBackground(Color.clear)
-            } else if viewModel.upcomingArrivals.isEmpty {
+            } else if displayedArrivals.isEmpty {
                 Section {
                     EmptyArrivalsView()
                 }
@@ -258,10 +299,11 @@ struct StopArrivalsView: View {
     }
 
     private var displayedArrivals: [OBAArrival] {
+        let source = viewModel.upcomingFilteredArrivals
         if showAllArrivals {
-            return viewModel.upcomingArrivals
+            return source
         } else {
-            return Array(viewModel.upcomingArrivals.prefix(5))
+            return Array(source.prefix(5))
         }
     }
 
@@ -317,6 +359,18 @@ struct ArrivalRowView: View {
                         Text(statusLabel)
                             .font(.caption2)
                             .foregroundColor(.secondary)
+                    }
+                }
+                
+                if let occupancy = arrival.formattedOccupancyStatus {
+                    HStack(spacing: 3) {
+                        Image(systemName: "person.2.fill")
+                            .font(.system(size: 9))
+                            .foregroundColor(.secondary)
+                        Text(occupancy)
+                            .font(.system(size: 10))
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
                     }
                 }
             }

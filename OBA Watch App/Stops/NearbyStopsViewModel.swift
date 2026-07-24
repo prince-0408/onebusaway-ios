@@ -52,25 +52,37 @@ class NearbyStopsViewModel: ObservableObject {
         defer { isLoading = false }
 
         do {
-            let fetched = try await apiClient.fetchNearbyStops(
-                latitude: location.coordinate.latitude,
-                longitude: location.coordinate.longitude,
-                radius: 1000.0 // Request 1km radius explicitly
+            var locationToUse = location
+            var fetched = try await apiClient.fetchNearbyStops(
+                latitude: locationToUse.coordinate.latitude,
+                longitude: locationToUse.coordinate.longitude,
+                radius: 2500.0
             )
+
+            // If 0 stops found at location (e.g. simulator default in Cupertino), fallback to active region center
+            if fetched.stops.isEmpty, let regionCenter = WatchAppState.shared.activeRegionCenter {
+                locationToUse = CLLocation(latitude: regionCenter.latitude, longitude: regionCenter.longitude)
+                fetched = try await apiClient.fetchNearbyStops(
+                    latitude: locationToUse.coordinate.latitude,
+                    longitude: locationToUse.coordinate.longitude,
+                    radius: 5000.0
+                )
+            }
+
             routeSummaryByStopID = fetched.stopIDToRouteNames
             stops = fetched.stops
                 .sorted { stop1, stop2 in
                     let loc1 = CLLocation(latitude: stop1.latitude, longitude: stop1.longitude)
                     let loc2 = CLLocation(latitude: stop2.latitude, longitude: stop2.longitude)
-                    let distance1 = loc1.distance(from: location)
-                    let distance2 = loc2.distance(from: location)
+                    let distance1 = loc1.distance(from: locationToUse)
+                    let distance2 = loc2.distance(from: locationToUse)
                     return distance1 < distance2
                 }
             
             if stops.isEmpty {
-                locationStatus = OBALoc("nearby_stops.no_stops_near_location", value: "0 stops found near this location", comment: "Status: 0 stops found")
+                locationStatus = OBALoc("nearby_stops.no_stops", value: "No stops found near this location", comment: "Status: no stops")
             } else {
-                locationStatus = String(format: OBALoc("nearby_stops.stops_found_fmt", value: "%d stops found", comment: "Status: multiple stops found"), stops.count)
+                locationStatus = String(format: OBALoc("nearby_stops.count_fmt", value: "%d stops nearby", comment: "Stops count label"), stops.count)
             }
         } catch {
             errorMessage = error.watchOSUserFacingMessage

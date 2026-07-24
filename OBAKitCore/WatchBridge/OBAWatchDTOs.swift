@@ -86,6 +86,7 @@ struct OBARawArrival: Decodable, Sendable {
     let predictedDepartureTime: Date?
     let scheduledArrivalTime: Date?
     let scheduledDepartureTime: Date?
+    let occupancyStatus: String?
 
     private enum CodingKeys: String, CodingKey {
         case stopID = "stopId"
@@ -99,6 +100,7 @@ struct OBARawArrival: Decodable, Sendable {
         case predictedDepartureTime = "predictedDepartureTime"
         case scheduledArrivalTime = "scheduledArrivalTime"
         case scheduledDepartureTime = "scheduledDepartureTime"
+        case occupancyStatus
     }
 
     /// Maps this raw object into an ``OBAArrival`` using ArrivalDeparture-like
@@ -148,7 +150,8 @@ struct OBARawArrival: Decodable, Sendable {
             headsign: tripHeadsign,
             minutesFromNow: minutesFromNow,
             isPredicted: predicted ?? false,
-            scheduleStatus: status
+            scheduleStatus: status,
+            occupancyStatus: occupancyStatus
         )
     }
 }
@@ -897,5 +900,36 @@ struct OBARawStopsForLocationResponse: Decodable, Sendable {
             }
         }
         return result
+    }
+}
+
+/// Raw DTO for GTFS-rt Situations / Service Alerts
+struct OBARawSituation: Decodable, Sendable {
+    let id: String?
+    let summary: Summary?
+    let description: Description?
+    let severity: String?
+    let url: URLString?
+
+    struct Summary: Decodable, Sendable {
+        let value: String?
+    }
+
+    struct Description: Decodable, Sendable {
+        let value: String?
+    }
+
+    struct URLString: Decodable, Sendable {
+        let value: String?
+    }
+
+    func toWatchServiceAlert() -> WatchServiceAlert {
+        WatchServiceAlert(
+            id: id ?? UUID().uuidString,
+            title: summary?.value ?? "Service Advisory",
+            body: description?.value,
+            severity: severity,
+            url: url?.value
+        )
     }
 }

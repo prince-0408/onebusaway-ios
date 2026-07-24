@@ -9,6 +9,7 @@ import SwiftUI
 import OBAKitCore
 
 struct SearchView: View {
+    @EnvironmentObject private var appState: WatchAppState
     @StateObject private var viewModel: SearchViewModel
     
     init() {
@@ -240,7 +241,7 @@ struct SearchView: View {
                                     }
                             )
                         } label: {
-                            SearchResultRow(stop: stop)
+                            SearchResultRow(stop: stop, currentLocation: appState.currentLocation)
                         }
                     }
                 }
@@ -255,6 +256,12 @@ struct SearchView: View {
 
 struct SearchResultRow: View {
     let stop: OBAStop
+    let currentLocation: CLLocation?
+
+    init(stop: OBAStop, currentLocation: CLLocation? = nil) {
+        self.stop = stop
+        self.currentLocation = currentLocation
+    }
     
     var body: some View {
         HStack(spacing: 10) {
@@ -270,12 +277,30 @@ struct SearchResultRow: View {
                     .font(.headline)
                     .lineLimit(2)
                 
-                if let code = stop.code {
-                    Text(String(format: OBALoc("search.stop_code_fmt", value: "Stop %@", comment: "Stop code format"), code))
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
+                HStack(spacing: 6) {
+                    if let code = stop.code {
+                        Text(String(format: OBALoc("search.stop_code_fmt", value: "Stop %@", comment: "Stop code format"), code))
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+
+                    if let location = currentLocation, stop.latitude != 0.0 || stop.longitude != 0.0 {
+                        let stopLoc = CLLocation(latitude: stop.latitude, longitude: stop.longitude)
+                        let distMeters = stopLoc.distance(from: location)
+                        Text("• \(formattedDistance(distMeters))")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
                 }
             }
+        }
+    }
+
+    private func formattedDistance(_ distanceMeters: CLLocationDistance) -> String {
+        if distanceMeters < 1000 {
+            return String(format: "%.0f m", distanceMeters)
+        } else {
+            return String(format: "%.1f km", distanceMeters / 1000.0)
         }
     }
 }

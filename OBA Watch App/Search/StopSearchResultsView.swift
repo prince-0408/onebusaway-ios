@@ -3,6 +3,7 @@ import CoreLocation
 import OBAKitCore
 
 struct StopSearchResultsView: View {
+    @EnvironmentObject private var appState: WatchAppState
     @StateObject private var viewModel: StopSearchViewModel
 
     init(initialQuery: String) {
@@ -73,11 +74,22 @@ struct StopSearchResultsView: View {
                                         .foregroundColor(.white)
                                         .lineLimit(1)
                                     
-                                    if let code = stop.code {
-                                        Text(String(format: OBALoc("stop_search.stop_code_format", value: "Stop %@", comment: "Stop code format"), code))
-                                            .font(.system(size: 12))
-                                            .foregroundColor(.secondary)
-                                            .lineLimit(1)
+                                    HStack(spacing: 6) {
+                                        if let code = stop.code {
+                                            Text(String(format: OBALoc("stop_search.stop_code_format", value: "Stop %@", comment: "Stop code format"), code))
+                                                .font(.system(size: 12))
+                                                .foregroundColor(.secondary)
+                                                .lineLimit(1)
+                                        }
+
+                                        if let location = appState.currentLocation, stop.latitude != 0.0 || stop.longitude != 0.0 {
+                                            let stopLoc = CLLocation(latitude: stop.latitude, longitude: stop.longitude)
+                                            let distMeters = stopLoc.distance(from: location)
+                                            let distStr = distMeters < 1000 ? String(format: "%.0f m", distMeters) : String(format: "%.1f km", distMeters / 1000.0)
+                                            Text("• \(distStr)")
+                                                .font(.system(size: 12))
+                                                .foregroundColor(.secondary)
+                                        }
                                     }
                                 }
                             }

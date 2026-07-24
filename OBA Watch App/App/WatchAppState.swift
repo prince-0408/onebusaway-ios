@@ -221,6 +221,15 @@ class WatchAppState: NSObject, ObservableObject, CLLocationManagerDelegate, WCSe
         return CLLocation(latitude: 40.7128, longitude: -74.0060)
     }
 
+    /// The center coordinate of the currently active transit region.
+    var activeRegionCenter: CLLocationCoordinate2D? {
+        let regionID = Self.userDefaults.string(forKey: "watch_selected_region_id") ?? Self.defaultRegionID
+        if let region = self.regions.first(where: { $0.id == regionID }) {
+            return region.coordinate
+        }
+        return self.regions.first?.coordinate
+    }
+
     /// Map settings
     @Published var showsScale: Bool {
         didSet { Self.userDefaults.set(showsScale, forKey: "watch_map_shows_scale") }

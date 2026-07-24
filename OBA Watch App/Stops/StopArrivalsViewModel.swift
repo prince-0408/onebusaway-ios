@@ -18,6 +18,25 @@ class StopArrivalsViewModel: ObservableObject {
     @Published var lastUpdated: Date?
     @Published var routes: [OBARoute] = []
     @Published var stopName: String?
+    @Published var selectedRouteFilter: String? = nil
+
+    var filteredArrivals: [OBAArrival] {
+        guard let filter = selectedRouteFilter, !filter.isEmpty else {
+            return arrivals
+        }
+        return arrivals.filter { arrival in
+            arrival.routeID == filter || arrival.routeShortName == filter
+        }
+    }
+
+    var upcomingFilteredArrivals: [OBAArrival] {
+        filteredArrivals.filter { $0.minutesFromNow >= -2 }
+    }
+
+    var availableRouteFilters: [String] {
+        let routeNames = arrivals.compactMap { $0.routeShortName ?? $0.routeID }
+        return Array(Set(routeNames)).sorted()
+    }
     
     private let apiClientProvider: () -> OBAAPIClient
     private let stopID: OBAStopID

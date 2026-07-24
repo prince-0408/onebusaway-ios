@@ -32,6 +32,8 @@ public protocol OBAAPIClient: Sendable {
 
     func fetchAgenciesWithCoverage() async throws -> [OBAAgencyCoverage]
 
+    func fetchServiceAlerts(agencyID: String?) async throws -> [WatchServiceAlert]
+
     func submitStopProblem(_ report: OBAStopProblemReport) async throws
 
     func submitTripProblem(_ report: OBATripProblemReport) async throws

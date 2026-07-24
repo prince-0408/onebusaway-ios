@@ -478,6 +478,12 @@ public struct OBATripForLocation: Codable, Equatable, Sendable, Identifiable {
     public let scheduleDeviation: Int?
     public let predicted: Bool?
 
+    public var stableID: String {
+        let vID = vehicleID.isEmpty ? "no_vehicle" : vehicleID
+        let tID = id.isEmpty ? "no_trip" : id
+        return "\(tID)_\(vID)_\(latitude ?? 0)_\(longitude ?? 0)"
+    }
+
     public var toStatus: OBAVehicleTripStatus.Status {
         OBAVehicleTripStatus.Status(
             activeTripID: id,
@@ -558,6 +564,27 @@ public struct OBAArrival: Codable, Equatable, Sendable, Identifiable {
     public let alertTitle: String?
     public let alertDescription: String?
 
+    /// GTFS-rt passenger crowding / occupancy status, if available.
+    public let occupancyStatus: String?
+
+    public var formattedOccupancyStatus: String? {
+        guard let occupancy = occupancyStatus, !occupancy.isEmpty else { return nil }
+        switch occupancy.lowercased() {
+        case "empty", "many_seats_available":
+            return OBALoc("occupancy.many_seats", value: "Many Seats Available", comment: "Occupancy: many seats")
+        case "few_seats_available":
+            return OBALoc("occupancy.few_seats", value: "Few Seats Available", comment: "Occupancy: few seats")
+        case "standing_room_only":
+            return OBALoc("occupancy.standing_room", value: "Standing Room Only", comment: "Occupancy: standing room")
+        case "crushed_standing_room_only", "full":
+            return OBALoc("occupancy.full", value: "Full", comment: "Occupancy: full")
+        case "not_accepting_passengers":
+            return OBALoc("occupancy.not_accepting", value: "Not Accepting Passengers", comment: "Occupancy: not accepting")
+        default:
+            return occupancy.replacingOccurrences(of: "_", with: " ").capitalized
+        }
+    }
+
     public func toTripForLocation() -> OBATripForLocation {
         OBATripForLocation(
             id: tripID,
@@ -587,7 +614,8 @@ public struct OBAArrival: Codable, Equatable, Sendable, Identifiable {
         scheduleStatus: OBAScheduleStatus = .unknown,
         hasServiceAlert: Bool = false,
         alertTitle: String? = nil,
-        alertDescription: String? = nil
+        alertDescription: String? = nil,
+        occupancyStatus: String? = nil
     ) {
         self.id = id
         self.stopID = stopID
@@ -602,6 +630,7 @@ public struct OBAArrival: Codable, Equatable, Sendable, Identifiable {
         self.hasServiceAlert = hasServiceAlert
         self.alertTitle = alertTitle
         self.alertDescription = alertDescription
+        self.occupancyStatus = occupancyStatus
     }
 }
 

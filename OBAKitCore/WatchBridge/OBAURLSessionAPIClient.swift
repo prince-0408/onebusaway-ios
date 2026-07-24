@@ -574,6 +574,18 @@ public final class OBAURLSessionAPIClient: OBAAPIClient {
         return response.toDomain()
     }
 
+    public func fetchServiceAlerts(agencyID: String?) async throws -> [WatchServiceAlert] {
+        let agency = agencyID ?? "1"
+        let path = "/api/where/situations-for-agency/\(agency).json"
+        do {
+            let url = try self.buildURL(path: path, queryItems: self.apiKeyQueryItem)
+            let response: OBARawListResponse<[OBARawSituation]> = try await self.get(url: url)
+            return response.list.map { $0.toWatchServiceAlert() }
+        } catch {
+            return []
+        }
+    }
+
     // MARK: - Helpers
 
     /// Correctly joins the base URL with a path and query items.
@@ -626,11 +638,12 @@ public final class OBAURLSessionAPIClient: OBAAPIClient {
             } catch is CancellationError {
                 throw CancellationError()
             } catch {
-                Logger.error("\(function) attempt \(index + 1)/\(closures.count) failed: \(error)")
+                Logger.info("\(function) attempt \(index + 1)/\(closures.count) failed: \(error)")
                 lastError = error
             }
         }
         if let lastError = lastError {
+            Logger.error("\(function) failed after \(closures.count) attempts: \(lastError)")
             throw lastError
         }
         throw OBAAPIError.invalidURL // Should not happen

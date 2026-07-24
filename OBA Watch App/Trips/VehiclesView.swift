@@ -65,7 +65,7 @@ struct VehiclesView: View {
                 .listRowBackground(Color.clear)
             }
             Section {
-                ForEach(limited) { trip in
+                ForEach(limited, id: \.stableID) { trip in
                     NavigationLink {
                         TripDetailsView(
                             tripID: trip.id,
