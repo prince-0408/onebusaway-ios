@@ -17,6 +17,8 @@ targets:
         CFBundleDisplayName: OneBusAway
         WKApplication: true
         WKCompanionAppBundleIdentifier: org.onebusaway.iphone
+        NSLocationWhenInUseUsageDescription: See nearby transit stops and schedules based on your location.
+        NSLocationAlwaysAndWhenInUseUsageDescription: See nearby transit stops and schedules based on your location.
         OBAKitConfig:
           AppGroup: group.org.onebusaway.iphone
           RESTServerAPIKey: org.onebusaway.iphone
@@ -28,8 +30,18 @@ targets:
         I_PHONE_OS_DEPLOYMENT_TARGET: "18.0"
         WATCHOS_DEPLOYMENT_TARGET: "11.0"
         INFOPLIST_KEY_WKCompanionAppBundleIdentifier: org.onebusaway.iphone
+        SDKROOT: watchos
+        SUPPORTED_PLATFORMS: "watchos watchsimulator"
+        TARGETED_DEVICE_FAMILY: "4"
+        SUPPORTS_MACCATALYST: "NO"
+        SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: "NO"
+        LD_RUNPATH_SEARCH_PATHS:
+          - "$(inherited)"
+          - "@executable_path/Frameworks"
+          - "@loader_path/Frameworks"
     dependencies:
       - target: OBAKitCore
+        embed: true
       - target: OBAWatchComplication
         embed: true
 
@@ -57,6 +69,15 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: org.onebusaway.iphone.watchkitapp.complication
         WATCHOS_DEPLOYMENT_TARGET: "11.0"
         CODE_SIGN_ALLOW_ENTITLEMENTS_MODIFICATION: "YES"
+        SDKROOT: watchos
+        SUPPORTED_PLATFORMS: "watchos watchsimulator"
+        TARGETED_DEVICE_FAMILY: "4"
+        SUPPORTS_MACCATALYST: "NO"
+        SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: "NO"
+        LD_RUNPATH_SEARCH_PATHS:
+          - "$(inherited)"
+          - "@executable_path/Frameworks"
+          - "@loader_path/Frameworks"
     dependencies:
       - target: OBAKitCore
 

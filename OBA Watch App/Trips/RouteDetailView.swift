@@ -77,7 +77,7 @@ struct RouteDetailView: View {
                     Section(direction.name ?? OBALoc("route_detail.section.direction", value: "Direction", comment: "Direction section header")) {
                         ForEach(direction.stops, id: \.id) { stop in
                             NavigationLink {
-                                StopArrivalsView(stopID: stop.id, stopName: stop.name)
+                                LazyView(StopArrivalsView(stopID: stop.id, stopName: stop.name))
                             } label: {
                                 HStack(spacing: 12) {
                                     Image(systemName: "signpost.right.fill")

@@ -122,7 +122,7 @@ struct SearchView: View {
             Section(header: Text(OBALoc("search.recent_stops", value: "Recent Stops", comment: "Recent stops header"))) {
                 ForEach(viewModel.recentStops) { stop in
                     NavigationLink {
-                        StopArrivalsView(stopID: stop.id, stopName: stop.name)
+                        LazyView(StopArrivalsView(stopID: stop.id, stopName: stop.name))
                     } label: {
                         SearchResultRow(stop: stop)
                     }
@@ -205,7 +205,7 @@ struct SearchView: View {
                 Section(OBALoc("search.section.bookmarks", value: "Bookmarks", comment: "Bookmarks section header")) {
                     ForEach(viewModel.bookmarkResults) { bm in
                         NavigationLink {
-                            StopArrivalsView(stopID: bm.stopID, stopName: bm.name)
+                            LazyView(StopArrivalsView(stopID: bm.stopID, stopName: bm.name))
                         } label: {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(bm.name)
@@ -233,10 +233,12 @@ struct SearchView: View {
                 Section(OBALoc("search.section.stops", value: "Stops", comment: "Stops section header")) {
                     ForEach(viewModel.searchResults) { stop in
                         NavigationLink {
-                            StopArrivalsView(stopID: stop.id, stopName: stop.name)
-                                .onAppear {
-                                    viewModel.recordRecent(stop: stop)
-                                }
+                            LazyView(
+                                StopArrivalsView(stopID: stop.id, stopName: stop.name)
+                                    .onAppear {
+                                        viewModel.recordRecent(stop: stop)
+                                    }
+                            )
                         } label: {
                             SearchResultRow(stop: stop)
                         }

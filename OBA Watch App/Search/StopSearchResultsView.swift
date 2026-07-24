@@ -57,7 +57,7 @@ struct StopSearchResultsView: View {
                 Section {
                     ForEach(viewModel.stops) { stop in
                         NavigationLink {
-                            StopArrivalsView(stopID: stop.id, stopName: stop.name)
+                            LazyView(StopArrivalsView(stopID: stop.id, stopName: stop.name))
                         } label: {
                             HStack(spacing: 12) {
                                 Image(systemName: "signpost.right.fill")

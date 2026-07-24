@@ -171,9 +171,33 @@ struct OBARawRoutesForStopResponse: Decodable, Sendable, OBARawRouteContainer {
 /// Mirrors the structure of the OneBusAway `RESTAPIResponse` used in the iOS app,
 /// but keeps only the pieces we need in the shared core.
 struct OBARawListResponse<Element: Decodable & Sendable>: Decodable, Sendable, OBARawRouteContainer {
+    private struct EntryObject: Decodable, Sendable {
+        let arrivalsAndDepartures: Element?
+        let list: Element?
+        let stops: Element?
+        let routes: Element?
+        let trips: Element?
+    }
+
+    private enum EntryValue: Decodable, Sendable {
+        case list(Element)
+        case object(EntryObject)
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.singleValueContainer()
+            if let list = try? container.decode(Element.self) {
+                self = .list(list)
+            } else if let object = try? container.decode(EntryObject.self) {
+                self = .object(object)
+            } else {
+                throw DecodingError.dataCorruptedError(in: container, debugDescription: "Invalid entry format")
+            }
+        }
+    }
+
     private struct DataContainer: Decodable, Sendable {
         let list: Element?
-        let entry: Element?
+        let entry: EntryValue?
         let stops: Element?
         let routes: Element?
         let trips: Element?
@@ -207,7 +231,18 @@ struct OBARawListResponse<Element: Decodable & Sendable>: Decodable, Sendable, O
                 tmpReferences = dataContainer.references
 
                 if let entry = dataContainer.entry {
-                    tmpList = entry
+                    switch entry {
+                    case .list(let element):
+                        tmpList = element
+                    case .object(let entryObj):
+                        if let arr = entryObj.arrivalsAndDepartures ?? entryObj.list ?? entryObj.stops ?? entryObj.routes ?? entryObj.trips {
+                            tmpList = arr
+                        } else {
+                            throw DecodingError.dataCorrupted(
+                                .init(codingPath: [CodingKeys.data], debugDescription: "Entry object has no valid arrivals/list key.")
+                            )
+                        }
+                    }
                 } else if let list = dataContainer.list {
                     tmpList = list
                 } else if let stops = dataContainer.stops {
@@ -776,9 +811,9 @@ struct OBARawTripsForLocationResponse: Decodable, Sendable {
 
     func toDomain() -> [OBATripForLocation] {
         let trips = data.list ?? data.vehicles ?? data.trips ?? []
-        let routeMap = Dictionary(uniqueKeysWithValues: (data.references?.routes ?? []).compactMap { route in
+        let routeMap = Dictionary((data.references?.routes ?? []).compactMap { route -> (String, OBARawRoutesForLocationResponse.RawRoute)? in
             return (route.id, route)
-        })
+        }, uniquingKeysWith: { first, _ in first })
 
         return trips.map { raw in
             var routeShortName = raw.routeShortName

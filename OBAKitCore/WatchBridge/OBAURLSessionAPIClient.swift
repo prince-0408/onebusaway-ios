@@ -211,9 +211,17 @@ public final class OBAURLSessionAPIClient: OBAAPIClient {
     }
 
     public func fetchArrivals(for stopID: OBAStopID) async throws -> OBAArrivalsResult {
-        try await tryFallback([
-            {
-                let path = "/api/where/arrivals-and-departures-for-stop/\(stopID).json"
+        let rawID = stopID.components(separatedBy: "_").last ?? stopID
+        var candidateIDs = [stopID]
+        if rawID != stopID {
+            candidateIDs.append(rawID)
+        }
+
+        var attempts: [() async throws -> OBAArrivalsResult] = []
+        for candidate in candidateIDs {
+            let encodedCandidate = candidate.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? candidate
+            attempts.append {
+                let path = "/api/where/arrivals-and-departures-for-stop/\(encodedCandidate).json"
                 let queryItems = self.apiKeyQueryItem + [
                     URLQueryItem(name: "minutesBefore", value: String(self.configuration.minutesBeforeArrivals)),
                     URLQueryItem(name: "minutesAfter", value: String(self.configuration.minutesAfterArrivals))
@@ -221,20 +229,24 @@ public final class OBAURLSessionAPIClient: OBAAPIClient {
                 let url = try self.buildURL(path: path, queryItems: queryItems)
                 let response: OBARawListResponse<[OBARawArrival]> = try await self.get(url: url)
                 return self.mapArrivalsResponse(response)
-            },
-            {
+            }
+            attempts.append {
                 let path = "/api/where/arrivals-and-departures-for-stop.json"
                 let queryItems = self.apiKeyQueryItem + [
-                    URLQueryItem(name: "stopId", value: stopID),
+                    URLQueryItem(name: "stopId", value: candidate),
                     URLQueryItem(name: "minutesBefore", value: String(self.configuration.minutesBeforeArrivals)),
                     URLQueryItem(name: "minutesAfter", value: String(self.configuration.minutesAfterArrivals))
                 ]
                 let url = try self.buildURL(path: path, queryItems: queryItems)
                 let response: OBARawListResponse<[OBARawArrival]> = try await self.get(url: url)
                 return self.mapArrivalsResponse(response)
-            },
-            {
-                let path = "/api/where/stop/\(stopID).json"
+            }
+        }
+
+        for candidate in candidateIDs {
+            let encodedCandidate = candidate.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? candidate
+            attempts.append {
+                let path = "/api/where/stop/\(encodedCandidate).json"
                 let url = try self.buildURL(path: path, queryItems: self.apiKeyQueryItem)
                 let response: OBARawStopResponse = try await self.get(url: url)
                 let domainStop = response.toDomainStop()
@@ -248,7 +260,9 @@ public final class OBAURLSessionAPIClient: OBAAPIClient {
                     stopLongitude: domainStop.longitude
                 )
             }
-        ])
+        }
+
+        return try await tryFallback(attempts)
     }
 
     private func mapArrivalsResponse(_ response: OBARawListResponse<[OBARawArrival]>) -> OBAArrivalsResult {
@@ -446,10 +460,10 @@ public final class OBAURLSessionAPIClient: OBAAPIClient {
 
         // Enhance stop times with names from references if needed
         if let stops = response.data.references?.stops, let schedule = details.schedule {
-            let stopMapByID = Dictionary(uniqueKeysWithValues: stops.compactMap { stop -> (String, OBARawTripDetailsResponse.RawStop)? in
+            let stopMapByID = Dictionary(stops.compactMap { stop -> (String, OBARawTripDetailsResponse.RawStop)? in
                 guard let id = stop.id else { return nil }
                 return (id, stop)
-            })
+            }, uniquingKeysWith: { first, _ in first })
 
             let enhancedStopTimes = schedule.stopTimes.map { stopTime -> OBATripExtendedDetails.StopTime in
                 let rawStop = stopTime.stopId.flatMap { stopMapByID[$0] }

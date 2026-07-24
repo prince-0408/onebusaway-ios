@@ -131,7 +131,7 @@ struct NearbyStopsListView: View {
                     Section(title) {
                         ForEach(stopsForDirection) { stop in
                             NavigationLink {
-                                StopArrivalsView(stopID: stop.id, stopName: stop.name)
+                                LazyView(StopArrivalsView(stopID: stop.id, stopName: stop.name))
                             } label: {
                                 NearbyStopRow(
                                     stop: stop,

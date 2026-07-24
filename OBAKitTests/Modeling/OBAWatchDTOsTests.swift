@@ -238,6 +238,23 @@ class OBAWatchDTOsTests: XCTestCase {
         let dataBare = jsonBare.data(using: .utf8)!
         let responseBare = try JSONDecoder().decode(OBARawListResponse<MockElement>.self, from: dataBare)
         XCTAssertEqual(responseBare.list.value, "test_bare", "Should decode bare element without envelope")
+
+        // Test Case 4: Envelope with 'entry' object containing 'arrivalsAndDepartures' array
+        let jsonEnvelopeEntryObject = """
+        {
+            "code": 200,
+            "version": 2,
+            "data": {
+                "entry": {
+                    "stopId": "1211_399-9",
+                    "arrivalsAndDepartures": [{ "value": "test_arrival" }]
+                }
+            }
+        }
+        """
+        let dataEntryObject = jsonEnvelopeEntryObject.data(using: .utf8)!
+        let responseEntryObject = try JSONDecoder().decode(OBARawListResponse<[MockElement]>.self, from: dataEntryObject)
+        XCTAssertEqual(responseEntryObject.list.first?.value, "test_arrival", "Should decode entry object containing arrivalsAndDepartures")
     }
     
     // MARK: - OBAURLSessionAPIClient Tests
