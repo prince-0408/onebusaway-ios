@@ -100,6 +100,30 @@ struct RouteDetailView: View {
                                                 .foregroundColor(.secondary)
                                                 .lineLimit(1)
                                         }
+
+                                        if let routesStr = stop.routeNames, !routesStr.isEmpty {
+                                            let transfers = routesStr.components(separatedBy: ",")
+                                                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                                                .filter { !$0.isEmpty && $0 != route.shortName }
+
+                                            if !transfers.isEmpty {
+                                                HStack(spacing: 3) {
+                                                    Text(OBALoc("route_detail.transfers", value: "Transfers:", comment: "Transfers label"))
+                                                        .font(.system(size: 9))
+                                                        .foregroundColor(.secondary)
+
+                                                    ForEach(transfers.prefix(4), id: \.self) { transferRoute in
+                                                        Text(transferRoute)
+                                                            .font(.system(size: 9, weight: .bold))
+                                                            .padding(.horizontal, 4)
+                                                            .padding(.vertical, 1)
+                                                            .background(Color.blue.opacity(0.3))
+                                                            .foregroundColor(.white)
+                                                            .cornerRadius(4)
+                                                    }
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }

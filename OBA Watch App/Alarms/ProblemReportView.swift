@@ -7,32 +7,57 @@ enum ProblemReportMode {
     case trip(tripID: String, vehicleID: String?, stopID: OBAStopID?)
 }
 
+private let quickProblems: [(code: String, title: String, icon: String)] = [
+    ("vehicle_never_came", "Bus Never Came", "bus.fill"),
+    ("vehicle_arrived_early", "Bus Arrived Early", "clock.arrow.circlepath"),
+    ("vehicle_arrived_late", "Bus Arrived Late", "clock.badge.exclamationmark"),
+    ("wrong_headsign", "Wrong Headsign", "signpost.right")
+]
+
 struct ProblemReportView: View {
     let mode: ProblemReportMode
-    @State private var code: String = ""
+    @State private var code: String = "vehicle_never_came"
     @State private var comment: String = ""
     @State private var includeLocation: Bool = true
     @State private var userOnVehicle: Bool = false
     @State private var serviceDate: Date = Date()
     @State private var isSubmitting = false
     @State private var errorMessage: String?
+    @State private var showConfirmation = false
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         List {
+            Section(OBALoc("problem_report.select_issue", value: "Select Issue", comment: "Select issue header")) {
+                ForEach(quickProblems, id: \.code) { item in
+                    Button {
+                        self.code = item.code
+                        Task { await submit() }
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: item.icon)
+                                .foregroundColor(.orange)
+                            Text(item.title)
+                                .font(.system(size: 13, weight: .medium))
+                            Spacer()
+                            if code == item.code {
+                                Image(systemName: "checkmark")
+                                    .foregroundColor(.blue)
+                            }
+                        }
+                    }
+                    .disabled(isSubmitting)
+                }
+            }
+
             switch mode {
             case .stop(let stopID):
                 Section(String(format: OBALoc("problem_report.stop_fmt", value: "Stop %@", comment: "Stop header"), stopID)) {
-                    TextField(OBALoc("problem_report.problem_code", value: "Problem code", comment: "Problem code"), text: $code)
-                    TextField(OBALoc("problem_report.comment_optional", value: "Comment (optional)", comment: "Comment optional"), text: $comment)
                     Toggle(OBALoc("problem_report.include_location", value: "Include location", comment: "Include location"), isOn: $includeLocation)
                 }
             case .trip(let tripID, _, let stopID):
                 Section(String(format: OBALoc("problem_report.trip_fmt", value: "Trip %@", comment: "Trip header"), tripID)) {
-                    TextField(OBALoc("problem_report.problem_code", value: "Problem code", comment: "Problem code"), text: $code)
-                    TextField(OBALoc("problem_report.comment_optional", value: "Comment (optional)", comment: "Comment optional"), text: $comment)
                     Toggle(OBALoc("problem_report.on_vehicle", value: "On vehicle", comment: "On vehicle"), isOn: $userOnVehicle)
-                    DatePicker(OBALoc("problem_report.service_date", value: "Service date", comment: "Service date"), selection: $serviceDate, displayedComponents: .date)
                     if let stopID {
                         Text(String(format: OBALoc("problem_report.stop_fmt", value: "Stop %@", comment: "Stop header"), stopID))
                             .font(.caption)

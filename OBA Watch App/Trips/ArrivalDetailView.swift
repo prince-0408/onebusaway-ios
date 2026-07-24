@@ -145,6 +145,28 @@ struct ArrivalDetailView: View {
                     }
                     .padding(.vertical, 4)
                 }
+
+                Button {
+                    let bookmark = WatchBookmark(
+                        id: UUID(),
+                        stopID: arrival.stopID,
+                        name: "\(arrival.routeShortName ?? arrival.routeID) - \(arrival.headsign)",
+                        routeShortName: arrival.routeShortName,
+                        tripHeadsign: arrival.headsign
+                    )
+                    BookmarksSyncManager.shared.addBookmark(bookmark)
+                    WatchFeedbackGenerator.shared.success()
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "star.fill")
+                            .foregroundColor(.yellow)
+                        Text(OBALoc("arrival_detail.bookmark_route", value: "Bookmark Route", comment: "Action to bookmark route"))
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                        Spacer()
+                    }
+                    .padding(.vertical, 4)
+                }
                 
                 // Vehicle Details Link
                 if let vehicleID = arrival.vehicleID {

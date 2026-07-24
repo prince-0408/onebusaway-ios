@@ -38,6 +38,24 @@ final class BookmarksSyncManager {
         }
     }
 
+    /// Adds a new bookmark locally on watchOS.
+    func addBookmark(_ bookmark: WatchBookmark) {
+        var current = getBookmarks()
+        if !current.contains(where: { $0.stopID == bookmark.stopID && $0.routeShortName == bookmark.routeShortName }) {
+            current.append(bookmark)
+            do {
+                let encodedData = try JSONEncoder().encode(current)
+                WatchAppState.userDefaults.set(encodedData, forKey: storageKey)
+                WatchAppState.userDefaults.synchronize()
+                UserDefaults.standard.set(encodedData, forKey: storageKey)
+                UserDefaults.standard.synchronize()
+                NotificationCenter.default.post(name: Self.bookmarksUpdatedNotification, object: nil)
+            } catch {
+                Logger.error("Failed to add bookmark: \(error)")
+            }
+        }
+    }
+
     /// Retrieves the current list of bookmarks.
     func getBookmarks() -> [WatchBookmark] {
         if let data = WatchAppState.userDefaults.data(forKey: storageKey) {
