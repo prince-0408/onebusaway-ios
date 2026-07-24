@@ -11,14 +11,16 @@ import OBAKitCore
 /// Main menu shown after permission has been handled.
 struct MainMenuView: View {
     @EnvironmentObject var appState: WatchAppState
-    @AppStorage("watch_selected_region_id", store: WatchAppState.userDefaults) private var selectedRegionID: String = "mta-new-york"
+    @AppStorage("watch_selected_region_id", store: WatchAppState.userDefaults) private var selectedRegionID: String = WatchAppState.defaultRegionID
     /// Becomes true only after the debounce window closes without a successful sync,
     /// preventing a flash on normal fast launches.
     @State private var showTimeSyncWarning: Bool = false
-    @State private var showingMore: Bool = false
 
     private var regionName: String {
-        return appState.regions.first(where: { $0.id == selectedRegionID })?.name ?? OBALoc("common.app_name", value: "OneBusAway", comment: "The name of the application")
+        let defaultAppName = (Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String)
+            ?? (Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String)
+            ?? "OneBusAway"
+        return appState.regions.first(where: { $0.id == selectedRegionID })?.name ?? OBALoc("common.app_name", value: defaultAppName, comment: "The name of the application")
     }
     
     var body: some View {
@@ -123,8 +125,8 @@ struct MainMenuView: View {
             }
 
             Section {
-                Button {
-                    showingMore = true
+                NavigationLink {
+                    SettingsView()
                 } label: {
                     Label(OBALoc("common.settings", value: "Settings", comment: "Title for settings menu item"), systemImage: "gearshape")
                         .foregroundColor(.secondary)
@@ -132,9 +134,6 @@ struct MainMenuView: View {
             }
         }
         .navigationTitle(regionName)
-        .sheet(isPresented: $showingMore) {
-            MoreView()
-        }
         .onAppear {
             // Show the warning only after a 15-second window, so it doesn't
             // flash briefly on fast connections where sync completes quickly.

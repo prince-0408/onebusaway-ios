@@ -14,7 +14,7 @@ import OBAKitCore
 struct RegionOnboardingView: View {
     @EnvironmentObject var appState: WatchAppState
     
-    @AppStorage("watch_selected_region_id", store: WatchAppState.userDefaults) private var selectedRegionID: String = "mta-new-york"
+    @AppStorage("watch_selected_region_id", store: WatchAppState.userDefaults) private var selectedRegionID: String = WatchAppState.defaultRegionID
     @AppStorage("watch_share_current_location", store: WatchAppState.userDefaults) private var shareCurrentLocation: Bool = true
 
     let onContinue: () -> Void
@@ -24,8 +24,8 @@ struct RegionOnboardingView: View {
     init(onContinue: @escaping () -> Void) {
         self.onContinue = onContinue
         
-        // Use the saved region if available, otherwise fall back to MTA New York.
-        let savedRegionID = WatchAppState.userDefaults.string(forKey: "watch_selected_region_id") ?? "mta-new-york"
+        // Use the saved region if available, otherwise fall back to default region.
+        let savedRegionID = WatchAppState.userDefaults.string(forKey: "watch_selected_region_id") ?? WatchAppState.defaultRegionID
         
         let region = WatchAppState.shared.regions.first(where: { $0.id == savedRegionID })
         let initialCoordinate = region?.coordinate ?? CLLocationCoordinate2D(latitude: 40.7128, longitude: -74.0060)

@@ -49,16 +49,7 @@ class WatchAppState: NSObject, ObservableObject, CLLocationManagerDelegate, WCSe
     /// simulated location is configured. To make development easier, we fall
     /// back to a fixed test coordinate when running in the simulator.
     var currentLocation: CLLocation? {
-        #if targetEnvironment(simulator)
-        if let realLocation = locationManager.location {
-            return realLocation
-        } else {
-            // Midtown Manhattan, for testing.
-            return CLLocation(latitude: 40.7580, longitude: -73.9855)
-        }
-        #else
         return locationManager.location
-        #endif
     }
 
     /// Default region ID used across the app
@@ -177,7 +168,7 @@ class WatchAppState: NSObject, ObservableObject, CLLocationManagerDelegate, WCSe
             id: "washington-dc",
             name: OBALoc("region.washington_dc", value: "Washington, D.C.", comment: "Region: Washington, D.C."),
             coordinate: .init(latitude: 38.9072, longitude: -77.0369),
-            obaBaseURL: URL(string: "https://buseta.wmata.com/onebusaway-api-webapp/"),
+            obaBaseURL: nil,
             otpBaseURL: nil
         ),
         .init(

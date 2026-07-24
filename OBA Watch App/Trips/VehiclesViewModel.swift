@@ -24,7 +24,7 @@ final class VehiclesViewModel: ObservableObject {
         errorMessage = nil
         defer { isLoading = false }
         do {
-            let span = 0.015 // ~1.5km span, better for trips-for-location compatibility
+            let span = 0.08 // ~8km span, suitable for regional transit vehicle coverage
             let result = try await apiClient.fetchVehiclesReliably(
                 latitude: loc.coordinate.latitude,
                 longitude: loc.coordinate.longitude,

@@ -26,8 +26,16 @@ struct ContentView: View {
                     MainMenuView()
                 }
             }
-            .navigationTitle(OBALoc("common.app_name", value: "OneBusAway", comment: "The name of the application"))
+            .navigationTitle(OBALoc("common.app_name", value: Bundle.main.appName, comment: "The name of the application"))
         }
+    }
+}
+
+private extension Bundle {
+    var appName: String {
+        return (object(forInfoDictionaryKey: "CFBundleDisplayName") as? String)
+            ?? (object(forInfoDictionaryKey: "CFBundleName") as? String)
+            ?? "OneBusAway"
     }
 }
 

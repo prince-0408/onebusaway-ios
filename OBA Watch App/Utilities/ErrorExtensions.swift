@@ -30,15 +30,15 @@ extension Error {
         
         if let apiError = self as? OBAAPIError {
             switch apiError {
-            case .notFound:
-                return OBALoc("common.error.not_found", value: "Not found.", comment: "Not found")
-            case .badServerResponse:
+            case .notFound(_):
+                return OBALoc("common.error.not_found", value: "Region service unavailable.", comment: "Region service unavailable")
+            case .badServerResponse(_, _):
                 return OBALoc("common.error.server_error", value: "Server error.", comment: "Server error")
-            case .decodingError:
+            case .decodingError(_, _):
                 return OBALoc("common.error.decoding", value: "Data format error.", comment: "Decoding error")
             case .invalidURL:
                 return OBALoc("common.error.invalid_url", value: "Invalid request.", comment: "Invalid URL")
-            case .other:
+            case .other(_):
                 return OBALoc("common.error.unable_load", value: "Unable to load data.", comment: "Unable to load data")
             }
         }

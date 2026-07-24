@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>KiedyBus</string>
+	<string>OneBusAway</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -23,17 +23,13 @@
 	<key>OBAKitConfig</key>
 	<dict>
 		<key>AppGroup</key>
-		<string>group.pl.kiedybus.iphone</string>
+		<string>group.org.onebusaway.iphone</string>
 		<key>RESTServerAPIKey</key>
-		<string>web</string>
-		<key>RegionsServerAPIPath</key>
-		<string>/regions-v4.json</string>
-		<key>RegionsServerBaseAddress</key>
-		<string>https://kiedybus.pl</string>
+		<string>org.onebusaway.iphone</string>
 	</dict>
 	<key>WKApplication</key>
 	<true/>
 	<key>WKCompanionAppBundleIdentifier</key>
-	<string>pl.kiedybus.iphone</string>
+	<string>org.onebusaway.iphone</string>
 </dict>
 </plist>

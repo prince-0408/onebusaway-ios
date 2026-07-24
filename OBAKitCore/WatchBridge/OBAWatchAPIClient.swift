@@ -202,9 +202,10 @@ public extension OBAAPIClient {
         do {
             let agencies = try await fetchAgenciesWithCoverage()
             let nearbyAgencies = agencies.filter {
-                abs($0.centerLatitude - latitude) < 0.5 && abs($0.centerLongitude - longitude) < 0.5
+                abs($0.centerLatitude - latitude) < 1.0 && abs($0.centerLongitude - longitude) < 1.0
             }
-            addUnique(await fetchVehiclesForAgencies(nearbyAgencies), filterByLocation: true)
+            let targetAgencies = nearbyAgencies.isEmpty ? agencies : nearbyAgencies
+            addUnique(await fetchVehiclesForAgencies(targetAgencies), filterByLocation: false)
         } catch is CancellationError {
             throw CancellationError()
         } catch {
@@ -212,8 +213,15 @@ public extension OBAAPIClient {
             Logger.error("fetchAgenciesWithCoverage failed: \(error)")
         }
 
-        if allVehicles.isEmpty, let error = lastError {
-            throw error
+        if allVehicles.isEmpty {
+            if let apiError = lastError as? OBAAPIError {
+                if case .notFound = apiError {
+                    return []
+                }
+            }
+            if let error = lastError {
+                throw error
+            }
         }
         return allVehicles
     }
