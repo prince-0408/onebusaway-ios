@@ -23,6 +23,8 @@ targets:
     info:
       path: Apps/KiedyBus/Info.plist
       properties:
+        NSSupportsLiveActivities: true
+        NSSupportsLiveActivitiesFrequentUpdates: true
         CFBundleDisplayName: KiedyBus
         CFBundleURLTypes: [{CFBundleTypeRole: "Editor", CFBundleURLIconFile: "", CFBundleURLName: "kiedybus", CFBundleURLSchemes: ["kiedybus"]}]
         NSAppTransportSecurity:
