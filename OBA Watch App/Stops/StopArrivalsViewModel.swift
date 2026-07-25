@@ -40,34 +40,46 @@ class StopArrivalsViewModel: ObservableObject {
     
     private let apiClientProvider: () -> OBAAPIClient
     private let stopID: OBAStopID
+    /// Single task that handles both the initial load and the periodic refresh loop.
+    /// Cancelling this task stops any in-flight network call immediately.
     private var refreshTask: Task<Void, Never>?
     
     init(apiClientProvider: @escaping () -> OBAAPIClient, stopID: OBAStopID) {
         self.apiClientProvider = apiClientProvider
         self.stopID = stopID
-        
-        // Load arrivals asynchronously
-        Task { @MainActor in
-            await loadArrivals()
-            await loadRoutes()
-        }
-        
-        // Auto-refresh every 30 seconds
-        refreshTask = Task { [weak self] in
+        startRefreshLoop()
+    }
+
+    /// Starts (or restarts) the initial-load + 30-second refresh loop.
+    func startRefreshLoop() {
+        refreshTask?.cancel()
+        refreshTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            // Initial load
+            await self.loadArrivals()
+            await self.loadRoutes()
+            // Periodic refresh
             while !Task.isCancelled {
                 do {
                     try await Task.sleep(nanoseconds: 30_000_000_000)
                 } catch {
+                    // CancellationError — stop the loop cleanly
                     break
                 }
-                await self?.loadArrivals()
+                guard !Task.isCancelled else { break }
+                await self.loadArrivals()
             }
         }
     }
-    
+
+    /// Call this as soon as the view begins to disappear so the back-button
+    /// animation is never blocked by an in-flight network request.
     func cancelRefresh() {
         refreshTask?.cancel()
         refreshTask = nil
+        // Reset loading flag so the view doesn't stay in a spinner state
+        // if it somehow becomes visible again (e.g. swipe-back cancelled).
+        isLoading = false
     }
 
     deinit {
@@ -101,28 +113,29 @@ class StopArrivalsViewModel: ObservableObject {
     
     func loadArrivals() async {
         guard !isLoading else { return }
+        guard !Task.isCancelled else { return }
         
         let apiClient = apiClientProvider()
         isLoading = true
-        defer { isLoading = false }
         errorMessage = nil
         
         do {
             let result = try await apiClient.fetchArrivals(for: stopID)
+            guard !Task.isCancelled else {
+                isLoading = false
+                return
+            }
             arrivals = result.arrivals
             isOfflineMode = false
+            isLoading = false
             saveToCache(result)
             
-            // Update routes if we got them from the arrivals response
             if !result.routes.isEmpty {
                 routes = result.routes
             }
             
-            // Update stop name if we got it
             if let fetchedName = result.stopName {
                 stopName = fetchedName
-
-                // Save to recent stops using real coordinates if the server returned them.
                 saveToRecentStops(
                     name: fetchedName,
                     code: result.stopCode,
@@ -133,7 +146,12 @@ class StopArrivalsViewModel: ObservableObject {
             }
             
             lastUpdated = Date()
+        } catch is CancellationError {
+            isLoading = false
+            return
         } catch {
+            isLoading = false
+            guard !Task.isCancelled else { return }
             if !loadFromCache() {
                 errorMessage = error.watchOSUserFacingMessage
             }
@@ -175,9 +193,11 @@ class StopArrivalsViewModel: ObservableObject {
     }
 
     func loadRoutes() async {
+        guard !Task.isCancelled else { return }
         let apiClient = apiClientProvider()
         do {
             let fetched = try await apiClient.fetchRoutesForStop(stopID: stopID)
+            guard !Task.isCancelled else { return }
             routes = fetched
         } catch is CancellationError {
             return

@@ -25,20 +25,14 @@ struct BookmarksView: View {
             }
         }
         .navigationTitle(OBALoc("common.bookmarks", value: "Bookmarks", comment: "Title for the Bookmarks screen"))
-        .task {
-            viewModel.currentLocation = appState.currentLocation
-            await viewModel.refreshData()
-        }
         .onAppear {
             viewModel.isViewActive = true
+            // Single load point — avoid double-loading from .task + .onAppear
             viewModel.currentLocation = appState.currentLocation
             viewModel.loadBookmarks()
         }
         .onDisappear {
             viewModel.isViewActive = false
-        }
-        .onChange(of: appState.currentLocation) { _, location in
-            viewModel.updateCurrentLocation(location)
         }
     }
     
@@ -71,7 +65,7 @@ struct BookmarksView: View {
         List {
             ForEach(viewModel.bookmarks) { bookmark in
                 NavigationLink {
-                    LazyView(StopArrivalsView(stopID: bookmark.stopID, stopName: bookmark.name))
+                    StopArrivalsView(stopID: bookmark.stopID, stopName: bookmark.name)
                 } label: {
                     BookmarkRow(bookmark: bookmark)
                 }

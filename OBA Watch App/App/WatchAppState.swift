@@ -44,13 +44,9 @@ class WatchAppState: NSObject, ObservableObject, CLLocationManagerDelegate, WCSe
     /// Watch Connectivity Session
     private let session: WCSession = .default
 
-    /// Last known location, if available.
-    /// On the simulator, CoreLocation may not provide a real location unless a
-    /// simulated location is configured. To make development easier, we fall
-    /// back to a fixed test coordinate when running in the simulator.
-    var currentLocation: CLLocation? {
-        return locationManager.location
-    }
+    /// Last known location. Updated by the location manager delegate only when
+    /// the device has moved more than 50 m, preventing constant re-renders.
+    @Published var currentLocation: CLLocation?
 
     /// Default region ID used across the app
     static var defaultRegionID: String {
@@ -357,6 +353,8 @@ class WatchAppState: NSObject, ObservableObject, CLLocationManagerDelegate, WCSe
         locationManager.delegate = self
         locationManager.requestWhenInUseAuthorization()
         locationManager.startUpdatingLocation()
+        // Seed currentLocation from any cached fix the manager already has
+        self.currentLocation = locationManager.location
         
         // Sync time with server
         Task {
@@ -536,6 +534,24 @@ class WatchAppState: NSObject, ObservableObject, CLLocationManagerDelegate, WCSe
         Task { @MainActor in
             self.authorizationStatus = self.locationManager.authorizationStatus
         }
+    }
+
+    /// Update `currentLocation` only when the device has moved at least 50 m.
+    /// This prevents constant SwiftUI re-renders triggered by minor GPS noise.
+    nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        guard let newLocation = locations.last else { return }
+        Task { @MainActor in
+            let threshold: CLLocationDistance = 50
+            if let existing = self.currentLocation {
+                guard newLocation.distance(from: existing) >= threshold else { return }
+            }
+            self.currentLocation = newLocation
+        }
+    }
+
+    nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        // Location errors (e.g. kCLErrorDomain Code=0) are non-fatal on watchOS.
+        // The app still works using the selected region's centre coordinate.
     }
 
     /// Explicitly re-requests location authorization. On watchOS, if the user

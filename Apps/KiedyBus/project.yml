@@ -114,7 +114,9 @@ targets:
           - group.pl.kiedybus.iphone
     info:
       properties:
-        CFBundleDisplayName: KiedyBus
+        CFBundleDisplayName: KiedyBus Arrivals
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
         OBAKitConfig:
           AppGroup: group.pl.kiedybus.iphone
           RESTServerAPIKey: web
@@ -123,6 +125,8 @@ targets:
     settings:
       base:
         DEVELOPMENT_TEAM: 85APG5FQFE
+        CODE_SIGN_IDENTITY: "iPhone Developer"
+        SKIP_INSTALL: "YES"
         PRODUCT_BUNDLE_IDENTIFIER: pl.kiedybus.iphone.watchkitapp.complication
 include:
   - path: Apps/Shared/app_shared.yml

@@ -203,7 +203,6 @@ struct StopArrivalsView: View {
             // Hidden navigation links for sheet actions
         }
         .navigationTitle(OBALoc("stop_arrivals.title", value: "Arrivals", comment: "Title for stop arrivals screen"))
-        .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showNearbyStops) {
             NavigationStack {
                 NearbyStopsView()
@@ -288,13 +287,16 @@ struct StopArrivalsView: View {
         } message: {
             Text(infoMessage ?? "")
         }
-        .userActivity("org.onebusaway.iphone.user_activity.stop") { userActivity in
-            userActivity.title = stopName ?? "Stop \(stopID)"
-            userActivity.userInfo = ["stop_id": stopID]
-            userActivity.isEligibleForHandoff = true
-        }
         .onDisappear {
+            // Cancel immediately so no in-flight network work blocks the
+            // back-button pop animation on the main actor.
             viewModel.cancelRefresh()
+        }
+        .onAppear {
+            // Restart the refresh loop if the view reappears (e.g. swipe-back cancelled).
+            if viewModel.arrivals.isEmpty {
+                viewModel.startRefreshLoop()
+            }
         }
     }
 

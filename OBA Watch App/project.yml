@@ -69,11 +69,14 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: org.onebusaway.iphone.watchkitapp.complication
         WATCHOS_DEPLOYMENT_TARGET: "11.0"
         CODE_SIGN_ALLOW_ENTITLEMENTS_MODIFICATION: "YES"
+        CODE_SIGN_IDENTITY: "iPhone Developer"
+        DEVELOPMENT_TEAM: 4ZQCMA634J
         SDKROOT: watchos
         SUPPORTED_PLATFORMS: "watchos watchsimulator"
         TARGETED_DEVICE_FAMILY: "4"
         SUPPORTS_MACCATALYST: "NO"
         SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: "NO"
+        SKIP_INSTALL: "YES"
         LD_RUNPATH_SEARCH_PATHS:
           - "$(inherited)"
           - "@executable_path/Frameworks"
