@@ -380,7 +380,9 @@ class WatchAppState: NSObject, ObservableObject, CLLocationManagerDelegate, WCSe
         if session.isReachable {
             session.sendMessage(message, replyHandler: nil) { [weak self] error in
                 print("[WatchOS Debug] requestSyncFromPhone sendMessage error: \(error.localizedDescription)")
-                self?.session.transferUserInfo(message)
+                DispatchQueue.main.async {
+                    _ = self?.session.transferUserInfo(message)
+                }
             }
         } else {
             print("[WatchOS Debug] Companion phone app is not reachable right now. Queued transferUserInfo request.")
