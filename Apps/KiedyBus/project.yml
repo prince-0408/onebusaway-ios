@@ -110,28 +110,7 @@ targets:
         DEVELOPMENT_TEAM: 85APG5FQFE
         PRODUCT_BUNDLE_IDENTIFIER: pl.kiedybus.iphone.watchkitapp
         INFOPLIST_KEY_WKCompanionAppBundleIdentifier: pl.kiedybus.iphone
-  OBAWatchComplication:
-    sources: ["Apps/KiedyBus/Assets.xcassets"]
-    entitlements:
-      properties:
-        com.apple.security.application-groups:
-          - group.pl.kiedybus.iphone
-    info:
-      properties:
-        CFBundleDisplayName: KiedyBus Arrivals
-        NSExtension:
-          NSExtensionPointIdentifier: com.apple.widgetkit-extension
-        OBAKitConfig:
-          AppGroup: group.pl.kiedybus.iphone
-          RESTServerAPIKey: web
-          RegionsServerBaseAddress: https://kiedybus.pl
-          RegionsServerAPIPath: /regions-v4.json
-    settings:
-      base:
-        DEVELOPMENT_TEAM: 85APG5FQFE
-        CODE_SIGN_IDENTITY: "iPhone Developer"
-        SKIP_INSTALL: "YES"
-        PRODUCT_BUNDLE_IDENTIFIER: pl.kiedybus.iphone.watchkitapp.complication
+
 include:
   - path: Apps/Shared/app_shared.yml
   - path: Apps/Shared/info_plist.yml
