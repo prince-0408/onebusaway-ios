@@ -398,9 +398,13 @@ class WatchAppState: NSObject, ObservableObject, CLLocationManagerDelegate, WCSe
         if activationState == .activated {
             let context = session.receivedApplicationContext
             print("[WatchOS Debug] WCSession activated. receivedApplicationContext keys: \(context.keys)")
-            if !context.isEmpty, let jsonData = try? JSONSerialization.data(withJSONObject: context, options: []) {
-                Task { @MainActor in
-                    self.processWatchData(jsonData)
+            if !context.isEmpty {
+                // Extract Sendable values on this thread before crossing actor boundary
+                let (jsonData, regionBlobs) = Self.prepareForMainActor(context)
+                if let jsonData {
+                    Task { @MainActor in
+                        self.processWatchData(jsonData, regionBlobs: regionBlobs)
+                    }
                 }
             }
             Task { @MainActor in
@@ -409,34 +413,85 @@ class WatchAppState: NSObject, ObservableObject, CLLocationManagerDelegate, WCSe
         }
     }
 
-    nonisolated func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String : Any]) {
+    nonisolated func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String: Any]) {
         print("[WatchOS Debug] didReceiveApplicationContext keys: \(applicationContext.keys)")
-        if let jsonData = try? JSONSerialization.data(withJSONObject: applicationContext, options: []) {
+        let (jsonData, regionBlobs) = Self.prepareForMainActor(applicationContext)
+        if let jsonData {
             Task { @MainActor in
-                self.processWatchData(jsonData)
+                self.processWatchData(jsonData, regionBlobs: regionBlobs)
             }
         }
     }
 
-    nonisolated func session(_ session: WCSession, didReceiveUserInfo userInfo: [String : Any] = [:]) {
+    nonisolated func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any] = [:]) {
         print("[WatchOS Debug] didReceiveUserInfo keys: \(userInfo.keys)")
-        if let jsonData = try? JSONSerialization.data(withJSONObject: userInfo, options: []) {
+        let (jsonData, regionBlobs) = Self.prepareForMainActor(userInfo)
+        if let jsonData {
             Task { @MainActor in
-                self.processWatchData(jsonData)
+                self.processWatchData(jsonData, regionBlobs: regionBlobs)
             }
         }
     }
 
-    nonisolated func session(_ session: WCSession, didReceiveMessage message: [String : Any]) {
+    nonisolated func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {
         print("[WatchOS Debug] didReceiveMessage keys: \(message.keys)")
-        if let jsonData = try? JSONSerialization.data(withJSONObject: message, options: []) {
+        let (jsonData, regionBlobs) = Self.prepareForMainActor(message)
+        if let jsonData {
             Task { @MainActor in
-                self.processWatchData(jsonData)
+                self.processWatchData(jsonData, regionBlobs: regionBlobs)
             }
         }
     }
 
-    @MainActor private func processWatchData(_ jsonData: Data) {
+    /// Sanitizes a WCSession dictionary and serializes it to JSON-safe `Data` on
+    /// the calling (non-isolated) thread. Also extracts any `Data` blobs stored
+    /// under the "regions" key so they can be decoded on the main actor without
+    /// crossing the concurrency boundary as `[String: Any]`.
+    ///
+    /// Both return values are `Sendable` (`Data` and `[Data]`), so they are safe
+    /// to capture in `Task { @MainActor }` closures without data-race warnings.
+    nonisolated private static func prepareForMainActor(
+        _ dict: [String: Any]
+    ) -> (jsonData: Data?, regionBlobs: [Data]) {
+        // Pull out Data blobs for regions before sanitizing (they are not JSON-safe)
+        let regionBlobs = (dict["regions"] as? [Data]) ?? []
+        let sanitized = sanitizeForJSON(dict)
+        let jsonData = try? JSONSerialization.data(withJSONObject: sanitized, options: [])
+        return (jsonData, regionBlobs)
+    }
+
+    /// Recursively strips any value that JSONSerialization cannot handle
+    /// (e.g. `Data`/`NSData` blobs that WCSession may include).
+    nonisolated private static func sanitizeForJSON(_ dict: [String: Any]) -> [String: Any] {
+        var result: [String: Any] = [:]
+        for (key, value) in dict {
+            switch value {
+            case is String, is Bool, is Int, is Double, is Float, is NSNumber:
+                result[key] = value
+            case let array as [Any]:
+                result[key] = array.compactMap { element -> Any? in
+                    if let nested = element as? [String: Any] {
+                        return sanitizeForJSON(nested)
+                    } else if element is String || element is NSNumber || element is Bool {
+                        return element
+                    }
+                    return nil
+                }
+            case let nested as [String: Any]:
+                result[key] = sanitizeForJSON(nested)
+            case is Data:
+                // Data blobs (e.g. binary-encoded regions) are handled
+                // directly from rawDict in processWatchData — skip here.
+                break
+            default:
+                // Drop anything else (NSCFData, UIImage, etc.) that would crash JSONSerialization.
+                Logger.warn("sanitizeForJSON: dropping non-JSON-safe value for key '\(key)': \(type(of: value))")
+            }
+        }
+        return result
+    }
+
+    @MainActor private func processWatchData(_ jsonData: Data, regionBlobs: [Data] = []) {
         guard let data = try? JSONSerialization.jsonObject(with: jsonData, options: []) as? [String: Any] else {
             print("[WatchOS Debug] processWatchData: Failed to deserialize JSON data")
             return
@@ -464,14 +519,28 @@ class WatchAppState: NSObject, ObservableObject, CLLocationManagerDelegate, WCSe
             Logger.error("Received 'alarms' in unexpected format: \(type(of: rawAlarms))")
         }
 
-        if let regionsData = data["regions"] as? [Data] {
+        // Regions may arrive as [Data] blobs (extracted before JSON round-trip)
+        // or as [[String:Any]] when they came through as JSON-serializable dicts.
+        if !regionBlobs.isEmpty {
             do {
+                let decodedRegions = try regionBlobs.map { try JSONDecoder().decode(RegionOption.self, from: $0) }
+                if !decodedRegions.isEmpty {
+                    self.regions = decodedRegions
+                    print("[WatchOS Debug] processWatchData updated \(decodedRegions.count) regions from Data blobs")
+                }
+            } catch {
+                Logger.error("Failed to decode regions from Data blobs: \(error)")
+            }
+        } else if let regionsJSON = data["regions"] as? [[String: Any]] {
+            do {
+                let regionsData = try regionsJSON.map { try JSONSerialization.data(withJSONObject: $0) }
                 let decodedRegions = try regionsData.map { try JSONDecoder().decode(RegionOption.self, from: $0) }
                 if !decodedRegions.isEmpty {
                     self.regions = decodedRegions
+                    print("[WatchOS Debug] processWatchData updated \(decodedRegions.count) regions from JSON dicts")
                 }
             } catch {
-                Logger.error("Failed to decode regions from watch data: \(error)")
+                Logger.error("Failed to decode regions from JSON dicts: \(error)")
             }
         }
 

@@ -20,6 +20,7 @@ targets:
         com.apple.security.application-groups:
           - group.pl.kiedybus.iphone
         com.apple.developer.healthkit: true
+        com.apple.developer.activitykit-push-notifications: true
     info:
       path: Apps/KiedyBus/Info.plist
       properties:

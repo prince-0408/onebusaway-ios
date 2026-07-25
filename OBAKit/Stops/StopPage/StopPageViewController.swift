@@ -412,18 +412,41 @@ class StopPageViewController: UIHostingController<StopPageRootView>,
         }
 
         let attributes = TripAttributes(staticData: staticData)
+        let content = ActivityContent(state: contentState, staleDate: nil)
+
+        // Attempt to start with push-token support first (requires the
+        // com.apple.developer.activitykit-push-notifications entitlement to be
+        // fully provisioned in the Apple Developer Portal for this App ID).
+        // If that throws — e.g. the provisioning profile hasn't had the capability
+        // activated yet — fall back to foreground-only updates (pushType: nil) so
+        // the Live Activity still appears on the Lock Screen and Dynamic Island.
         do {
             let activity = try Activity.request(
                 attributes: attributes,
-                content: .init(state: contentState, staleDate: nil),
+                content: content,
                 pushType: .token
             )
             application.liveActivityTracker.track(activity: activity, metadata: .init(departure))
-            Logger.info("Started Live Activity with ID: \(activity.id)")
+            Logger.info("Started Live Activity (push-enabled) with ID: \(activity.id)")
             viewModel.signalLiveActivityStarted()
         } catch {
-            Logger.error("Failed to start Live Activity: \(error)")
-            showLiveActivityErrorAlert()
+            Logger.warn("Live Activity with pushType .token failed (\(error)); retrying without push support.")
+            do {
+                // Foreground-only: the app updates the activity directly while in the
+                // foreground (no APNs push needed). This works even without the
+                // activitykit-push-notifications entitlement being provisioned.
+                let activity = try Activity.request(
+                    attributes: attributes,
+                    content: content,
+                    pushType: nil
+                )
+                application.liveActivityTracker.track(activity: activity, metadata: .init(departure))
+                Logger.info("Started Live Activity (foreground-only) with ID: \(activity.id)")
+                viewModel.signalLiveActivityStarted()
+            } catch {
+                Logger.error("Failed to start Live Activity (both push and foreground modes): \(error)")
+                showLiveActivityErrorAlert()
+            }
         }
     }
 

@@ -40,6 +40,7 @@ targets:
           - "@executable_path/Frameworks"
           - "@loader_path/Frameworks"
     dependencies:
+      # OBAKitCore is embedded here (the Watch app container) and shared with the extension.
       - target: OBAKitCore
         embed: true
       - target: OBAWatchComplication
@@ -79,8 +80,17 @@ targets:
         SKIP_INSTALL: "YES"
         LD_RUNPATH_SEARCH_PATHS:
           - "$(inherited)"
-          - "@executable_path/Frameworks"
+          # Look in the Watch app container's Frameworks folder where OBAKitCore is embedded.
+          # watchOS WidgetKit extensions cannot embed their own framework copy — they must
+          # inherit from the containing Watch app at @executable_path/../Frameworks.
+          - "@executable_path/../Frameworks"
           - "@loader_path/Frameworks"
     dependencies:
+      # Do NOT embed: the Watch app already embeds OBAKitCore into its own Frameworks folder.
+      # Embedding it again inside the extension produces a second dylib at a different path,
+      # and DYLD cannot resolve @rpath because the extension's executable_path/../Frameworks
+      # is the Watch app's Frameworks dir (where the single copy lives). embed: false links
+      # against the framework without copying it, satisfying the linker while leaving the
+      # single runtime copy in the Watch app container where DYLD can find it.
       - target: OBAKitCore
-
+        embed: false
