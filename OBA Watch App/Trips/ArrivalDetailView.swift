@@ -39,6 +39,16 @@ struct ArrivalDetailView: View {
                     }
                 }
 
+                TimelineView(.periodic(from: .now, by: 1)) { context in
+                    let mins = arrival.minutesFromNow(at: context.date)
+                    Text(arrival.timeString(at: context.date))
+                        .font(.title3)
+                        .fontWeight(.bold)
+                        .foregroundColor(mins <= 1 ? .green : .white)
+                }
+
+                WatchOccupancyStatusView(occupancyStatus: arrival.occupancyEnum, realtimeData: arrival.isPredicted)
+
                 // Service Alert Banner & Sheet Trigger
                 if arrival.hasServiceAlert {
                     Button {

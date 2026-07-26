@@ -113,11 +113,25 @@ struct NearbyStopsListView: View {
             )
 
             if !limitedStops.isEmpty {
-                NearbyMapView(
-                    stops: limitedStops,
-                    currentLocation: currentLocation,
-                    mapStyle: mapStyle
-                )
+                NavigationLink {
+                    WatchInteractiveMapView(stops: limitedStops)
+                } label: {
+                    ZStack(alignment: .topTrailing) {
+                        NearbyMapView(
+                            stops: limitedStops,
+                            currentLocation: currentLocation,
+                            mapStyle: mapStyle
+                        )
+                        
+                        Image(systemName: "arrow.up.left.and.arrow.down.right")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(.white)
+                            .padding(6)
+                            .background(Circle().fill(Color.black.opacity(0.6)))
+                            .padding(6)
+                    }
+                }
+                .buttonStyle(.plain)
                 .frame(maxWidth: .infinity)
                 .frame(height: 140)
                 .clipShape(RoundedRectangle(cornerRadius: 16))
@@ -196,11 +210,19 @@ struct NearbyStopRow: View {
 
                     if let location = currentLocation, stop.latitude != 0.0 || stop.longitude != 0.0 {
                         let stopLocation = CLLocation(latitude: stop.latitude, longitude: stop.longitude)
-                        let distance = stopLocation.distance(from: location)
-                        
-                        Text(formatDistance(distance))
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(.secondary)
+                        if let walkInfo = WalkTimeInfo.compute(from: location, to: stopLocation) {
+                            Text("•")
+                                .font(.system(size: 12))
+                                .foregroundColor(.secondary)
+                            Text(walkInfo.formattedWalkTime)
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(.secondary)
+                        } else {
+                            let distance = stopLocation.distance(from: location)
+                            Text(formatDistance(distance))
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(.secondary)
+                        }
                     }
                 }
 

@@ -45,6 +45,9 @@ struct AlarmsView: View {
                     }
                     .padding(.vertical, 4)
                 }
+                .onDelete { indexSet in
+                    AlarmsSyncManager.shared.deleteAlarm(at: indexSet)
+                }
             }
         }
         .navigationTitle(OBALoc("alarms.title", value: "Alarms", comment: "Title for alarms screen"))

@@ -1015,7 +1015,12 @@ extension Application {
     }
 
     private func buildBookmarkData() -> [[String: Any]]? {
-        buildWatchData(items: userDataStore.bookmarks.map { $0.watchBookmarkObject }, defaultsKey: "watch.bookmarks", logName: "bookmarks")
+        let groups = Dictionary(uniqueKeysWithValues: userDataStore.bookmarkGroups.map { ($0.id, $0.name) })
+        let watchBookmarks = userDataStore.bookmarks.map { bm -> WatchBookmark in
+            let groupName = bm.groupID.flatMap { groups[$0] }
+            return bm.buildWatchBookmarkObject(groupName: groupName)
+        }
+        return buildWatchData(items: watchBookmarks, defaultsKey: "watch.bookmarks", logName: "bookmarks")
     }
 
     private func buildAlarmData() -> [[String: Any]]? {

@@ -50,6 +50,7 @@ struct TripDetailsView: View {
                     headerSection(details)
                     vehicleStatusSection(details)
                     stopsSection(details)
+                    adjacentTripsSection(details)
                 }
             }
         }
@@ -208,6 +209,57 @@ struct TripDetailsView: View {
                     )
                 }
             }
+        }
+    }
+
+    @ViewBuilder
+    private func adjacentTripsSection(_ details: OBATripExtendedDetails) -> some View {
+        if let schedule = details.schedule, (schedule.previousTripId != nil || schedule.nextTripId != nil) {
+            Section {
+                HStack(spacing: 8) {
+                    if let prevID = schedule.previousTripId, !prevID.isEmpty {
+                        NavigationLink {
+                            TripDetailsView(tripID: prevID, routeShortName: routeShortName)
+                        } label: {
+                            HStack(spacing: 4) {
+                                Image(systemName: "chevron.left")
+                                Text(OBALoc("trip_details.prev_trip", value: "Prev Trip", comment: "Previous trip button"))
+                            }
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundColor(.blue)
+                            .padding(.vertical, 6)
+                            .frame(maxWidth: .infinity)
+                            .background(
+                                Capsule()
+                                    .fill(Color.white.opacity(0.15))
+                            )
+                        }
+                        .buttonStyle(.plain)
+                    }
+
+                    if let nextID = schedule.nextTripId, !nextID.isEmpty {
+                        NavigationLink {
+                            TripDetailsView(tripID: nextID, routeShortName: routeShortName)
+                        } label: {
+                            HStack(spacing: 4) {
+                                Text(OBALoc("trip_details.next_trip", value: "Next Trip", comment: "Next trip button"))
+                                Image(systemName: "chevron.right")
+                            }
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundColor(.blue)
+                            .padding(.vertical, 6)
+                            .frame(maxWidth: .infinity)
+                            .background(
+                                Capsule()
+                                    .fill(Color.white.opacity(0.15))
+                            )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.vertical, 4)
+            }
+            .listRowBackground(Color.clear)
         }
     }
     

@@ -69,9 +69,24 @@ struct StopArrivalsView: View {
                                 .foregroundColor(.orange)
                         }
                     } else if let updated = viewModel.lastUpdated {
-                        Text(String(format: OBALoc("stop_arrivals.updated_fmt", value: "Updated: %@", comment: "Last updated time format"), relativeUpdateString(from: updated)))
-                            .font(.system(size: 10))
-                            .foregroundColor(.secondary)
+                        HStack(spacing: 4) {
+                            Text(String(format: OBALoc("stop_arrivals.updated_fmt", value: "Updated: %@", comment: "Last updated time format"), relativeUpdateString(from: updated)))
+                                .font(.system(size: 10))
+                                .foregroundColor(.secondary)
+                            
+                            let userLoc = WatchAppState.shared.effectiveLocation
+                            if let lat = viewModel.stopLatitude, let lon = viewModel.stopLongitude, lat != 0.0 || lon != 0.0 {
+                                let stopLoc = CLLocation(latitude: lat, longitude: lon)
+                                if let walkInfo = WalkTimeInfo.compute(from: userLoc, to: stopLoc) {
+                                    Text("•")
+                                        .font(.system(size: 10))
+                                        .foregroundColor(.secondary)
+                                    Text(walkInfo.formattedWalkTime)
+                                        .font(.system(size: 10, weight: .semibold))
+                                        .foregroundColor(.green)
+                                }
+                            }
+                        }
                     }
                 }
                 .padding(.vertical, 4)
@@ -169,38 +184,16 @@ struct StopArrivalsView: View {
             if !viewModel.routes.isEmpty {
                 Section(OBALoc("common.routes", value: "Routes", comment: "Section title for routes")) {
                     ForEach(viewModel.routes) { route in
-                        HStack(spacing: 12) {
-                            Text(route.shortName ?? "??")
-                                .font(.system(size: 14, weight: .bold, design: .rounded))
-                                .foregroundColor(.white)
-                                .frame(width: 34, height: 34)
-                                .background(Color.blue.gradient)
-                                .clipShape(Circle())
-
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(route.longName ?? OBALoc("common.unknown_route", value: "Unknown Route", comment: "Fallback text for unknown route name"))
-                                    .font(.system(size: 14, weight: .semibold))
-                                    .foregroundColor(.white)
-                                    .lineLimit(1)
-                                
-                                if let agency = route.agencyName {
-                                    Text(agency)
-                                        .font(.system(size: 11))
-                                        .foregroundColor(.secondary)
-                                        .lineLimit(1)
-                                }
-                            }
-                        }
-                        .padding(.vertical, 4)
-                        .listRowBackground(
-                            RoundedRectangle(cornerRadius: 16)
-                                .fill(Color.white.opacity(0.1))
-                        )
+                        RoutePreferenceRowView(route: route, stopID: stopID)
+                            .listRowBackground(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .fill(Color.white.opacity(0.1))
+                            )
                     }
                 }
             }
             
-            // Hidden navigation links for sheet actions
+            hiddenRoutesSection
         }
         .navigationTitle(OBALoc("stop_arrivals.title", value: "Arrivals", comment: "Title for stop arrivals screen"))
         .sheet(isPresented: $showNearbyStops) {
@@ -300,6 +293,27 @@ struct StopArrivalsView: View {
         }
     }
 
+    @ViewBuilder
+    private var hiddenRoutesSection: some View {
+        let prefs = StopPreferencesStore.shared.preferences(for: stopID)
+        if prefs.hasHiddenRoutes {
+            Section(OBALoc("stop_preferences.hidden_routes", value: "Hidden Routes", comment: "Section title for hidden routes")) {
+                Button {
+                    StopPreferencesStore.shared.unhideAllRoutes(stopID: stopID)
+                } label: {
+                    HStack {
+                        Image(systemName: "eye")
+                            .foregroundColor(.blue)
+                        Text(OBALoc("stop_preferences.unhide_all", value: "Unhide All Routes", comment: "Unhide all routes button"))
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(.blue)
+                    }
+                }
+                .listRowBackground(Color.clear)
+            }
+        }
+    }
+
     private var displayedArrivals: [OBAArrival] {
         let source = viewModel.upcomingFilteredArrivals
         if showAllArrivals {
@@ -354,9 +368,15 @@ struct ArrivalRowView: View {
                             .font(.system(size: 8))
                             .foregroundColor(.green)
                     }
-                    Text(arrival.timeString)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                    
+                    TimelineView(.periodic(from: .now, by: 1)) { context in
+                        let mins = arrival.minutesFromNow(at: context.date)
+                        Text(arrival.timeString(at: context.date))
+                            .font(.caption)
+                            .fontWeight(mins <= 1 ? .bold : .regular)
+                            .foregroundColor(mins <= 1 ? .green : .secondary)
+                    }
+                    
                     if let statusLabel = arrival.scheduleStatusLabel {
                         Text(statusLabel)
                             .font(.caption2)
@@ -364,29 +384,37 @@ struct ArrivalRowView: View {
                     }
                 }
                 
-                if let occupancy = arrival.formattedOccupancyStatus {
-                    HStack(spacing: 3) {
-                        Image(systemName: "person.2.fill")
-                            .font(.system(size: 9))
-                            .foregroundColor(.secondary)
-                        Text(occupancy)
-                            .font(.system(size: 10))
-                            .foregroundColor(.secondary)
-                            .lineLimit(1)
-                    }
-                }
+                WatchOccupancyStatusView(occupancyStatus: arrival.occupancyEnum, realtimeData: arrival.isPredicted)
             }
             
             Spacer()
 
             if arrival.hasServiceAlert {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundColor(.yellow)
+                Button {
+                    showAlertSheet = true
+                } label: {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundColor(.yellow)
+                }
+                .buttonStyle(.plain)
+                .sheet(isPresented: $showAlertSheet) {
+                    NavigationStack {
+                        ServiceAlertDetailView(alert: WatchServiceAlert(
+                            id: arrival.id,
+                            title: arrival.alertTitle ?? OBALoc("alerts.service_advisory", value: "Service Advisory", comment: "Service advisory title"),
+                            body: arrival.alertDescription,
+                            severity: "WARNING",
+                            affectedRoutes: arrival.routeShortName != nil ? [arrival.routeShortName!] : nil
+                        ))
+                    }
+                }
             }
         }
         .padding(.vertical, 4)
     }
+    
+    @State private var showAlertSheet = false
     
     private var routeColor: Color {
         // Use a consistent color based on route ID
@@ -423,6 +451,51 @@ struct EmptyArrivalsView: View {
     }
 }
 
+struct RoutePreferenceRowView: View {
+    let route: OBARoute
+    let stopID: OBAStopID
+    @State private var isHidden: Bool = false
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Text(route.shortName ?? "??")
+                .font(.system(size: 14, weight: .bold, design: .rounded))
+                .foregroundColor(.white)
+                .frame(width: 34, height: 34)
+                .background(Color.blue.gradient)
+                .clipShape(Circle())
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(route.longName ?? OBALoc("common.unknown_route", value: "Unknown Route", comment: "Fallback text for unknown route name"))
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.white)
+                    .lineLimit(1)
+
+                if let agency = route.agencyName {
+                    Text(agency)
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                }
+            }
+        }
+        .padding(.vertical, 4)
+        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+            let labelText = isHidden ? OBALoc("stop_preferences.show", value: "Show", comment: "Show route") : OBALoc("stop_preferences.hide", value: "Hide", comment: "Hide route")
+            let iconName = isHidden ? "eye" : "eye.slash"
+            Button {
+                StopPreferencesStore.shared.toggleRouteHidden(stopID: stopID, routeID: route.id)
+                isHidden.toggle()
+            } label: {
+                Label(labelText, systemImage: iconName)
+            }
+            .tint(isHidden ? .blue : .orange)
+        }
+        .onAppear {
+            isHidden = StopPreferencesStore.shared.isRouteHidden(stopID: stopID, routeID: route.id)
+        }
+    }
+}
 
 #Preview {
     NavigationStack {

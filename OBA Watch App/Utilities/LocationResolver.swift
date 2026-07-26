@@ -63,4 +63,28 @@ struct LocationResolver {
         }
         return (finalLocation, searchRegion)
     }
+
+    /// Evaluates proximity from `location` to available regions and returns the nearest region if within range.
+    static func bestMatchingRegion(
+        for location: CLLocation,
+        regions: [WatchAppState.RegionOption],
+        maxDistanceMeters: CLLocationDistance = 80_000
+    ) -> WatchAppState.RegionOption? {
+        var closestRegion: WatchAppState.RegionOption?
+        var minDistance: CLLocationDistance = .infinity
+
+        for region in regions {
+            let regionLoc = CLLocation(latitude: region.coordinate.latitude, longitude: region.coordinate.longitude)
+            let distance = location.distance(from: regionLoc)
+            if distance < minDistance {
+                minDistance = distance
+                closestRegion = region
+            }
+        }
+
+        if minDistance <= maxDistanceMeters {
+            return closestRegion
+        }
+        return nil
+    }
 }

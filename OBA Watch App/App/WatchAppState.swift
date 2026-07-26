@@ -615,6 +615,19 @@ class WatchAppState: NSObject, ObservableObject, CLLocationManagerDelegate, WCSe
                 guard newLocation.distance(from: existing) >= threshold else { return }
             }
             self.currentLocation = newLocation
+            self.autoDetectRegion(for: newLocation)
+        }
+    }
+
+    /// Evaluates device GPS location against all regional bounds and auto-switches
+    /// active transit region if user has entered a new region service area.
+    func autoDetectRegion(for location: CLLocation) {
+        let currentRegionID = Self.userDefaults.string(forKey: "watch_selected_region_id") ?? Self.defaultRegionID
+        guard let best = LocationResolver.bestMatchingRegion(for: location, regions: self.regions) else { return }
+
+        if best.id != currentRegionID {
+            Logger.info("Auto-detected new nearby transit region: \(best.name) (ID: \(best.id)). Switching active region.")
+            updateRegion(id: best.id)
         }
     }
 

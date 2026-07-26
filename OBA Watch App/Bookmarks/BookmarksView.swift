@@ -63,12 +63,27 @@ struct BookmarksView: View {
     
     private var bookmarksList: some View {
         List {
-            ForEach(viewModel.bookmarks) { bookmark in
-                NavigationLink {
-                    StopArrivalsView(stopID: bookmark.stopID, stopName: bookmark.name)
-                } label: {
-                    BookmarkRow(bookmark: bookmark)
+            ForEach(viewModel.groupedBookmarks) { group in
+                if viewModel.groupedBookmarks.count > 1 || group.name != OBALoc("common.bookmarks", value: "Bookmarks", comment: "Default bookmarks group name") {
+                    Section(header: Text(group.name)) {
+                        groupRows(group.items)
+                    }
+                } else {
+                    Section {
+                        groupRows(group.items)
+                    }
                 }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func groupRows(_ items: [WatchBookmark]) -> some View {
+        ForEach(items) { bookmark in
+            NavigationLink {
+                StopArrivalsView(stopID: bookmark.stopID, stopName: bookmark.name)
+            } label: {
+                BookmarkRow(bookmark: bookmark)
             }
         }
     }

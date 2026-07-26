@@ -61,6 +61,12 @@ class RecentStopsViewModel: ObservableObject {
         save()
     }
 
+    func clearAllRecentStops() {
+        recentStops.removeAll()
+        save()
+        NotificationCenter.default.post(name: .RecentStopsUpdated, object: nil)
+    }
+
     private func save() {
         let encoder = JSONEncoder()
         do {

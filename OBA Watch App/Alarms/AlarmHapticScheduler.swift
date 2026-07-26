@@ -130,4 +130,26 @@ final class AlarmHapticScheduler {
             }
         }
     }
+
+    /// Schedules a background local notification for a future alarm via UNTimeIntervalNotificationTrigger.
+    func scheduleFutureBackgroundNotification(for alarm: WatchAlarmItem) {
+        guard let scheduledTime = alarm.scheduledTime else { return }
+        let interval = scheduledTime.timeIntervalSinceNow - 300.0 // 5 minutes before arrival
+        guard interval > 5.0 else { return }
+
+        let content = UNMutableNotificationContent()
+        let route = alarm.routeShortName ?? OBALoc("common.bus", value: "Bus", comment: "Default bus label")
+        content.title = String(format: OBALoc("alarms.arriving_title_fmt", value: "%@ Arriving Soon", comment: "Alarm arrival title"), route)
+        content.body = String(format: OBALoc("alarms.arriving_5m_body_fmt", value: "%@ to %@ is arriving in 5 min.", comment: "Alarm 5m body"), route, alarm.headsign ?? "")
+        content.sound = .default
+
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: interval, repeats: false)
+        let request = UNNotificationRequest(identifier: "alarm_bg_\(alarm.id)", content: content, trigger: trigger)
+        UNUserNotificationCenter.current().add(request)
+    }
+
+    /// Cancels all pending notification triggers for an alarm ID.
+    func cancelNotification(for alarmID: String) {
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ["alarm_bg_\(alarmID)", "\(alarmID)-5m", "\(alarmID)-1m"])
+    }
 }

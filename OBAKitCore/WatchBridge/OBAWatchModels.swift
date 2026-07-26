@@ -237,14 +237,27 @@ public struct WatchBookmark: Identifiable, Codable, Equatable, Hashable, Sendabl
     public let name: String
     public let routeShortName: String?
     public let tripHeadsign: String?
+    public let groupName: String?
+    public let sortOrder: Int?
     public let stop: OBAStop?
 
-    public init(id: UUID, stopID: OBAStopID, name: String, routeShortName: String? = nil, tripHeadsign: String? = nil, stop: OBAStop? = nil) {
+    public init(
+        id: UUID,
+        stopID: OBAStopID,
+        name: String,
+        routeShortName: String? = nil,
+        tripHeadsign: String? = nil,
+        groupName: String? = nil,
+        sortOrder: Int? = nil,
+        stop: OBAStop? = nil
+    ) {
         self.id = id
         self.stopID = stopID
         self.name = name
         self.routeShortName = routeShortName
         self.tripHeadsign = tripHeadsign
+        self.groupName = groupName
+        self.sortOrder = sortOrder
         self.stop = stop
     }
 }
@@ -275,13 +288,28 @@ public struct WatchServiceAlert: Identifiable, Codable, Equatable, Sendable {
     public let body: String?
     public let severity: String?
     public let url: String?
+    public let affectedRoutes: [String]?
+    public let startDate: Date?
+    public let endDate: Date?
 
-    public init(id: String, title: String, body: String? = nil, severity: String? = nil, url: String? = nil) {
+    public init(
+        id: String,
+        title: String,
+        body: String? = nil,
+        severity: String? = nil,
+        url: String? = nil,
+        affectedRoutes: [String]? = nil,
+        startDate: Date? = nil,
+        endDate: Date? = nil
+    ) {
         self.id = id
         self.title = title
         self.body = body
         self.severity = severity
         self.url = url
+        self.affectedRoutes = affectedRoutes
+        self.startDate = startDate
+        self.endDate = endDate
     }
 }
 
@@ -552,6 +580,9 @@ public struct OBAArrival: Codable, Equatable, Sendable, Identifiable {
     /// Arrival time relative to `referenceDate` in minutes.
     public let minutesFromNow: Int
 
+    /// Exact target arrival/departure date, if available.
+    public let arrivalTime: Date?
+
     /// Whether this arrival is based on real-time prediction.
     public let isPredicted: Bool
 
@@ -566,6 +597,39 @@ public struct OBAArrival: Codable, Equatable, Sendable, Identifiable {
 
     /// GTFS-rt passenger crowding / occupancy status, if available.
     public let occupancyStatus: String?
+
+    public var occupancyEnum: OBAOccupancyStatus {
+        guard let occ = occupancyStatus?.lowercased(), !occ.isEmpty else { return .unknown }
+        switch occ {
+        case "empty": return .empty
+        case "many_seats_available", "many_seats": return .manySeatsAvailable
+        case "few_seats_available", "few_seats": return .fewSeatsAvailable
+        case "standing_room_only", "standing_room": return .standingRoomOnly
+        case "crushed_standing_room_only", "crushed_standing_room": return .crushedStandingRoomOnly
+        case "full": return .full
+        case "not_boardable": return .notBoardable
+        case "not_accepting_passengers", "not_accepting": return .notAcceptingPassengers
+        case "no_data_available": return .noDataAvailable
+        default: return .unknown
+        }
+    }
+
+    public func minutesFromNow(at date: Date = Date()) -> Int {
+        guard let target = arrivalTime else { return minutesFromNow }
+        return Int(round(target.timeIntervalSince(date) / 60.0))
+    }
+
+    public func timeString(at date: Date = Date()) -> String {
+        let mins = minutesFromNow(at: date)
+        if mins <= 0 {
+            return OBALoc("times.now", value: "Now", comment: "Time: now")
+        } else if mins < 60 {
+            return String(format: OBALoc("times.minutes_short_fmt", value: "%d min", comment: "Time: minutes short format"), mins)
+        } else {
+            let hours = Double(mins) / 60.0
+            return String(format: OBALoc("times.hours_short_fmt", value: "%.1f h", comment: "Time: hours short format"), hours)
+        }
+    }
 
     public var formattedOccupancyStatus: String? {
         guard let occupancy = occupancyStatus, !occupancy.isEmpty else { return nil }
@@ -610,6 +674,7 @@ public struct OBAArrival: Codable, Equatable, Sendable, Identifiable {
         routeShortName: String? = nil,
         headsign: String? = nil,
         minutesFromNow: Int,
+        arrivalTime: Date? = nil,
         isPredicted: Bool,
         scheduleStatus: OBAScheduleStatus = .unknown,
         hasServiceAlert: Bool = false,
@@ -625,6 +690,7 @@ public struct OBAArrival: Codable, Equatable, Sendable, Identifiable {
         self.routeShortName = routeShortName
         self.headsign = headsign
         self.minutesFromNow = minutesFromNow
+        self.arrivalTime = arrivalTime
         self.isPredicted = isPredicted
         self.scheduleStatus = scheduleStatus
         self.hasServiceAlert = hasServiceAlert
@@ -632,6 +698,20 @@ public struct OBAArrival: Codable, Equatable, Sendable, Identifiable {
         self.alertDescription = alertDescription
         self.occupancyStatus = occupancyStatus
     }
+}
+
+/// Passenger occupancy status enum for watchOS, matching iOS ArrivalDeparture.OccupancyStatus.
+public enum OBAOccupancyStatus: String, Codable, Equatable, Sendable {
+    case unknown
+    case empty
+    case manySeatsAvailable = "many_seats_available"
+    case fewSeatsAvailable = "few_seats_available"
+    case standingRoomOnly = "standing_room_only"
+    case crushedStandingRoomOnly = "crushed_standing_room_only"
+    case full
+    case notBoardable = "not_boardable"
+    case notAcceptingPassengers = "not_accepting_passengers"
+    case noDataAvailable = "no_data_available"
 }
 
 /// Rough schedule adherence classification for an arrival.

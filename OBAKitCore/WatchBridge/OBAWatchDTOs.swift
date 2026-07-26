@@ -149,6 +149,7 @@ struct OBARawArrival: Decodable, Sendable {
             routeShortName: routeShortName,
             headsign: tripHeadsign,
             minutesFromNow: minutesFromNow,
+            arrivalTime: bestDate,
             isPredicted: predicted ?? false,
             scheduleStatus: status,
             occupancyStatus: occupancyStatus

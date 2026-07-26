@@ -101,7 +101,20 @@ targets:
         DEVELOPMENT_TEAM: 4ZQCMA634J
         PRODUCT_BUNDLE_IDENTIFIER: org.onebusaway.iphone.OBAWidget
   OBAWatchApp:
-    sources: ["OBA Watch App/Assets.xcassets"]
+    entitlements:
+      path: Apps/OneBusAway/OneBusAwayWatch.entitlements
+    info:
+      path: Apps/OneBusAway/OneBusAwayWatch-Info.plist
+      properties:
+        CFBundleDisplayName: OneBusAway
+        WKApplication: true
+        WKCompanionAppBundleIdentifier: org.onebusaway.iphone
+        NSLocationWhenInUseUsageDescription: See nearby transit stops and schedules based on your location.
+        NSLocationAlwaysAndWhenInUseUsageDescription: See nearby transit stops and schedules based on your location.
+        OBAKitConfig:
+          AppGroup: group.org.onebusaway.iphone
+          RESTServerAPIKey: org.onebusaway.iphone
+    sources: ["Apps/OneBusAway/Assets.xcassets"]
 include:
   - path: OBAKitCore/project.yml
   - path: OBAKitUITests/project.yml

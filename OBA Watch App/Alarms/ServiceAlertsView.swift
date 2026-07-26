@@ -21,33 +21,37 @@ struct ServiceAlertsView: View {
                 .padding()
             } else {
                 ForEach(alerts) { alert in
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(alert.title)
-                            .font(.headline)
-                        if let body = alert.body, !body.isEmpty {
-                            Text(body)
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                                .lineLimit(2)
-                        }
-                        HStack {
-                            if let severity = alert.severity, !severity.isEmpty {
-                                Text(severity)
-                                    .font(.caption2)
+                    NavigationLink {
+                        ServiceAlertDetailView(alert: alert)
+                    } label: {
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack(alignment: .top, spacing: 4) {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.yellow)
+                                Text(alert.title)
+                                    .font(.system(size: 14, weight: .bold))
+                                    .lineLimit(2)
+                            }
+                            
+                            if let body = alert.body, !body.isEmpty {
+                                Text(body)
+                                    .font(.system(size: 11))
                                     .foregroundColor(.secondary)
+                                    .lineLimit(2)
                             }
-                            Spacer()
-                            Button {
-                                let ok = DeepLinkSyncManager.shared.openAlertsOnPhone()
-                                if !ok {
-                                    infoMessage = OBALoc("deeplink.failure", value: "Unable to contact iPhone. Make sure your devices are connected.", comment: "Deep link failure")
+                            
+                            if let routes = alert.affectedRoutes, !routes.isEmpty {
+                                HStack(spacing: 4) {
+                                    Text("Routes: \(routes.joined(separator: ", "))")
+                                        .font(.system(size: 10, weight: .semibold))
+                                        .foregroundColor(.blue)
+                                        .lineLimit(1)
                                 }
-                            } label: {
-                                Image(systemName: "iphone")
                             }
                         }
+                        .padding(.vertical, 3)
                     }
-                    .padding(.vertical, 4)
                 }
             }
         }

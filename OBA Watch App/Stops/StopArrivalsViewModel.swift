@@ -18,13 +18,20 @@ class StopArrivalsViewModel: ObservableObject {
     @Published var lastUpdated: Date?
     @Published var routes: [OBARoute] = []
     @Published var stopName: String?
+    @Published var stopLatitude: Double?
+    @Published var stopLongitude: Double?
     @Published var selectedRouteFilter: String? = nil
 
     var filteredArrivals: [OBAArrival] {
-        guard let filter = selectedRouteFilter, !filter.isEmpty else {
-            return arrivals
+        let prefs = StopPreferencesStore.shared.preferences(for: stopID)
+        let unhidden = arrivals.filter { arrival in
+            let routeID = arrival.routeID ?? arrival.routeShortName ?? ""
+            return !prefs.isRouteIDHidden(routeID)
         }
-        return arrivals.filter { arrival in
+        guard let filter = selectedRouteFilter, !filter.isEmpty else {
+            return unhidden
+        }
+        return unhidden.filter { arrival in
             arrival.routeID == filter || arrival.routeShortName == filter
         }
     }
@@ -133,6 +140,9 @@ class StopArrivalsViewModel: ObservableObject {
             if !result.routes.isEmpty {
                 routes = result.routes
             }
+            
+            stopLatitude = result.stopLatitude
+            stopLongitude = result.stopLongitude
             
             if let fetchedName = result.stopName {
                 stopName = fetchedName

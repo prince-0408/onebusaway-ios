@@ -91,12 +91,12 @@ targets:
   OBAWatchApp:
     sources: ["Apps/KiedyBus/Assets.xcassets"]
     entitlements:
-      properties:
-        com.apple.security.application-groups:
-          - group.pl.kiedybus.iphone
+      path: Apps/KiedyBus/KiedyBusWatch.entitlements
     info:
+      path: Apps/KiedyBus/KiedyBusWatch-Info.plist
       properties:
         CFBundleDisplayName: KiedyBus
+        WKApplication: true
         WKCompanionAppBundleIdentifier: pl.kiedybus.iphone
         NSLocationWhenInUseUsageDescription: See nearby transit stops and schedules based on your location.
         NSLocationAlwaysAndWhenInUseUsageDescription: See nearby transit stops and schedules based on your location.

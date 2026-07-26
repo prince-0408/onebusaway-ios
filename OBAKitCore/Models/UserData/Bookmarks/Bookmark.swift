@@ -18,6 +18,10 @@ import Foundation
     // but the Codable keys already match mostly.
 
     public var watchBookmarkObject: WatchBookmark {
+        buildWatchBookmarkObject(groupName: nil)
+    }
+
+    public func buildWatchBookmarkObject(groupName: String? = nil) -> WatchBookmark {
         let watchStop = OBAStop(
             id: stop.id,
             name: stop.name,
@@ -27,7 +31,16 @@ import Foundation
             direction: stop.direction != .unknown ? String(describing: stop.direction).uppercased() : nil,
             locationType: stop.locationType.rawValue
         )
-        return WatchBookmark(id: id, stopID: stopID, name: name, routeShortName: routeShortName, tripHeadsign: tripHeadsign, stop: watchStop)
+        return WatchBookmark(
+            id: id,
+            stopID: stopID,
+            name: name,
+            routeShortName: routeShortName,
+            tripHeadsign: tripHeadsign,
+            groupName: groupName,
+            sortOrder: sortOrder,
+            stop: watchStop
+        )
     }
 
     public var watchBookmarkData: Data? {

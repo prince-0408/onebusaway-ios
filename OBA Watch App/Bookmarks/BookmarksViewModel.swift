@@ -11,9 +11,20 @@ import Combine
 import CoreLocation
 import OBAKitCore
 
+struct WatchBookmarkGroup: Identifiable, Sendable {
+    var id: String { name }
+    let name: String
+    let items: [WatchBookmark]
+}
+
 @MainActor
 class BookmarksViewModel: ObservableObject {
-    @Published var bookmarks: [WatchBookmark] = []
+    @Published var bookmarks: [WatchBookmark] = [] {
+        didSet {
+            updateGroupedBookmarks()
+        }
+    }
+    @Published var groupedBookmarks: [WatchBookmarkGroup] = []
     @Published var isLoading = false
     @Published var errorMessage: String?
 
@@ -67,6 +78,55 @@ class BookmarksViewModel: ObservableObject {
         }
     }
 
+    private func updateGroupedBookmarks() {
+        guard !bookmarks.isEmpty else {
+            groupedBookmarks = []
+            return
+        }
+
+        // Group by groupName
+        let hasGroups = bookmarks.contains { $0.groupName != nil }
+        if !hasGroups {
+            groupedBookmarks = [WatchBookmarkGroup(name: OBALoc("common.bookmarks", value: "Bookmarks", comment: "Default bookmarks group name"), items: bookmarks)]
+            return
+        }
+
+        var groupDict: [String: [WatchBookmark]] = [:]
+        var ungrouped: [WatchBookmark] = []
+
+        for bookmark in bookmarks {
+            if let group = bookmark.groupName, !group.isEmpty {
+                groupDict[group, default: []].append(bookmark)
+            } else {
+                ungrouped.append(bookmark)
+            }
+        }
+
+        var result: [WatchBookmarkGroup] = []
+
+        // Add named groups sorted by minimum sortOrder or name
+        let sortedGroupNames = groupDict.keys.sorted { name1, name2 in
+            let sort1 = groupDict[name1]?.compactMap { $0.sortOrder }.min() ?? Int.max
+            let sort2 = groupDict[name2]?.compactMap { $0.sortOrder }.min() ?? Int.max
+            if sort1 != sort2 { return sort1 < sort2 }
+            return name1 < name2
+        }
+
+        for name in sortedGroupNames {
+            if let items = groupDict[name] {
+                let sortedItems = items.sorted { ($0.sortOrder ?? Int.max) < ($1.sortOrder ?? Int.max) }
+                result.append(WatchBookmarkGroup(name: name, items: sortedItems))
+            }
+        }
+
+        if !ungrouped.isEmpty {
+            let sortedUngrouped = ungrouped.sorted { ($0.sortOrder ?? Int.max) < ($1.sortOrder ?? Int.max) }
+            result.append(WatchBookmarkGroup(name: OBALoc("bookmarks.ungrouped", value: "Other Bookmarks", comment: "Ungrouped bookmarks section title"), items: sortedUngrouped))
+        }
+
+        groupedBookmarks = result
+    }
+
     /// Updates location and re-sorts current bookmarks without re-querying disk.
     func updateCurrentLocation(_ location: CLLocation?) {
         self.currentLocation = location
@@ -77,10 +137,15 @@ class BookmarksViewModel: ObservableObject {
     }
 
     /// Sort bookmarks by distance from `currentLocation` when available,
-    /// or alphabetically by name as a fallback.
+    /// or by sortOrder / name as a fallback.
     private func sort(_ items: [WatchBookmark]) -> [WatchBookmark] {
         guard let location = currentLocation else {
-            return items.sorted { $0.name < $1.name }
+            return items.sorted { a, b in
+                if let sa = a.sortOrder, let sb = b.sortOrder, sa != sb {
+                    return sa < sb
+                }
+                return a.name < b.name
+            }
         }
         return items.sorted { a, b in
             let da = distance(of: a, from: location)
