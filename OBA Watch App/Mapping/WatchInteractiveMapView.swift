@@ -18,7 +18,8 @@ struct WatchInteractiveMapView: View {
     @State private var mapPosition: MapCameraPosition = .userLocation(fallback: .automatic)
     @State private var selectedStop: OBAStop?
     @State private var showStopArrivals: Bool = false
-    @State private var selectedStopID: String?
+    @State private var selectedMarkerID: String?
+    @State private var trackedVehicle: OBATripForLocation?
     
     @State private var liveVehicles: [OBATripForLocation] = []
     @State private var isLoading = false
@@ -44,7 +45,7 @@ struct WatchInteractiveMapView: View {
     
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
-            Map(position: $mapPosition, selection: $selectedStopID) {
+            Map(position: $mapPosition, selection: $selectedMarkerID) {
                 UserAnnotation()
                 
                 // Stops: Blue Markers with a distinct signpost/train symbol (not a bus)
@@ -61,7 +62,7 @@ struct WatchInteractiveMapView: View {
                     }
                 }
                 
-                // Vehicles: Green Markers with a bus symbol (merges static and live to prevent duplicates)
+                // Vehicles: Green Markers with a bus symbol
                 ForEach(displayedVehicles) { vehicle in
                     if let lat = vehicle.latitude, let lon = vehicle.longitude {
                         let coord = CLLocationCoordinate2D(latitude: lat, longitude: lon)
@@ -71,6 +72,7 @@ struct WatchInteractiveMapView: View {
                             coordinate: coord
                         )
                         .tint(.green)
+                        .tag(vehicle.id)
                     }
                 }
             }
@@ -78,6 +80,33 @@ struct WatchInteractiveMapView: View {
             .mapControls {
                 MapCompass()
                 MapUserLocationButton()
+            }
+            
+            // Tracked Vehicle Floating Banner
+            if let vehicle = trackedVehicle {
+                HStack(spacing: 6) {
+                    Image(systemName: "bus.fill")
+                        .font(.system(size: 10))
+                        .foregroundColor(.green)
+                    Text("Tracking \(vehicle.routeShortName ?? "Bus")")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(.white)
+                    Button {
+                        withAnimation {
+                            trackedVehicle = nil
+                        }
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 12))
+                            .foregroundColor(.gray)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Capsule().fill(Color.black.opacity(0.8)))
+                .padding(6)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             }
             
             // Loading Indicator Overlay
@@ -93,6 +122,7 @@ struct WatchInteractiveMapView: View {
             Button {
                 let loc = appState.effectiveLocation
                 withAnimation {
+                    trackedVehicle = nil
                     mapPosition = .region(MKCoordinateRegion(center: loc.coordinate, latitudinalMeters: 800, longitudinalMeters: 800))
                 }
             } label: {
@@ -143,11 +173,21 @@ struct WatchInteractiveMapView: View {
             timer?.invalidate()
             timer = nil
         }
-        .onChange(of: selectedStopID) { _, newID in
-            if let newID = newID, let stop = stops.first(where: { $0.id == newID }) {
+        .onChange(of: selectedMarkerID) { _, newID in
+            guard let newID = newID else { return }
+            if let stop = stops.first(where: { $0.id == newID }) {
                 selectedStop = stop
                 showStopArrivals = true
-                selectedStopID = nil // Reset selection
+                selectedMarkerID = nil // Reset selection
+            } else if let vehicle = displayedVehicles.first(where: { $0.id == newID || $0.vehicleID == newID }) {
+                withAnimation {
+                    trackedVehicle = vehicle
+                    if let lat = vehicle.latitude, let lon = vehicle.longitude {
+                        let coord = CLLocationCoordinate2D(latitude: lat, longitude: lon)
+                        mapPosition = .region(MKCoordinateRegion(center: coord, latitudinalMeters: 500, longitudinalMeters: 500))
+                    }
+                }
+                selectedMarkerID = nil
             }
         }
     }
@@ -176,6 +216,17 @@ struct WatchInteractiveMapView: View {
                 lonSpan: 0.015
             )
             self.liveVehicles = trips
+            
+            // Auto-center camera if tracking a vehicle
+            if let tracked = trackedVehicle, let updated = trips.first(where: { $0.id == tracked.id || $0.vehicleID == tracked.vehicleID }) {
+                self.trackedVehicle = updated
+                if let lat = updated.latitude, let lon = updated.longitude {
+                    let coord = CLLocationCoordinate2D(latitude: lat, longitude: lon)
+                    withAnimation {
+                        mapPosition = .region(MKCoordinateRegion(center: coord, latitudinalMeters: 500, longitudinalMeters: 500))
+                    }
+                }
+            }
         } catch {
             Logger.error("Failed to fetch live vehicles for map: \(error)")
         }

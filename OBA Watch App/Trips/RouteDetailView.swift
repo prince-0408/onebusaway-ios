@@ -156,65 +156,91 @@ struct RouteShapeMapView: View {
         self.vehicleCoordinates = vehicleCoordinates
         self.mapStyle = mapStyle
 
-        let center: CLLocationCoordinate2D
-        if let firstVehicle = vehicleCoordinates.first {
-            center = firstVehicle
-        } else if let first = coordinates.first {
-            center = first
-        } else {
-            center = CLLocationCoordinate2D(latitude: 0, longitude: 0)
-        }
-
-        _mapPosition = State(initialValue: .region(MKCoordinateRegion(
-            center: center,
-            span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
-        )))
+        let region = Self.calculateRegion(coordinates: coordinates, vehicleCoordinates: vehicleCoordinates)
+        _mapPosition = State(initialValue: .region(region))
     }
 
     var body: some View {
         Map(position: $mapPosition) {
             if !coordinates.isEmpty {
+                // Outer dark casing stroke for high contrast
                 MapPolyline(coordinates: coordinates)
-                    .stroke(.green, lineWidth: 3)
-            }
-            
-            if !vehicleCoordinates.isEmpty {
-                ForEach(0..<vehicleCoordinates.count, id: \.self) { idx in
-                    Annotation("", coordinate: vehicleCoordinates[idx]) {
+                    .stroke(Color.black.opacity(0.85), style: StrokeStyle(lineWidth: 9, lineCap: .round, lineJoin: .round))
+
+                // Inner vibrant mint green polyline
+                MapPolyline(coordinates: coordinates)
+                    .stroke(
+                        LinearGradient(
+                            colors: [Color(red: 0.0, green: 0.9, blue: 0.45), Color(red: 0.1, green: 0.98, blue: 0.55)],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        ),
+                        style: StrokeStyle(lineWidth: 6, lineCap: .round, lineJoin: .round)
+                    )
+
+                // Start & End Terminals along route shape
+                if let start = coordinates.first {
+                    Annotation("", coordinate: start, anchor: .center) {
                         ZStack {
-                            Circle()
-                                .fill(Color.blue)
-                                .frame(width: 22, height: 22)
-                                .shadow(radius: 3)
-                            
-                            Image(systemName: "bus.fill")
-                                .font(.system(size: 11, weight: .bold))
-                                .foregroundColor(.white)
+                            Circle().fill(Color.black.opacity(0.8)).frame(width: 14, height: 14)
+                            Circle().fill(Color.white).frame(width: 11, height: 11)
+                            Circle().fill(Color(red: 0.0, green: 0.85, blue: 0.35)).frame(width: 6, height: 6)
                         }
                     }
                 }
-            } else {
-                let sampleCount = 3
-                let step = max(1, coordinates.count / (sampleCount + 1))
-                let sampleIndices = (1...sampleCount).map { $0 * step }.filter { $0 < coordinates.count }
-                
-                ForEach(sampleIndices, id: \.self) { index in
-                    Annotation("", coordinate: coordinates[index]) {
+                if let end = coordinates.last, coordinates.count > 1 {
+                    Annotation("", coordinate: end, anchor: .center) {
+                        ZStack {
+                            Circle().fill(Color.black.opacity(0.8)).frame(width: 14, height: 14)
+                            Circle().fill(Color.white).frame(width: 11, height: 11)
+                            Circle().fill(Color.red).frame(width: 6, height: 6)
+                        }
+                    }
+                }
+            }
+
+            if !vehicleCoordinates.isEmpty {
+                ForEach(0..<vehicleCoordinates.count, id: \.self) { idx in
+                    Annotation("", coordinate: vehicleCoordinates[idx], anchor: .center) {
                         ZStack {
                             Circle()
-                                .fill(Color.green)
+                                .fill(Color(red: 0.0, green: 0.85, blue: 0.35).opacity(0.3))
+                                .frame(width: 26, height: 26)
+                            Circle()
+                                .fill(Color(red: 0.0, green: 0.82, blue: 0.35))
                                 .frame(width: 20, height: 20)
-                                .shadow(radius: 2)
-                            
+                                .shadow(color: .black.opacity(0.5), radius: 3, y: 1)
                             Image(systemName: "bus.fill")
-                                .font(.system(size: 10))
+                                .font(.system(size: 10, weight: .bold))
                                 .foregroundColor(.white)
                         }
                     }
                 }
             }
         }
-        .mapStyle(mapStyle)
+        .mapStyle(.standard(pointsOfInterest: .excludingAll, showsTraffic: false))
+    }
+
+    private static func calculateRegion(coordinates: [CLLocationCoordinate2D], vehicleCoordinates: [CLLocationCoordinate2D]) -> MKCoordinateRegion {
+        var allCoords = coordinates + vehicleCoordinates
+        if allCoords.isEmpty {
+            return MKCoordinateRegion(center: CLLocationCoordinate2D(latitude: 0, longitude: 0), span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05))
+        }
+        var minLat = allCoords[0].latitude
+        var maxLat = allCoords[0].latitude
+        var minLon = allCoords[0].longitude
+        var maxLon = allCoords[0].longitude
+
+        for c in allCoords {
+            minLat = min(minLat, c.latitude)
+            maxLat = max(maxLat, c.latitude)
+            minLon = min(minLon, c.longitude)
+            maxLon = max(maxLon, c.longitude)
+        }
+        let center = CLLocationCoordinate2D(latitude: (minLat + maxLat) / 2.0, longitude: (minLon + maxLon) / 2.0)
+        let latDelta = max((maxLat - minLat) * 1.35, 0.008)
+        let lonDelta = max((maxLon - minLon) * 1.35, 0.008)
+        return MKCoordinateRegion(center: center, span: MKCoordinateSpan(latitudeDelta: latDelta, longitudeDelta: lonDelta))
     }
 }
 

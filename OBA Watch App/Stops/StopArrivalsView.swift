@@ -61,6 +61,17 @@ struct StopArrivalsView: View {
                         Spacer()
                         HStack(spacing: 8) {
                             Button {
+                                withAnimation {
+                                    viewModel.sortMode = (viewModel.sortMode == .byTime ? .byRoute : .byTime)
+                                }
+                            } label: {
+                                Image(systemName: viewModel.sortMode == .byTime ? "arrow.up.arrow.down.circle" : "arrow.up.arrow.down.circle.fill")
+                                    .font(.system(size: 20))
+                                    .foregroundColor(.blue)
+                            }
+                            .buttonStyle(.plain)
+
+                            Button {
                                 toggleStopBookmark()
                             } label: {
                                 Image(systemName: isStopBookmarked ? "star.fill" : "star")
@@ -247,6 +258,10 @@ struct StopArrivalsView: View {
         .sheet(isPresented: $showActions) {
             List {
                 Section {
+                    Button(viewModel.sortMode == .byTime ? OBALoc("stop_arrivals.sort_toggle_route", value: "Sort: By Route", comment: "Toggle sort to by route") : OBALoc("stop_arrivals.sort_toggle_time", value: "Sort: By Time", comment: "Toggle sort to by time")) {
+                        viewModel.sortMode = (viewModel.sortMode == .byTime ? .byRoute : .byTime)
+                        showActions = false
+                    }
                     Button(OBALoc("common.refresh", value: "Refresh", comment: "Refresh button")) {
                         showActions = false
                         Task {

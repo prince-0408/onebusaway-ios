@@ -37,6 +37,12 @@ struct SettingsView: View {
                             .foregroundColor(.secondary)
                     }
                 }
+                
+                NavigationLink {
+                    AgenciesDirectoryView()
+                } label: {
+                    Label(OBALoc("settings.agencies_coverage", value: "Agencies & Coverage", comment: "Agencies and coverage button"), systemImage: "building.2.fill")
+                }
             }
             
             Section(OBALoc("settings.section.map", value: "Map", comment: "Settings section: Map")) {

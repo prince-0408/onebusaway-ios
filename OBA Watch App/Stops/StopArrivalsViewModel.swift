@@ -23,17 +23,41 @@ class StopArrivalsViewModel: ObservableObject {
     @Published var selectedRouteFilter: String? = nil
     @Published var transferContext: TransferContext? = nil
 
+    enum ArrivalSortMode: String, CaseIterable, Identifiable {
+        case byTime = "Time"
+        case byRoute = "Route"
+        var id: String { rawValue }
+    }
+    
+    @Published var sortMode: ArrivalSortMode = .byTime
+
     var filteredArrivals: [OBAArrival] {
         let prefs = StopPreferencesStore.shared.preferences(for: stopID)
         let unhidden = arrivals.filter { arrival in
             let routeID = arrival.routeID ?? arrival.routeShortName ?? ""
             return !prefs.isRouteIDHidden(routeID)
         }
-        guard let filter = selectedRouteFilter, !filter.isEmpty else {
-            return unhidden
+        let list: [OBAArrival]
+        if let filter = selectedRouteFilter, !filter.isEmpty {
+            list = unhidden.filter { arrival in
+                arrival.routeID == filter || arrival.routeShortName == filter
+            }
+        } else {
+            list = unhidden
         }
-        return unhidden.filter { arrival in
-            arrival.routeID == filter || arrival.routeShortName == filter
+        
+        switch sortMode {
+        case .byTime:
+            return list.sorted { ($0.arrivalTime ?? Date.distantFuture) < ($1.arrivalTime ?? Date.distantFuture) }
+        case .byRoute:
+            return list.sorted {
+                let r0 = $0.routeShortName ?? $0.routeID ?? ""
+                let r1 = $1.routeShortName ?? $1.routeID ?? ""
+                if r0 == r1 {
+                    return ($0.arrivalTime ?? Date.distantFuture) < ($1.arrivalTime ?? Date.distantFuture)
+                }
+                return r0.localizedStandardCompare(r1) == .orderedAscending
+            }
         }
     }
 

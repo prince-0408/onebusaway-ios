@@ -65,7 +65,7 @@ struct BookmarksView: View {
         List {
             ForEach(viewModel.groupedBookmarks) { group in
                 if viewModel.groupedBookmarks.count > 1 || group.name != OBALoc("common.bookmarks", value: "Bookmarks", comment: "Default bookmarks group name") {
-                    Section(header: Text(group.name)) {
+                    Section(header: Label(group.name, systemImage: "folder.fill").foregroundColor(.blue)) {
                         groupRows(group.items)
                     }
                 } else {

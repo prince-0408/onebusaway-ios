@@ -256,13 +256,22 @@ struct ArrivalDetailView: View {
                             center: CLLocationCoordinate2D(latitude: lat, longitude: lon),
                             span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
                         ))) {
-                            Marker(
-                                arrival.routeShortName ?? "Bus",
-                                systemImage: "bus.fill",
-                                coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon)
-                            )
-                            .tint(.green)
+                            Annotation("", coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon), anchor: .center) {
+                                ZStack {
+                                    Circle()
+                                        .fill(Color(red: 0.0, green: 0.85, blue: 0.35).opacity(0.3))
+                                        .frame(width: 26, height: 26)
+                                    Circle()
+                                        .fill(Color(red: 0.0, green: 0.82, blue: 0.35))
+                                        .frame(width: 20, height: 20)
+                                        .shadow(color: .black.opacity(0.5), radius: 3, y: 1)
+                                    Image(systemName: "bus.fill")
+                                        .font(.system(size: 10, weight: .bold))
+                                        .foregroundColor(.white)
+                                }
+                            }
                         }
+                        .mapStyle(.standard(pointsOfInterest: .excludingAll, showsTraffic: false))
                         .frame(height: 120)
                         .cornerRadius(12)
                     }

@@ -19,6 +19,67 @@ class TripDetailsViewModel: ObservableObject {
     @Published var polyline: [CLLocationCoordinate2D] = []
     @Published var isLoading = false
     @Published var errorMessage: String?
+    @Published var vehicleLatitude: Double?
+    @Published var vehicleLongitude: Double?
+    
+    private var trackingTask: Task<Void, Never>?
+    
+    var vehicleCoordinate: CLLocationCoordinate2D? {
+        if let lat = vehicleLatitude, let lon = vehicleLongitude, lat != 0.0, lon != 0.0 {
+            return CLLocationCoordinate2D(latitude: lat, longitude: lon)
+        }
+        if let pos = tripDetails?.status?.position, pos.lat != 0.0, pos.lon != 0.0 {
+            return CLLocationCoordinate2D(latitude: pos.lat, longitude: pos.lon)
+        }
+        if let lat = initialTrip?.latitude, let lon = initialTrip?.longitude, lat != 0.0, lon != 0.0 {
+            return CLLocationCoordinate2D(latitude: lat, longitude: lon)
+        }
+        return nil
+    }
+    
+    var vehicleDistanceAlongTrip: Double? {
+        if let stopTimes = tripDetails?.schedule?.stopTimes, !stopTimes.isEmpty {
+            // 1. If status reports the upcoming stop ID, use that stop's distance
+            if let nextStopID = tripDetails?.status?.nextStop, !nextStopID.isEmpty {
+                if let match = stopTimes.first(where: { $0.stopId == nextStopID }),
+                   let d = match.distanceAlongTrip, d > 0 {
+                    return d
+                }
+            }
+            // 2. Otherwise if status reports closestStop, use that as a fallback
+            if let closestStopID = tripDetails?.status?.closestStop, !closestStopID.isEmpty {
+                if let match = stopTimes.first(where: { $0.stopId == closestStopID }),
+                   let d = match.distanceAlongTrip, d > 0 {
+                    return d
+                }
+            }
+            // 3. Final fallback: find the stop geographically nearest the vehicle lat/lon
+            if let vehicle = vehicleCoordinate {
+                var nearestDist: Double = .greatestFiniteMagnitude
+                var nearestStopDistance: Double = 0
+                for st in stopTimes {
+                    guard let lat = st.latitude, let lon = st.longitude else { continue }
+                    let d = haversine(vehicle, CLLocationCoordinate2D(latitude: lat, longitude: lon))
+                    if d < nearestDist {
+                        nearestDist = d
+                        nearestStopDistance = st.distanceAlongTrip ?? 0
+                    }
+                }
+                if nearestStopDistance > 0 { return nearestStopDistance }
+            }
+        }
+        return nil
+    }
+    
+    private func haversine(_ a: CLLocationCoordinate2D, _ b: CLLocationCoordinate2D) -> Double {
+        let R = 6371000.0
+        let phi1 = a.latitude * .pi / 180
+        let phi2 = b.latitude * .pi / 180
+        let dphi = (b.latitude - a.latitude) * .pi / 180
+        let dl = (b.longitude - a.longitude) * .pi / 180
+        let h = sin(dphi/2)*sin(dphi/2) + cos(phi1)*cos(phi2)*sin(dl/2)*sin(dl/2)
+        return 2 * R * asin(sqrt(h))
+    }
     
     private let apiClient: OBAAPIClient
     private var tripID: String
@@ -97,6 +158,12 @@ class TripDetailsViewModel: ObservableObject {
                 schedule: details.schedule
             )
             
+            // If status position is directly available in trip details, populate vehicle coordinates immediately
+            if let pos = finalStatus?.position, pos.lat != 0.0, pos.lon != 0.0 {
+                self.vehicleLatitude = pos.lat
+                self.vehicleLongitude = pos.lon
+            }
+            
             // Fetch trip info for shapeID
             let tripInfo = try await apiClient.fetchTrip(tripID: tripIDToFetch)
             if let shapeID = tripInfo.shapeID {
@@ -109,8 +176,77 @@ class TripDetailsViewModel: ObservableObject {
                     return CLLocationCoordinate2D(latitude: lat, longitude: lon)
                 }
             }
+
+            await resolveLiveVehiclePosition(tripIDToFetch: tripIDToFetch)
+            startLiveTrackingLoop(tripIDToFetch: tripIDToFetch)
         } catch {
             errorMessage = error.watchOSUserFacingMessage
+        }
+    }
+
+    func stopLiveTracking() {
+        trackingTask?.cancel()
+        trackingTask = nil
+    }
+
+    private func startLiveTrackingLoop(tripIDToFetch: String) {
+        trackingTask?.cancel()
+        trackingTask = Task { @MainActor [weak self] in
+            guard let self = self else { return }
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 10_000_000_000) // 10 seconds live poll
+                if Task.isCancelled { break }
+                await self.resolveLiveVehiclePosition(tripIDToFetch: tripIDToFetch)
+            }
+        }
+    }
+
+    private func resolveLiveVehiclePosition(tripIDToFetch: String) async {
+        let activeVehicleID = self.vehicleID ?? tripDetails?.status?.vehicleID
+        
+        if let vID = activeVehicleID, !vID.isEmpty {
+            do {
+                let vehicleStatus = try await apiClient.fetchTripForVehicle(vehicleID: vID)
+                if let pos = vehicleStatus.status?.position, pos.lat != 0.0, pos.lon != 0.0 {
+                    self.vehicleLatitude = pos.lat
+                    self.vehicleLongitude = pos.lon
+                    if let updatedStatus = vehicleStatus.status {
+                        self.tripDetails = OBATripExtendedDetails(
+                            tripId: self.tripDetails?.tripId ?? tripIDToFetch,
+                            serviceDate: self.tripDetails?.serviceDate,
+                            frequency: self.tripDetails?.frequency,
+                            status: updatedStatus,
+                            schedule: self.tripDetails?.schedule
+                        )
+                    }
+                    return
+                }
+            } catch {
+                Logger.error("fetchTripForVehicle failed for \(vID): \(error)")
+            }
+        }
+
+        if let pos = tripDetails?.status?.position, pos.lat != 0.0, pos.lon != 0.0 {
+            self.vehicleLatitude = pos.lat
+            self.vehicleLongitude = pos.lon
+            return
+        }
+
+        // Query nearby vehicles along polyline or schedule center
+        if let center = polyline.first ?? (tripDetails?.schedule?.stopTimes.first.flatMap { st in
+            if let lat = st.latitude, let lon = st.longitude { return CLLocationCoordinate2D(latitude: lat, longitude: lon) }
+            return nil
+        }) {
+            do {
+                let nearby = try await apiClient.fetchVehiclesReliably(latitude: center.latitude, longitude: center.longitude, latSpan: 0.1, lonSpan: 0.1)
+                if let match = nearby.first(where: { $0.id == tripIDToFetch || (activeVehicleID != nil && $0.vehicleID == activeVehicleID) }),
+                   let lat = match.latitude, let lon = match.longitude, lat != 0.0, lon != 0.0 {
+                    self.vehicleLatitude = lat
+                    self.vehicleLongitude = lon
+                }
+            } catch {
+                Logger.error("Failed to query nearby vehicles: \(error)")
+            }
         }
     }
 }
