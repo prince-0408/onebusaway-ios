@@ -21,18 +21,28 @@ struct StopArrivalsView: View {
     @State private var showStopDetails: Bool = false
     @State private var showStopSchedule: Bool = false
     @State private var showStopProblem: Bool = false
+    @State private var isStopBookmarked = false
+    @State private var showAlarmSetup = false
     
-    init(stopID: OBAStopID, stopName: String? = nil) {
+    init(stopID: OBAStopID, stopName: String? = nil, transferContext: TransferContext? = nil) {
         self.stopID = stopID
         self.stopName = stopName
         _viewModel = StateObject(wrappedValue: StopArrivalsViewModel(
             apiClientProvider: { WatchAppState.shared.apiClient },
-            stopID: stopID
+            stopID: stopID,
+            transferContext: transferContext
         ))
     }
     
     var body: some View {
         List {
+            if let transferContext = viewModel.transferContext {
+                Section {
+                    TransferBannerView(context: transferContext)
+                }
+                .listRowBackground(Color.clear)
+            }
+
             Section {
                 VStack(alignment: .leading, spacing: 12) {
                     HStack(alignment: .top) {
@@ -49,14 +59,25 @@ struct StopArrivalsView: View {
                             }
                         }
                         Spacer()
-                        Button {
-                            showActions = true
-                        } label: {
-                            Image(systemName: "ellipsis.circle")
-                                .font(.system(size: 20))
-                                .foregroundColor(.blue)
+                        HStack(spacing: 8) {
+                            Button {
+                                toggleStopBookmark()
+                            } label: {
+                                Image(systemName: isStopBookmarked ? "star.fill" : "star")
+                                    .font(.system(size: 18))
+                                    .foregroundColor(.yellow)
+                            }
+                            .buttonStyle(.plain)
+
+                            Button {
+                                showActions = true
+                            } label: {
+                                Image(systemName: "ellipsis.circle")
+                                    .font(.system(size: 20))
+                                    .foregroundColor(.blue)
+                            }
+                            .buttonStyle(.plain)
                         }
-                        .buttonStyle(.plain)
                     }
 
                     if viewModel.isOfflineMode {
@@ -162,7 +183,10 @@ struct StopArrivalsView: View {
                         NavigationLink {
                             ArrivalDetailView(arrival: arrival)
                         } label: {
-                            ArrivalRowView(arrival: arrival)
+                            ArrivalRowView(
+                                arrival: arrival,
+                                relativeTransferInfo: viewModel.relativeTransferInfo(for: arrival)
+                            )
                         }
                         .listRowBackground(
                             RoundedRectangle(cornerRadius: 16)
@@ -248,6 +272,12 @@ struct StopArrivalsView: View {
                             showNearbyStops = true
                         }
                     }
+                    Button(OBALoc("alarms.set_alarm", value: "Set Proximity Alarm", comment: "Set proximity alarm")) {
+                        showActions = false
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            showAlarmSetup = true
+                        }
+                    }
                     Button(OBALoc("problem_report.title", value: "Report a Problem", comment: "Action to report a problem")) {
                         showActions = false
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
@@ -286,9 +316,21 @@ struct StopArrivalsView: View {
             viewModel.cancelRefresh()
         }
         .onAppear {
+            isStopBookmarked = BookmarksSyncManager.shared.isBookmarked(stopID: stopID, routeShortName: nil)
             // Restart the refresh loop if the view reappears (e.g. swipe-back cancelled).
             if viewModel.arrivals.isEmpty {
                 viewModel.startRefreshLoop()
+            }
+        }
+        .sheet(isPresented: $showAlarmSetup) {
+            NavigationStack {
+                AlarmSetupView(
+                    stopID: stopID,
+                    stopName: viewModel.stopName ?? stopName,
+                    routeShortName: nil,
+                    headsign: nil,
+                    departureTime: viewModel.upcomingArrivals.first?.arrivalTime
+                )
             }
         }
     }
@@ -338,10 +380,29 @@ struct StopArrivalsView: View {
             }
         }
     }
+
+    private func toggleStopBookmark() {
+        if isStopBookmarked {
+            BookmarksSyncManager.shared.removeBookmark(stopID: stopID, routeShortName: nil)
+            isStopBookmarked = false
+        } else {
+            let bookmark = WatchBookmark(
+                id: UUID(),
+                stopID: stopID,
+                name: viewModel.stopName ?? stopName ?? "Stop \(stopID)",
+                routeShortName: nil,
+                tripHeadsign: nil
+            )
+            BookmarksSyncManager.shared.addBookmark(bookmark)
+            isStopBookmarked = true
+        }
+        WatchFeedbackGenerator.shared.success()
+    }
 }
 
 struct ArrivalRowView: View {
     let arrival: OBAArrival
+    var relativeTransferInfo: (text: String, isMissed: Bool)? = nil
     
     var body: some View {
         HStack(spacing: 8) {
@@ -384,6 +445,16 @@ struct ArrivalRowView: View {
                     }
                 }
                 
+                if let relativeInfo = relativeTransferInfo {
+                    Text(relativeInfo.text)
+                        .font(.system(size: 10, weight: .semibold))
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .background(relativeInfo.isMissed ? Color.red.opacity(0.2) : Color.green.opacity(0.2))
+                        .foregroundColor(relativeInfo.isMissed ? .red : .green)
+                        .cornerRadius(6)
+                }
+
                 WatchOccupancyStatusView(occupancyStatus: arrival.occupancyEnum, realtimeData: arrival.isPredicted)
             }
             

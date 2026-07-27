@@ -14,14 +14,22 @@ struct WalkTimeInfo: Equatable {
     let formattedWalkTime: String
     
     /// Straight-line walk estimate matching OBAKit WalkTimeInfo logic.
-    static func compute(from userLocation: CLLocation?, to stopLocation: CLLocation?, walkingSpeedMetersPerSecond: Double = 1.35) -> WalkTimeInfo? {
+    static func compute(from userLocation: CLLocation?, to stopLocation: CLLocation?, walkingSpeedMetersPerSecond: Double? = nil) -> WalkTimeInfo? {
         guard let userLocation = userLocation, let stopLocation = stopLocation else { return nil }
         let distance = userLocation.distance(from: stopLocation)
         
         // Suppress when user is right at the stop (<= 30 m)
         guard distance > 30 else { return nil }
         
-        let seconds = distance / walkingSpeedMetersPerSecond
+        let speed: Double
+        if let customSpeed = walkingSpeedMetersPerSecond {
+            speed = customSpeed
+        } else {
+            let stored = WatchAppState.userDefaults.double(forKey: "UserDataStore.walkingSpeedMetersPerSecond")
+            speed = stored > 0.1 ? stored : 1.35
+        }
+        
+        let seconds = distance / speed
         let minutes = Int(ceil(seconds / 60.0))
         
         let distanceFormatter = MKDistanceFormatter()

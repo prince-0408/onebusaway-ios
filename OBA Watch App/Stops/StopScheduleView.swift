@@ -14,6 +14,7 @@ struct StopScheduleView: View {
     @State private var schedule: OBAStopSchedule?
     @State private var isLoading = false
     @State private var errorMessage: String?
+    @State private var isOfflineMode = false
 
     enum ScheduleDay: String, CaseIterable, Identifiable {
         case today = "Today"
@@ -38,6 +39,23 @@ struct StopScheduleView: View {
 
     var body: some View {
         List {
+            if isOfflineMode {
+                Section {
+                    HStack(spacing: 4) {
+                        Image(systemName: "wifi.slash")
+                            .font(.system(size: 10))
+                            .foregroundColor(.orange)
+                        Text(OBALoc("stop_arrivals.offline_cached", value: "Offline (Cached Schedule)", comment: "Offline cached schedule banner"))
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundColor(.orange)
+                    }
+                }
+                .listRowBackground(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color.orange.opacity(0.12))
+                )
+            }
+
             // Day selector section
             Section {
                 HStack(spacing: 6) {
@@ -141,15 +159,43 @@ struct StopScheduleView: View {
         }
     }
 
+    private func cacheKey(for id: OBAStopID, date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        let dateString = formatter.string(from: date)
+        return "cache.schedule.\(id).\(dateString)"
+    }
+
+    private func saveToCache(_ result: OBAStopSchedule) {
+        if let data = try? JSONEncoder().encode(result) {
+            UserDefaults.standard.set(data, forKey: cacheKey(for: stopID, date: targetDate))
+        }
+    }
+
+    private func loadFromCache() -> Bool {
+        guard let data = UserDefaults.standard.data(forKey: cacheKey(for: stopID, date: targetDate)),
+              let result = try? JSONDecoder().decode(OBAStopSchedule.self, from: data) else {
+            return false
+        }
+        schedule = result
+        isOfflineMode = true
+        errorMessage = nil
+        return true
+    }
+
     private func load() async {
         isLoading = true
         errorMessage = nil
+        isOfflineMode = false
         defer { isLoading = false }
         do {
             let s = try await WatchAppState.shared.apiClient.fetchScheduleForStop(stopID: stopID, date: targetDate)
             schedule = s
+            saveToCache(s)
         } catch {
-            errorMessage = error.watchOSUserFacingMessage
+            if !loadFromCache() {
+                errorMessage = error.watchOSUserFacingMessage
+            }
         }
     }
 }

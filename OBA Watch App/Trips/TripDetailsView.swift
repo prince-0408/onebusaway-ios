@@ -197,16 +197,40 @@ struct TripDetailsView: View {
         if let schedule = details.schedule {
             Section(OBALoc("trip_details.section.stops", value: "Stops", comment: "Stops section header")) {
                 ForEach(Array(schedule.stopTimes.enumerated()), id: \.offset) { index, stopTime in
-                    StopRow(
-                        stopTime: stopTime,
-                        isFirst: index == 0,
-                        isLast: index == schedule.stopTimes.count - 1,
-                        serviceDate: details.serviceDate
-                    )
-                    .listRowBackground(
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(Color.white.opacity(0.12))
-                    )
+                    if let stopID = stopTime.stopId {
+                        let arrivalSecs = stopTime.arrivalTime ?? stopTime.departureTime ?? 0
+                        let arrDate = (details.serviceDate ?? Date()).addingTimeInterval(TimeInterval(arrivalSecs))
+                        let context = TransferContext(
+                            arrivalTime: arrDate,
+                            fromRouteShortName: routeShortName ?? "",
+                            fromTripHeadsign: headsign ?? ""
+                        )
+                        NavigationLink {
+                            StopArrivalsView(stopID: stopID, transferContext: context)
+                        } label: {
+                            StopRow(
+                                stopTime: stopTime,
+                                isFirst: index == 0,
+                                isLast: index == schedule.stopTimes.count - 1,
+                                serviceDate: details.serviceDate
+                            )
+                        }
+                        .listRowBackground(
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(Color.white.opacity(0.12))
+                        )
+                    } else {
+                        StopRow(
+                            stopTime: stopTime,
+                            isFirst: index == 0,
+                            isLast: index == schedule.stopTimes.count - 1,
+                            serviceDate: details.serviceDate
+                        )
+                        .listRowBackground(
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(Color.white.opacity(0.12))
+                        )
+                    }
                 }
             }
         }

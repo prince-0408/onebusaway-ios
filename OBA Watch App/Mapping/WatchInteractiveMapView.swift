@@ -15,68 +15,62 @@ struct WatchInteractiveMapView: View {
     let stops: [OBAStop]
     let vehicles: [OBAVehicle]
     
-    @State private var mapPosition: MapCameraPosition
+    @State private var mapPosition: MapCameraPosition = .userLocation(fallback: .automatic)
     @State private var selectedStop: OBAStop?
     @State private var showStopArrivals: Bool = false
+    @State private var selectedStopID: String?
+    
+    @State private var liveVehicles: [OBATripForLocation] = []
+    @State private var isLoading = false
+    @State private var timer: Timer?
     
     init(initialRegion: MKCoordinateRegion? = nil, stops: [OBAStop] = [], vehicles: [OBAVehicle] = []) {
         self.initialRegion = initialRegion
         self.stops = stops
         self.vehicles = vehicles
-        
-        if let reg = initialRegion {
-            _mapPosition = State(initialValue: .region(reg))
+    }
+    
+    private var displayedStops: [OBAStop] {
+        Array(stops.prefix(20))
+    }
+    
+    private var displayedVehicles: [OBATripForLocation] {
+        if !liveVehicles.isEmpty {
+            return liveVehicles
         } else {
-            let loc = WatchAppState.shared.effectiveLocation
-            let reg = MKCoordinateRegion(center: loc.coordinate, latitudinalMeters: 800, longitudinalMeters: 800)
-            _mapPosition = State(initialValue: .region(reg))
+            return vehicles.compactMap { $0.toTripForLocation() }
         }
     }
     
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
-            Map(position: $mapPosition) {
+            Map(position: $mapPosition, selection: $selectedStopID) {
                 UserAnnotation()
                 
-                ForEach(stops) { stop in
+                // Stops: Blue Markers with a distinct signpost/train symbol (not a bus)
+                ForEach(displayedStops) { stop in
                     if stop.latitude != 0.0 || stop.longitude != 0.0 {
                         let coord = CLLocationCoordinate2D(latitude: stop.latitude, longitude: stop.longitude)
-                        Annotation(stop.name, coordinate: coord) {
-                            Button {
-                                selectedStop = stop
-                                showStopArrivals = true
-                            } label: {
-                                ZStack {
-                                    Circle()
-                                        .fill(Color.blue)
-                                        .frame(width: 22, height: 22)
-                                        .shadow(radius: 2)
-                                    
-                                    Image(systemName: stop.locationType == 1 ? "train.side.front.car" : "bus")
-                                        .font(.system(size: 11, weight: .bold))
-                                        .foregroundColor(.white)
-                                }
-                            }
-                            .buttonStyle(.plain)
-                        }
+                        Marker(
+                            stop.name,
+                            systemImage: stop.locationType == 1 ? "train" : "signpost.right.and.left.fill",
+                            coordinate: coord
+                        )
+                        .tint(.blue)
+                        .tag(stop.id)
                     }
                 }
                 
-                ForEach(vehicles) { vehicle in
+                // Vehicles: Green Markers with a bus symbol (merges static and live to prevent duplicates)
+                ForEach(displayedVehicles) { vehicle in
                     if let lat = vehicle.latitude, let lon = vehicle.longitude {
                         let coord = CLLocationCoordinate2D(latitude: lat, longitude: lon)
-                        Annotation(vehicle.routeShortName ?? "Bus", coordinate: coord) {
-                            ZStack {
-                                Circle()
-                                    .fill(Color.green)
-                                    .frame(width: 24, height: 24)
-                                    .shadow(radius: 3)
-                                
-                                Image(systemName: "bus.fill")
-                                    .font(.system(size: 11))
-                                    .foregroundColor(.white)
-                            }
-                        }
+                        Marker(
+                            vehicle.routeShortName ?? "Bus",
+                            systemImage: "bus.fill",
+                            coordinate: coord
+                        )
+                        .tint(.green)
                     }
                 }
             }
@@ -84,6 +78,15 @@ struct WatchInteractiveMapView: View {
             .mapControls {
                 MapCompass()
                 MapUserLocationButton()
+            }
+            
+            // Loading Indicator Overlay
+            if isLoading {
+                ProgressView()
+                    .padding(8)
+                    .background(RoundedRectangle(cornerRadius: 8).fill(Color.black.opacity(0.6)))
+                    .padding(10)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
             
             // Floating Recenter Button
@@ -112,6 +115,69 @@ struct WatchInteractiveMapView: View {
                     StopArrivalsView(stopID: stop.id, stopName: stop.name)
                 }
             }
+        }
+        .onAppear {
+            // Set initial position once on mount
+            if let reg = initialRegion {
+                mapPosition = .region(reg)
+            } else if let firstStop = stops.first, firstStop.latitude != 0.0, firstStop.longitude != 0.0 {
+                let coord = CLLocationCoordinate2D(latitude: firstStop.latitude, longitude: firstStop.longitude)
+                let reg = MKCoordinateRegion(center: coord, latitudinalMeters: 800, longitudinalMeters: 800)
+                mapPosition = .region(reg)
+            } else {
+                let loc = appState.effectiveLocation
+                let reg = MKCoordinateRegion(center: loc.coordinate, latitudinalMeters: 800, longitudinalMeters: 800)
+                mapPosition = .region(reg)
+            }
+
+            Task {
+                await loadOverlays()
+            }
+            timer = Timer.scheduledTimer(withTimeInterval: 15, repeats: true) { _ in
+                Task {
+                    await fetchLiveVehicles()
+                }
+            }
+        }
+        .onDisappear {
+            timer?.invalidate()
+            timer = nil
+        }
+        .onChange(of: selectedStopID) { _, newID in
+            if let newID = newID, let stop = stops.first(where: { $0.id == newID }) {
+                selectedStop = stop
+                showStopArrivals = true
+                selectedStopID = nil // Reset selection
+            }
+        }
+    }
+    
+    private func loadOverlays() async {
+        isLoading = true
+        await fetchLiveVehicles()
+        isLoading = false
+    }
+    
+    private func fetchLiveVehicles() async {
+        let center: CLLocationCoordinate2D
+        if let reg = initialRegion {
+            center = reg.center
+        } else if let firstStop = stops.first {
+            center = CLLocationCoordinate2D(latitude: firstStop.latitude, longitude: firstStop.longitude)
+        } else {
+            center = appState.effectiveLocation.coordinate
+        }
+        
+        do {
+            let trips = try await appState.apiClient.fetchVehiclesReliably(
+                latitude: center.latitude,
+                longitude: center.longitude,
+                latSpan: 0.015,
+                lonSpan: 0.015
+            )
+            self.liveVehicles = trips
+        } catch {
+            Logger.error("Failed to fetch live vehicles for map: \(error)")
         }
     }
 }

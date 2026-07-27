@@ -10,6 +10,9 @@ class OTPService {
             throw URLError(.badURL)
         }
         
+        let speed = WatchAppState.userDefaults.double(forKey: "UserDataStore.walkingSpeedMetersPerSecond")
+        let walkSpeed = speed > 0.1 ? speed : 1.35
+        
         components.queryItems = [
             URLQueryItem(name: "fromPlace", value: "\(from.latitude),\(from.longitude)"),
             URLQueryItem(name: "toPlace", value: "\(to.latitude),\(to.longitude)"),
@@ -18,7 +21,8 @@ class OTPService {
             URLQueryItem(name: "mode", value: "TRANSIT,WALK"),
             URLQueryItem(name: "arriveBy", value: "false"),
             URLQueryItem(name: "wheelchair", value: "false"),
-            URLQueryItem(name: "locale", value: "en")
+            URLQueryItem(name: "locale", value: "en"),
+            URLQueryItem(name: "walkSpeed", value: String(format: "%.2f", walkSpeed))
         ]
         
         guard let url = components.url else {

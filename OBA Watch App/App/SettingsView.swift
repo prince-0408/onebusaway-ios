@@ -20,6 +20,9 @@ struct SettingsView: View {
     // Privacy
     @AppStorage("watch_send_usage_data", store: WatchAppState.userDefaults) private var sendUsageData: Bool = true
 
+    // Walking Speed
+    @AppStorage("UserDataStore.walkingSpeedMetersPerSecond", store: WatchAppState.userDefaults) private var walkingSpeed: Double = 1.35
+
     var body: some View {
         List {
             Section(OBALoc("settings.section.region", value: "Region", comment: "Settings section: Region")) {
@@ -62,6 +65,15 @@ struct SettingsView: View {
 
             Section(OBALoc("settings.section.privacy", value: "Privacy", comment: "Settings section: Privacy")) {
                 Toggle(OBALoc("settings.privacy.send_usage", value: "Send usage data to developer", comment: "Toggle label"), isOn: $sendUsageData)
+            }
+
+            Section(OBALoc("settings.section.walking_speed", value: "Walking Speed", comment: "Settings section: Walking Speed")) {
+                Picker(OBALoc("settings.walking_speed", value: "Speed", comment: "Label for walking speed setting"), selection: $walkingSpeed) {
+                    Text("0.8 m/s (\(OBALoc("settings.speed.slow", value: "Slow", comment: "Slow speed")))").tag(0.8)
+                    Text("1.1 m/s (\(OBALoc("settings.speed.normal", value: "Normal", comment: "Normal speed")))").tag(1.1)
+                    Text("1.35 m/s (\(OBALoc("settings.speed.default", value: "Default", comment: "Default speed")))").tag(1.35)
+                    Text("1.6 m/s (\(OBALoc("settings.speed.fast", value: "Fast", comment: "Fast speed")))").tag(1.6)
+                }
             }
         }
         .navigationTitle(OBALoc("common.settings", value: "Settings", comment: "Settings title"))

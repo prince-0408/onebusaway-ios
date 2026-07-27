@@ -7,6 +7,9 @@ struct ArrivalDetailView: View {
 
     @State private var showTripProblem = false
     @State private var showAlertSheet = false
+    @State private var isBookmarked = false
+    @State private var hasAlarm = false
+    @State private var showAlarmSetup = false
 
     var body: some View {
         ScrollView {
@@ -157,25 +160,58 @@ struct ArrivalDetailView: View {
                 }
 
                 Button {
-                    let bookmark = WatchBookmark(
-                        id: UUID(),
-                        stopID: arrival.stopID,
-                        name: "\(arrival.routeShortName ?? arrival.routeID) - \(arrival.headsign)",
-                        routeShortName: arrival.routeShortName,
-                        tripHeadsign: arrival.headsign
-                    )
-                    BookmarksSyncManager.shared.addBookmark(bookmark)
+                    if isBookmarked {
+                        BookmarksSyncManager.shared.removeBookmark(stopID: arrival.stopID, routeShortName: arrival.routeShortName)
+                        isBookmarked = false
+                    } else {
+                        let bookmark = WatchBookmark(
+                            id: UUID(),
+                            stopID: arrival.stopID,
+                            name: "\(arrival.routeShortName ?? arrival.routeID) - \(arrival.headsign ?? "")",
+                            routeShortName: arrival.routeShortName,
+                            tripHeadsign: arrival.headsign
+                        )
+                        BookmarksSyncManager.shared.addBookmark(bookmark)
+                        isBookmarked = true
+                    }
                     WatchFeedbackGenerator.shared.success()
                 } label: {
                     HStack(spacing: 6) {
-                        Image(systemName: "star.fill")
+                        Image(systemName: isBookmarked ? "star.fill" : "star")
                             .foregroundColor(.yellow)
-                        Text(OBALoc("arrival_detail.bookmark_route", value: "Bookmark Route", comment: "Action to bookmark route"))
+                        Text(isBookmarked ? OBALoc("arrival_detail.remove_bookmark", value: "Remove Bookmark", comment: "Action to remove bookmark") : OBALoc("arrival_detail.bookmark_route", value: "Bookmark Route", comment: "Action to bookmark route"))
                             .font(.subheadline)
                             .fontWeight(.semibold)
                         Spacer()
                     }
                     .padding(.vertical, 4)
+                }
+
+                Button {
+                    showAlarmSetup = true
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: hasAlarm ? "bell.fill" : "bell")
+                            .foregroundColor(.orange)
+                        Text(hasAlarm ? OBALoc("arrival_detail.edit_alarm", value: "Edit Proximity Alarm", comment: "Action to edit proximity alarm") : OBALoc("arrival_detail.set_alarm", value: "Set Proximity Alarm", comment: "Action to set proximity alarm"))
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                        Spacer()
+                    }
+                    .padding(.vertical, 4)
+                }
+                .sheet(isPresented: $showAlarmSetup, onDismiss: {
+                    hasAlarm = AlarmsSyncManager.shared.hasAlarm(stopID: arrival.stopID, routeShortName: arrival.routeShortName)
+                }) {
+                    NavigationStack {
+                        AlarmSetupView(
+                            stopID: arrival.stopID,
+                            stopName: arrival.headsign,
+                            routeShortName: arrival.routeShortName,
+                            headsign: arrival.headsign,
+                            departureTime: arrival.arrivalTime
+                        )
+                    }
                 }
                 
                 // Vehicle Details Link
@@ -251,6 +287,10 @@ struct ArrivalDetailView: View {
                 "vehicle_id": arrival.vehicleID ?? ""
             ]
             userActivity.isEligibleForHandoff = true
+        }
+        .onAppear {
+            isBookmarked = BookmarksSyncManager.shared.isBookmarked(stopID: arrival.stopID, routeShortName: arrival.routeShortName)
+            hasAlarm = AlarmsSyncManager.shared.hasAlarm(stopID: arrival.stopID, routeShortName: arrival.routeShortName)
         }
     }
 }

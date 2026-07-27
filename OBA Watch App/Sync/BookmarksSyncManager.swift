@@ -56,6 +56,33 @@ final class BookmarksSyncManager {
         }
     }
 
+    /// Removes a bookmark locally on watchOS.
+    func removeBookmark(stopID: OBAStopID, routeShortName: String?) {
+        var current = getBookmarks()
+        current.removeAll(where: { $0.stopID == stopID && $0.routeShortName == routeShortName })
+        do {
+            let encodedData = try JSONEncoder().encode(current)
+            WatchAppState.userDefaults.set(encodedData, forKey: storageKey)
+            WatchAppState.userDefaults.synchronize()
+            UserDefaults.standard.set(encodedData, forKey: storageKey)
+            UserDefaults.standard.synchronize()
+            NotificationCenter.default.post(name: Self.bookmarksUpdatedNotification, object: nil)
+            
+            // Notify phone of the change
+            let message: [String: Any] = ["bookmarks": current.map { bm -> [String: Any] in
+                (try? JSONSerialization.jsonObject(with: JSONEncoder().encode(bm)) as? [String: Any]) ?? [:]
+            }]
+            _ = WatchAppState.shared.sendMessageToPhone(message)
+        } catch {
+            Logger.error("Failed to remove bookmark: \(error)")
+        }
+    }
+
+    /// Checks if a stop/route combo is currently bookmarked.
+    func isBookmarked(stopID: OBAStopID, routeShortName: String?) -> Bool {
+        return getBookmarks().contains(where: { $0.stopID == stopID && $0.routeShortName == routeShortName })
+    }
+
     /// Retrieves the current list of bookmarks.
     func getBookmarks() -> [WatchBookmark] {
         if let data = WatchAppState.userDefaults.data(forKey: storageKey) {

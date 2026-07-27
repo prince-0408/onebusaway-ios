@@ -21,6 +21,7 @@ class StopArrivalsViewModel: ObservableObject {
     @Published var stopLatitude: Double?
     @Published var stopLongitude: Double?
     @Published var selectedRouteFilter: String? = nil
+    @Published var transferContext: TransferContext? = nil
 
     var filteredArrivals: [OBAArrival] {
         let prefs = StopPreferencesStore.shared.preferences(for: stopID)
@@ -44,6 +45,20 @@ class StopArrivalsViewModel: ObservableObject {
         let routeNames = arrivals.compactMap { $0.routeShortName ?? $0.routeID }
         return Array(Set(routeNames)).sorted()
     }
+
+    /// Calculates relative departure info relative to a transfer arrival time.
+    func relativeTransferInfo(for arrival: OBAArrival) -> (text: String, isMissed: Bool)? {
+        guard let context = transferContext else { return nil }
+        let departureDate = arrival.arrivalTime ?? Date()
+        let minutes = context.minutesUntilDeparture(from: departureDate)
+        if minutes < 0 {
+            return ("Missed (\(abs(minutes))m ago)", true)
+        } else if minutes == 0 {
+            return ("Departs at arrival", false)
+        } else {
+            return ("+\(minutes)m post-transfer", false)
+        }
+    }
     
     private let apiClientProvider: () -> OBAAPIClient
     private let stopID: OBAStopID
@@ -51,9 +66,10 @@ class StopArrivalsViewModel: ObservableObject {
     /// Cancelling this task stops any in-flight network call immediately.
     private var refreshTask: Task<Void, Never>?
     
-    init(apiClientProvider: @escaping () -> OBAAPIClient, stopID: OBAStopID) {
+    init(apiClientProvider: @escaping () -> OBAAPIClient, stopID: OBAStopID, transferContext: TransferContext? = nil) {
         self.apiClientProvider = apiClientProvider
         self.stopID = stopID
+        self.transferContext = transferContext
         startRefreshLoop()
     }
 

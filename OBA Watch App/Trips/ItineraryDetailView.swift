@@ -43,6 +43,7 @@ struct ItineraryDetailView: View {
 
 struct LegDetailRow: View {
     let leg: OTPLeg
+    @State private var isExpanded = false
     
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -61,6 +62,21 @@ struct LegDetailRow: View {
                             .foregroundColor(.secondary)
                     }
                 }
+                
+                if let steps = leg.steps, !steps.isEmpty {
+                    Spacer()
+                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 10))
+                        .foregroundColor(.secondary)
+                }
+            }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                if leg.steps != nil && !leg.steps!.isEmpty {
+                    withAnimation {
+                        isExpanded.toggle()
+                    }
+                }
             }
             
             HStack {
@@ -74,6 +90,29 @@ struct LegDetailRow: View {
             }
             .font(.system(size: 9))
             .foregroundColor(.secondary)
+            
+            // Expanded Step-by-Step Directions
+            if isExpanded, let steps = leg.steps, !steps.isEmpty {
+                VStack(alignment: .leading, spacing: 6) {
+                    Divider()
+                        .padding(.vertical, 2)
+                    
+                    ForEach(0..<steps.count, id: \.self) { index in
+                        let step = steps[index]
+                        HStack(alignment: .top, spacing: 6) {
+                            Image(systemName: stepIcon(step))
+                                .font(.system(size: 9))
+                                .foregroundColor(.secondary)
+                                .padding(.top, 1)
+                            
+                            Text(stepDescription(step))
+                                .font(.system(size: 10))
+                                .foregroundColor(.primary)
+                        }
+                    }
+                }
+                .padding(.leading, 8)
+            }
         }
         .padding(.vertical, 2)
     }
@@ -90,7 +129,7 @@ struct LegDetailRow: View {
         switch leg.mode.uppercased() {
         case "WALK": return "figure.walk"
         case "BUS": return "bus"
-        case "RAIL", "SUBWAY", "TRAM": return "train.side.front.car"
+        case "RAIL", "SUBWAY", "TRAM": return "train"
         default: return "questionmark"
         }
     }
@@ -102,6 +141,40 @@ struct LegDetailRow: View {
         case "RAIL", "SUBWAY", "TRAM": return .blue
         default: return .secondary
         }
+    }
+    
+    private func stepIcon(_ step: OTPStep) -> String {
+        switch step.relativeDirection?.uppercased() {
+        case "DEPART": return "location.fill"
+        case "LEFT": return "arrow.turn.up.left"
+        case "RIGHT": return "arrow.turn.up.right"
+        case "SLIGHT_LEFT": return "arrow.up.left"
+        case "SLIGHT_RIGHT": return "arrow.up.right"
+        case "CONTINUE": return "arrow.up"
+        default: return "figure.walk"
+        }
+    }
+    
+    private func stepDescription(_ step: OTPStep) -> String {
+        let direction: String
+        switch step.relativeDirection?.uppercased() {
+        case "DEPART":
+            direction = OBALoc("itinerary.step.depart", value: "Depart on", comment: "Step instruction: Depart on")
+        case "LEFT":
+            direction = OBALoc("itinerary.step.left", value: "Turn left on", comment: "Step instruction: Turn left on")
+        case "RIGHT":
+            direction = OBALoc("itinerary.step.right", value: "Turn right on", comment: "Step instruction: Turn right on")
+        case "SLIGHT_LEFT":
+            direction = OBALoc("itinerary.step.slight_left", value: "Slight left on", comment: "Step instruction: Slight left on")
+        case "SLIGHT_RIGHT":
+            direction = OBALoc("itinerary.step.slight_right", value: "Slight right on", comment: "Step instruction: Slight right on")
+        case "CONTINUE":
+            direction = OBALoc("itinerary.step.continue", value: "Continue on", comment: "Step instruction: Continue on")
+        default:
+            direction = OBALoc("itinerary.step.walk_on", value: "Walk on", comment: "Step instruction: Walk on")
+        }
+        
+        return "\(direction) \(step.streetName) (\(Int(step.distance))m)"
     }
     
     private func formatTime(_ date: Date) -> String {

@@ -86,6 +86,9 @@ struct BookmarksView: View {
                 BookmarkRow(bookmark: bookmark)
             }
         }
+        .onDelete { indexSet in
+            viewModel.deleteBookmarks(at: indexSet, from: items)
+        }
     }
 }
 

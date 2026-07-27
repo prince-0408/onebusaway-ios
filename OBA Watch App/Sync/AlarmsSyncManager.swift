@@ -41,6 +41,59 @@ final class AlarmsSyncManager {
         }
     }
 
+    /// Adds a new proximity alarm locally on watchOS.
+    func addAlarm(_ alarm: WatchAlarmItem) {
+        var current = currentAlarms()
+        if !current.contains(where: { $0.stopID == alarm.stopID && $0.routeShortName == alarm.routeShortName }) {
+            current.append(alarm)
+            do {
+                let data = try JSONEncoder().encode(current)
+                WatchAppState.userDefaults.set(data, forKey: storageKey)
+                
+                // Schedule local background notification
+                AlarmHapticScheduler.shared.scheduleFutureBackgroundNotification(for: alarm)
+                
+                NotificationCenter.default.post(name: Self.alarmsUpdatedNotification, object: nil)
+                
+                // Sync to phone
+                let message: [String: Any] = ["alarms": current.map { item -> [String: Any] in
+                    (try? JSONSerialization.jsonObject(with: JSONEncoder().encode(item)) as? [String: Any]) ?? [:]
+                }]
+                _ = WatchAppState.shared.sendMessageToPhone(message)
+            } catch {
+                Logger.error("Failed to add alarm: \(error)")
+            }
+        }
+    }
+
+    /// Removes a proximity alarm locally on watchOS.
+    func removeAlarm(stopID: OBAStopID, routeShortName: String?) {
+        var current = currentAlarms()
+        if let idx = current.firstIndex(where: { $0.stopID == stopID && $0.routeShortName == routeShortName }) {
+            let item = current[idx]
+            AlarmHapticScheduler.shared.cancelNotification(for: item.id)
+            current.remove(at: idx)
+            do {
+                let data = try JSONEncoder().encode(current)
+                WatchAppState.userDefaults.set(data, forKey: storageKey)
+                NotificationCenter.default.post(name: Self.alarmsUpdatedNotification, object: nil)
+                
+                // Sync to phone
+                let message: [String: Any] = ["alarms": current.map { item -> [String: Any] in
+                    (try? JSONSerialization.jsonObject(with: JSONEncoder().encode(item)) as? [String: Any]) ?? [:]
+                }]
+                _ = WatchAppState.shared.sendMessageToPhone(message)
+            } catch {
+                Logger.error("Failed to remove alarm: \(error)")
+            }
+        }
+    }
+
+    /// Checks if a stop/route combo has an active proximity alarm.
+    func hasAlarm(stopID: OBAStopID, routeShortName: String?) -> Bool {
+        return currentAlarms().contains(where: { $0.stopID == stopID && $0.routeShortName == routeShortName })
+    }
+
     /// Deletes alarms at specified offsets and cancels associated background local notifications.
     func deleteAlarm(at offsets: IndexSet) {
         var current = currentAlarms()

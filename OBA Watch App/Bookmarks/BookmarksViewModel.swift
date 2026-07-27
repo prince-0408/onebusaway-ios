@@ -78,6 +78,16 @@ class BookmarksViewModel: ObservableObject {
         }
     }
 
+    /// Deletes bookmarks from the local watch store and triggers a refresh.
+    func deleteBookmarks(at offsets: IndexSet, from items: [WatchBookmark]) {
+        for index in offsets {
+            guard index < items.count else { continue }
+            let bookmark = items[index]
+            BookmarksSyncManager.shared.removeBookmark(stopID: bookmark.stopID, routeShortName: bookmark.routeShortName)
+        }
+        loadBookmarks()
+    }
+
     private func updateGroupedBookmarks() {
         guard !bookmarks.isEmpty else {
             groupedBookmarks = []

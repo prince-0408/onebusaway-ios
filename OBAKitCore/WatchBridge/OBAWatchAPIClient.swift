@@ -190,7 +190,9 @@ public extension OBAAPIClient {
         do {
             let radius = max(latSpan, lonSpan) * 111000.0
             let routes = try await searchRoutes(query: "", latitude: latitude, longitude: longitude, radius: max(radius, 5000.0))
-            addUnique(await fetchTripsForRoutes(routes))
+            // Limit to at most 4 routes to avoid massive thread bottlenecks
+            let limitedRoutes = Array(routes.prefix(4))
+            addUnique(await fetchTripsForRoutes(limitedRoutes))
         } catch is CancellationError {
             throw CancellationError()
         } catch {
@@ -200,21 +202,7 @@ public extension OBAAPIClient {
 
         if !allVehicles.isEmpty && hasAnyLocation { return allVehicles }
 
-        // 3. Last resort: Fetch all vehicles for agencies
-        do {
-            let agencies = try await fetchAgenciesWithCoverage()
-            let nearbyAgencies = agencies.filter {
-                abs($0.centerLatitude - latitude) < 1.0 && abs($0.centerLongitude - longitude) < 1.0
-            }
-            let targetAgencies = nearbyAgencies.isEmpty ? agencies : nearbyAgencies
-            addUnique(await fetchVehiclesForAgencies(targetAgencies), filterByLocation: false)
-        } catch is CancellationError {
-            throw CancellationError()
-        } catch {
-            lastError = error
-            Logger.error("fetchAgenciesWithCoverage failed: \(error)")
-        }
-
+        // 3. Last resort: Skip global agency-wide vehicle fetching on watchOS to prevent CPU/memory overload
         if allVehicles.isEmpty {
             if let apiError = lastError as? OBAAPIError {
                 if case .notFound = apiError {
