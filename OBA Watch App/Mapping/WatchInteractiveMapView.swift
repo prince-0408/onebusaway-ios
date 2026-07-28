@@ -48,16 +48,16 @@ struct WatchInteractiveMapView: View {
             Map(position: $mapPosition, selection: $selectedMarkerID) {
                 UserAnnotation()
                 
-                // Stops: Blue Markers with a distinct signpost/train symbol (not a bus)
+                // Stops: Markers with train or bus symbol based on transit mode
                 ForEach(displayedStops) { stop in
                     if stop.latitude != 0.0 || stop.longitude != 0.0 {
                         let coord = CLLocationCoordinate2D(latitude: stop.latitude, longitude: stop.longitude)
                         Marker(
                             stop.name,
-                            systemImage: stop.locationType == 1 ? "train" : "signpost.right.and.left.fill",
+                            systemImage: stop.iconName,
                             coordinate: coord
                         )
-                        .tint(.blue)
+                        .tint(stop.isTrain ? .indigo : .blue)
                         .tag(stop.id)
                     }
                 }
@@ -77,6 +77,7 @@ struct WatchInteractiveMapView: View {
                 }
             }
             .mapStyle(appState.mapStyle)
+            .mapControlVisibility(.hidden)
             .mapControls {
                 MapCompass()
                 MapUserLocationButton()

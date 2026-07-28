@@ -21,9 +21,8 @@ struct NearbyMapView: View {
             UserAnnotation()
             
             ForEach(stops.prefix(20)) { stop in
-                let icon = stop.locationType == 1 ? "train.side.front.car" : "bus"
-                Marker(stop.name, systemImage: icon, coordinate: CLLocationCoordinate2D(latitude: stop.latitude, longitude: stop.longitude))
-                    .tint(.green)
+                Marker(stop.name, systemImage: stop.iconName, coordinate: CLLocationCoordinate2D(latitude: stop.latitude, longitude: stop.longitude))
+                    .tint(stop.isTrain ? .indigo : .blue)
             }
         }
         .mapStyle(mapStyle)

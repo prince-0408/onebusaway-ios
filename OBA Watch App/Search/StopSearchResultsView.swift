@@ -61,7 +61,7 @@ struct StopSearchResultsView: View {
                             LazyView(StopArrivalsView(stopID: stop.id, stopName: stop.name))
                         } label: {
                             HStack(spacing: 12) {
-                                Image(systemName: "signpost.right.fill")
+                                Image(systemName: stop.iconName)
                                     .font(.system(size: 14, weight: .bold))
                                     .foregroundColor(.white)
                                     .frame(width: 30, height: 30)

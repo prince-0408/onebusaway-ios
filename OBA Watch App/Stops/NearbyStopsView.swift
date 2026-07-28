@@ -187,8 +187,7 @@ struct NearbyStopRow: View {
     
     var body: some View {
         HStack(spacing: 12) {
-            let icon = stop.locationType == 1 ? "train.side.front.car" : "signpost.right.fill"
-            Image(systemName: icon)
+            Image(systemName: stop.iconName)
                 .font(.system(size: 14, weight: .bold))
                 .foregroundColor(.white)
                 .frame(width: 30, height: 30)

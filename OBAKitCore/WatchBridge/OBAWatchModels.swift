@@ -120,7 +120,35 @@ public struct OBAStop: Codable, Equatable, Hashable, Sendable, Identifiable {
         try container.encodeIfPresent(routeNames, forKey: .routeNames)
         try container.encodeIfPresent(locationType, forKey: .locationType)
     }
+
+    /// Indicates whether this stop is a train, subway, tram, or light rail stop.
+    public var isTrain: Bool {
+        if locationType == 1 { return true }
+        let lowName = name.lowercased()
+        if lowName.contains("station") ||
+            lowName.contains("train") ||
+            lowName.contains("rail") ||
+            lowName.contains("subway") ||
+            lowName.contains("tram") ||
+            lowName.contains("light rail") ||
+            lowName.contains("streetcar") ||
+            lowName.contains("link") {
+            return true
+        }
+        if let routes = routeNames?.lowercased() {
+            if routes.contains("train") || routes.contains("link") || routes.contains("rail") || routes.contains("subway") || routes.contains("tram") {
+                return true
+            }
+        }
+        return false
+    }
+
+    /// The SF Symbol icon name for this stop (e.g. "train.side.front.car" or "bus.fill").
+    public var iconName: String {
+        return isTrain ? "train.side.front.car" : "bus.fill"
+    }
 }
+
 
 /// A lightweight representation of a specific vehicle in service.
 public struct OBAVehicle: Codable, Equatable, Sendable, Identifiable {

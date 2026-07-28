@@ -21,145 +21,12 @@ struct TripDetailsView: View {
     
     @State private var mapPosition: MapCameraPosition = .automatic
     
-    private struct IntermediateStopItem: Identifiable {
-        let id: Int
-        let index: Int
-        let coord: CLLocationCoordinate2D
-        let distance: Double
-        let isNext: Bool
-        let isPassed: Bool
-    }
-
-    private struct StopBadgeStyle {
-        let fill: Color
-        let stroke: Color
-        let glyph: String
-        let glyphColor: Color
-        let size: CGFloat
-        let cornerRadius: CGFloat
-        let borderWidth: CGFloat
-        let iconInset: CGFloat
-        let shadowOpacity: Double
-        let shadowRadius: CGFloat
-        let shadowY: CGFloat
-        let outerShadow: Bool
-    }
-
-    private struct StopBadgeMetrics {
-        static let cornerRadius: CGFloat = 4.0
-        static let defaultSize: CGFloat = 20.0
-        static let minimalSize: CGFloat = 10.0
-        static let terminalSize: CGFloat = 22.0
-        static let nextSize: CGFloat = 16.0
-        static let borderWidth: CGFloat = 1.25
-        static let iconInset: CGFloat = 3.0
-        static let terminalIconInset: CGFloat = 3.5
-    }
-
-    private enum WatchTheme {
-        static let stopStroke: Color = Color(UIColor.darkGray)
-        static let stopFillLight: Color = Color(UIColor(red: 0.95, green: 0.95, blue: 0.97, alpha: 1.0))
-        static let stopFillDark: Color = Color(UIColor(red: 0.22, green: 0.22, blue: 0.24, alpha: 1.0))
-        static let highlightStroke: Color = Color(red: 0.00, green: 0.48, blue: 1.00)
-        static let arrowFill: Color = Color(red: 1.00, green: 0.23, blue: 0.19)
-        static let glyphTint: Color = Color(UIColor.darkGray)
-    }
-
-    @ViewBuilder
-    private func stopBadge(_ style: StopBadgeStyle) -> some View {
-        let outer = style.size + (style.outerShadow ? 4 : 0)
-        ZStack {
-            if style.outerShadow {
-                RoundedRectangle(cornerRadius: style.cornerRadius, style: .continuous)
-                    .fill(Color.black.opacity(0.82))
-                    .frame(width: style.size + 4, height: style.size + 4)
-            }
-            RoundedRectangle(cornerRadius: style.cornerRadius, style: .continuous)
-                .fill(style.fill)
-                .overlay(
-                    RoundedRectangle(cornerRadius: style.cornerRadius, style: .continuous)
-                        .stroke(style.stroke, lineWidth: style.borderWidth)
-                )
-                .frame(width: style.size, height: style.size)
-            Image(systemName: style.glyph)
-                .font(.system(size: max(4, style.size - style.iconInset * 2.0), weight: .semibold))
-                .foregroundColor(style.glyphColor)
+    private var resolvedGlyph: String {
+        let text = "\(routeShortName ?? "") \(headsign ?? "")".lowercased()
+        if text.contains("train") || text.contains("rail") || text.contains("subway") || text.contains("tram") || text.contains("link") {
+            return "train.side.front.car"
         }
-        .frame(width: outer, height: outer)
-        .shadow(color: .black.opacity(style.shadowOpacity),
-                radius: style.shadowRadius, y: style.shadowY)
-    }
-
-    private func terminalBadgeStyle(isOrigin: Bool, isPassed: Bool) -> StopBadgeStyle {
-        let stroke: Color
-        let fill: Color
-        let glyph: String
-        let glyphColor: Color
-        if isPassed {
-            stroke = WatchTheme.stopStroke.opacity(0.7)
-            fill = WatchTheme.stopFillDark.opacity(0.6)
-            glyphColor = Color.white.opacity(0.75)
-        } else {
-            stroke = WatchTheme.stopStroke
-            fill = WatchTheme.stopFillLight
-            glyphColor = WatchTheme.glyphTint
-        }
-        glyph = "tram"
-        return StopBadgeStyle(
-            fill: fill,
-            stroke: stroke,
-            glyph: glyph,
-            glyphColor: glyphColor,
-            size: StopBadgeMetrics.terminalSize,
-            cornerRadius: StopBadgeMetrics.cornerRadius,
-            borderWidth: StopBadgeMetrics.borderWidth,
-            iconInset: StopBadgeMetrics.terminalIconInset,
-            shadowOpacity: 0.45, shadowRadius: 1.2, shadowY: 0.8,
-            outerShadow: true
-        )
-    }
-
-    private func intermediateStyle(for item: IntermediateStopItem) -> StopBadgeStyle {
-        if item.isNext {
-            return StopBadgeStyle(
-                fill: WatchTheme.stopFillLight,
-                stroke: WatchTheme.highlightStroke,
-                glyph: "circle.hexagongrid.fill",
-                glyphColor: WatchTheme.highlightStroke,
-                size: StopBadgeMetrics.nextSize,
-                cornerRadius: StopBadgeMetrics.cornerRadius,
-                borderWidth: StopBadgeMetrics.borderWidth,
-                iconInset: 2.5,
-                shadowOpacity: 0.5, shadowRadius: 1.2, shadowY: 0.8,
-                outerShadow: true
-            )
-        }
-        if item.isPassed {
-            return StopBadgeStyle(
-                fill: WatchTheme.stopFillDark.opacity(0.55),
-                stroke: WatchTheme.stopStroke.opacity(0.6),
-                glyph: "circle.fill",
-                glyphColor: Color.white.opacity(0.55),
-                size: StopBadgeMetrics.minimalSize,
-                cornerRadius: StopBadgeMetrics.minimalSize / 2.0,
-                borderWidth: 1.0,
-                iconInset: 2.5,
-                shadowOpacity: 0.2, shadowRadius: 0.5, shadowY: 0.2,
-                outerShadow: false
-            )
-        }
-        return StopBadgeStyle(
-            fill: WatchTheme.stopFillLight,
-            stroke: WatchTheme.stopStroke,
-            glyph: "tram",
-            glyphColor: WatchTheme.glyphTint,
-            size: StopBadgeMetrics.defaultSize,
-            cornerRadius: StopBadgeMetrics.cornerRadius,
-            borderWidth: StopBadgeMetrics.borderWidth,
-            iconInset: StopBadgeMetrics.iconInset,
-            shadowOpacity: 0.3, shadowRadius: 0.8, shadowY: 0.5,
-            outerShadow: true
-        )
+        return "bus.fill"
     }
     
     init(tripID: String, vehicleID: String? = nil, routeShortName: String? = nil, headsign: String? = nil, initialTrip: OBATripForLocation? = nil) {
@@ -236,56 +103,18 @@ struct TripDetailsView: View {
                             )
                     }
                     
-                    // Stop Annotations - ALL real stops from the trip schedule, cleaner icon+ring style
+                    // Stop Markers - Native MapKit Markers matching WatchInteractiveMapView style
                     if let schedule = viewModel.tripDetails?.schedule {
-                        let stopTimes = schedule.stopTimes
-                        let vehicleProgress = viewModel.vehicleDistanceAlongTrip ?? 0
-                        let nextStopID = viewModel.tripDetails?.status?.nextStop
-                        let nextStopIndex = findNextStopIndex(in: stopTimes, vehicleDistance: vehicleProgress, nextStopID: nextStopID)
-                        
-                        // 1. Intermediate stops (between origin & destination) - rendered FIRST (underneath terminals)
-                        if stopTimes.count > 2 {
-                            let intermediates: [IntermediateStopItem] = stopTimes.enumerated()
-                                .dropFirst()
-                                .dropLast()
-                                .compactMap { idx, st in
-                                    guard let lat = st.latitude, let lon = st.longitude else { return nil }
-                                    let stopDistance = st.distanceAlongTrip ?? 0
-                                    let passed = vehicleProgress > 0 && stopDistance <= vehicleProgress
-                                    let next = (idx == nextStopIndex)
-                                    return IntermediateStopItem(
-                                        id: idx,
-                                        index: idx,
-                                        coord: CLLocationCoordinate2D(latitude: lat, longitude: lon),
-                                        distance: stopDistance,
-                                        isNext: next,
-                                        isPassed: passed
-                                    )
-                                }
-                            
-                            ForEach(intermediates, id: \.id) { item in
-                                let s = intermediateStyle(for: item)
-                                Annotation("", coordinate: item.coord, anchor: .center) {
-                                    stopBadge(s)
-                                }
-                            }
-                        }
-                        
-                        // 2. Origin (Start) Terminal - rounded square stop badge "A"
-                        if let first = stopTimes.first, let lat = first.latitude, let lon = first.longitude {
-                            let firstDistance = first.distanceAlongTrip ?? 0
-                            let isPassed = vehicleProgress > 0 && firstDistance <= vehicleProgress
-                            Annotation("", coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon), anchor: .center) {
-                                stopBadge(terminalBadgeStyle(isOrigin: true, isPassed: isPassed))
-                            }
-                        }
-                        
-                        // 3. Destination (End) Terminal - rounded square stop badge "B"
-                        if stopTimes.count > 1, let last = stopTimes.last, let lat = last.latitude, let lon = last.longitude {
-                            let lastDistance = last.distanceAlongTrip ?? 0
-                            let isPassed = vehicleProgress > 0 && lastDistance <= vehicleProgress
-                            Annotation("", coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon), anchor: .center) {
-                                stopBadge(terminalBadgeStyle(isOrigin: false, isPassed: isPassed))
+                        let isTrainMode = resolvedGlyph.contains("train")
+                        ForEach(Array(schedule.stopTimes.enumerated()), id: \.offset) { _, st in
+                            if let lat = st.latitude, let lon = st.longitude {
+                                let coord = CLLocationCoordinate2D(latitude: lat, longitude: lon)
+                                Marker(
+                                    st.stopHeadsign ?? "",
+                                    systemImage: resolvedGlyph,
+                                    coordinate: coord
+                                )
+                                .tint(isTrainMode ? .indigo : .blue)
                             }
                         }
                     }
