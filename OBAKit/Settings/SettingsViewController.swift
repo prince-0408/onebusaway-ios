@@ -41,6 +41,7 @@ class SettingsViewController: FormViewController {
             +++ accessibilitySection
             +++ walkingSpeedSection
             +++ surveySection
+            +++ feedbackSection
             +++ debugSection
 
         if application.analytics != nil {
@@ -58,6 +59,7 @@ class SettingsViewController: FormViewController {
             FeatureFlags.useNewStopPageKey: FeatureFlags.isNewStopPageEnabled(userDefaults: application.userDefaults),
             privacySectionReportingEnabled: application.analytics?.reportingEnabled() ?? false,
             DataLoadFeedbackGenerator.EnabledUserDefaultsKey: application.userDefaults.bool(forKey: DataLoadFeedbackGenerator.EnabledUserDefaultsKey),
+            OBAFloatingPanelController.AlwaysShowFullSheetOnVoiceoverUserDefaultsKey: application.userDefaults.bool(forKey: OBAFloatingPanelController.AlwaysShowFullSheetOnVoiceoverUserDefaultsKey),
             AgencyAlertsStore.UserDefaultKeys.displayRegionalTestAlerts: application.userDefaults.bool(forKey: AgencyAlertsStore.UserDefaultKeys.displayRegionalTestAlerts),
             RegionsService.alwaysRefreshRegionsOnLaunchUserDefaultsKey: application.userDefaults.bool(forKey: RegionsService.alwaysRefreshRegionsOnLaunchUserDefaultsKey),
             MapRegionManager.mapViewShowsStopAnnotationLabelsDefaultsKey: application.userDefaults.bool(forKey: MapRegionManager.mapViewShowsStopAnnotationLabelsDefaultsKey),
@@ -65,7 +67,8 @@ class SettingsViewController: FormViewController {
             alwaysShowSurveysOnStops: application.userDataStore.alwaysShowSurveysOnStops,
             walkingSpeedMetersPerSecondKey: snapToPreset(application.userDataStore.walkingSpeedMetersPerSecond),
             walkingSpeedUseHealthKitKey: application.userDataStore.walkingSpeedSource == .healthKit,
-            stopUIReducedColorsTag: application.userDataStore.stopUIReducedColors
+            stopUIReducedColorsTag: application.userDataStore.stopUIReducedColors,
+            alwaysShowFeedbackPrompt: application.reviewPromptPolicy.alwaysShowPrompt
         ])
     }
 
@@ -92,14 +95,7 @@ class SettingsViewController: FormViewController {
             application.mapRegionManager.mapViewShowsHeading = heading
         }
 
-        if let hapticFeedbackOnDataLoad = values[DataLoadFeedbackGenerator.EnabledUserDefaultsKey] as? Bool {
-            application.userDefaults.set(hapticFeedbackOnDataLoad, forKey: DataLoadFeedbackGenerator.EnabledUserDefaultsKey)
-        }
-
-        if let mapViewShowsStopAnnotationLabels = values[MapRegionManager.mapViewShowsStopAnnotationLabelsDefaultsKey] as? Bool {
-            application.userDefaults.set(mapViewShowsStopAnnotationLabels, forKey: MapRegionManager.mapViewShowsStopAnnotationLabelsDefaultsKey)
-        }
-
+        saveAccessibilityValues(values)
         saveExperimentalValues(values)
         saveAlertsValues(values)
 
@@ -109,10 +105,6 @@ class SettingsViewController: FormViewController {
 
         if let debugEnabled = values[debugModeEnabled] as? Bool {
             application.userDataStore.debugMode = debugEnabled
-        }
-
-        if let reducedColors = values[stopUIReducedColorsTag] as? Bool {
-            application.userDataStore.stopUIReducedColors = reducedColors
         }
 
         if let alwaysShowSurveys = values[alwaysShowSurveysOnStops] as? Bool {
@@ -126,6 +118,24 @@ class SettingsViewController: FormViewController {
         }
 
         saveWalkingSpeedValues(values)
+    }
+
+    private func saveAccessibilityValues(_ values: [String: Any?]) {
+        if let hapticFeedbackOnDataLoad = values[DataLoadFeedbackGenerator.EnabledUserDefaultsKey] as? Bool {
+            application.userDefaults.set(hapticFeedbackOnDataLoad, forKey: DataLoadFeedbackGenerator.EnabledUserDefaultsKey)
+        }
+
+        if let alwaysShowFullSheetOnVoiceover = values[OBAFloatingPanelController.AlwaysShowFullSheetOnVoiceoverUserDefaultsKey] as? Bool {
+            application.userDefaults.set(alwaysShowFullSheetOnVoiceover, forKey: OBAFloatingPanelController.AlwaysShowFullSheetOnVoiceoverUserDefaultsKey)
+        }
+
+        if let mapViewShowsStopAnnotationLabels = values[MapRegionManager.mapViewShowsStopAnnotationLabelsDefaultsKey] as? Bool {
+            application.userDefaults.set(mapViewShowsStopAnnotationLabels, forKey: MapRegionManager.mapViewShowsStopAnnotationLabelsDefaultsKey)
+        }
+
+        if let reducedColors = values[stopUIReducedColorsTag] as? Bool {
+            application.userDataStore.stopUIReducedColors = reducedColors
+        }
     }
 
     private func saveExperimentalValues(_ values: [String: Any?]) {
@@ -191,14 +201,25 @@ class SettingsViewController: FormViewController {
             footer: OBALoc("settings_controller.experimental_section.map_panel.footer", value: "Restart the app to apply.", comment: "Settings > Experimental section > Footer indicating changes apply on relaunch")
         )
 
+        // These two write on change instead of waiting for `saveFormValues()`. The section's own
+        // footer tells you to restart the app, and the natural way to do that — kill the app right
+        // where you're standing — never runs `viewWillDisappear`, so a deferred write is lost.
         section <<< SwitchRow {
             $0.tag = FeatureFlags.useMapPanelExperienceKey
             $0.title = OBALoc("settings_controller.experimental_section.map_panel", value: "Use map panel experience", comment: "Settings > Experimental section > Map panel toggle")
+            $0.onChange { [weak self] row in
+                guard let self, let value = row.value else { return }
+                application.userDefaults.set(value, forKey: FeatureFlags.useMapPanelExperienceKey)
+            }
         }
 
         section <<< SwitchRow {
             $0.tag = FeatureFlags.useNewStopPageKey
             $0.title = OBALoc("settings_controller.experimental_section.new_stop_page", value: "Use new stop page", comment: "Settings > Experimental section > New stop page toggle")
+            $0.onChange { [weak self] row in
+                guard let self, let value = row.value else { return }
+                application.userDefaults.set(value, forKey: FeatureFlags.useNewStopPageKey)
+            }
         }
 
         return section
@@ -328,6 +349,51 @@ class SettingsViewController: FormViewController {
         return section
     }()
 
+    // MARK: - Feedback Section
+
+    private let alwaysShowFeedbackPrompt = "alwaysShowFeedbackPrompt"
+
+    private lazy var feedbackSection: Section = {
+        let section = Section(
+            header: OBALoc("settings_controller.feedback_section.title", value: "Feedback", comment: "Settings > Feedback section title"),
+            footer: OBALoc(
+                "settings_controller.feedback_section.footer",
+                value: "Resetting clears the saved prompt state but leaves this toggle turned on.",
+                comment: "Settings > Feedback section > Footer noting that resetting the prompt state does not turn the debug toggle off"
+            )
+        )
+
+        // Developer controls, not rider-facing ones — hidden with the rest of the
+        // debug affordances. Gated at the section so the header and the footer's
+        // implementation detail go with them.
+        section.hidden = Self.hiddenUnlessDebugMode(debugModeEnabled)
+
+        // Writes on change instead of waiting for `saveFormValues()`, matching the
+        // Experimental section's precedent: a tester who kills the app to relaunch
+        // never triggers `viewWillDisappear`, so a deferred write would be lost.
+        section <<< SwitchRow {
+            $0.tag = alwaysShowFeedbackPrompt
+            $0.title = OBALoc("settings_controller.feedback_section.always_show", value: "Always show feedback prompt", comment: "Settings > Feedback section > Debug toggle that bypasses the prompt's gating")
+            $0.onChange { [weak self] row in
+                guard let self, let value = row.value else { return }
+                application.reviewPromptPolicy.alwaysShowPrompt = value
+            }
+        }
+
+        section <<< ButtonRow {
+            $0.title = OBALoc("settings_controller.feedback_section.reset", value: "Reset feedback prompt state", comment: "Settings > Feedback section > Clears all feedback prompt bookkeeping")
+            $0.onCellSelection { [weak self] _, _ in
+                guard let self else { return }
+                application.reviewPromptPolicy.reset()
+                // Also clear the coordinator's 14-day engagement cooldown, or a
+                // reset leaves QA blocked for two weeks.
+                application.promptCoordinator.reset()
+            }
+        }
+
+        return section
+    }()
+
     // MARK: - Debug Section
 
     private let debugModeEnabled = "debugModeEnabled"
@@ -365,6 +431,14 @@ class SettingsViewController: FormViewController {
                 if let testAlertsRow = form.rowBy(tag: AgencyAlertsStore.UserDefaultKeys.displayRegionalTestAlerts) as? SwitchRow {
                     testAlertsRow.value = false
                 }
+                // The override outlives its own UI otherwise: the row hides with the
+                // section, but the persisted flag keeps bypassing every prompt gate on
+                // what now looks like an ordinary install. Written directly as well as
+                // through the row, so it holds whether or not the row has been built.
+                if let alwaysShowRow = form.rowBy(tag: alwaysShowFeedbackPrompt) as? SwitchRow {
+                    alwaysShowRow.value = false
+                }
+                application.reviewPromptPolicy.alwaysShowPrompt = false
             }
         }
 

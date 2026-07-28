@@ -259,6 +259,30 @@
 /* A button that says continue and don't show again. */
 "fare_payments.dont_show_again" = "Continua e non mostrare più";
 
+/* Defers the feedback prompt. */
+"feedback_prompt.later_button" = "Chiedimelo più tardi";
+
+/* Body of the follow-up alert after negative feedback. */
+"feedback_prompt.negative.body" = "Vuoi dirci cosa non va? Leggiamo tutti i messaggi.";
+
+/* Declines to send feedback. */
+"feedback_prompt.negative.decline_button" = "No, grazie";
+
+/* Opens the feedback email composer. */
+"feedback_prompt.negative.send_button" = "Invia feedback";
+
+/* Title of the follow-up alert after negative feedback. */
+"feedback_prompt.negative.title" = "Ci dispiace.";
+
+/* Negative answer to the feedback prompt. */
+"feedback_prompt.negative_button" = "Non molto";
+
+/* Positive answer to the feedback prompt. */
+"feedback_prompt.positive_button" = "Sì!";
+
+/* Title of the alert asking how the rider likes the app. %@ is the app name. */
+"feedback_prompt.title" = "Ti piace %@?";
+
 /* A voiceover title describing the 'grabber' for controlling the visibility of a card. */
 "floating_panel.controller.accessibility_label" = "Obliteratrice";
 
@@ -523,6 +547,9 @@
 
 /* A link to the app's Privacy Policy */
 "more_controller.privacy_row_title" = "Informativa sulla privacy";
+
+/* A row that opens the App Store review form. %@ is the app name. */
+"more_controller.rate_app" = "Valuta %@";
 
 /* Title of the More tab
    Title of the More tab / accessibility label for the map-panel more button. */
@@ -966,6 +993,18 @@
 /* Settings > Experimental section title */
 "settings_controller.experimental_section.title" = "Sperimentale";
 
+/* Settings > Feedback section > Debug toggle that bypasses the prompt's gating */
+"settings_controller.feedback_section.always_show" = "Mostra sempre la richiesta di feedback";
+
+/* Settings > Feedback section > Footer noting that resetting the prompt state does not turn the debug toggle off */
+"settings_controller.feedback_section.footer" = "La reimpostazione cancella lo stato salvato, ma lascia questa opzione attiva.";
+
+/* Settings > Feedback section > Clears all feedback prompt bookkeeping */
+"settings_controller.feedback_section.reset" = "Reimposta lo stato della richiesta di feedback";
+
+/* Settings > Feedback section title */
+"settings_controller.feedback_section.title" = "Feedback";
+
 /* Settings > Map section > Show my current heading */
 "settings_controller.map_section.shows_heading" = "Mostra la mia direzione attuale";
 
@@ -1196,6 +1235,12 @@
 
 /* Adherence label for a departure with no real-time signal; deliberately avoids claiming the bus is on time. */
 "stop_page.status.schedule_data" = "dati di orario";
+
+/* VoiceOver clause naming the clock time of a departure. %@ is the time. */
+"stop_page.time.a11y_at_fmt" = "alle %@";
+
+/* VoiceOver clause for a departure whose real-time prediction differs from its scheduled time. %1$@ is the scheduled time, %2$@ the predicted time. */
+"stop_page.time.a11y_rescheduled_fmt" = "da orario alle %1$@, ora previsto alle %2$@";
 
 /* Gap marker in the approach timeline. %d is the number of elided stops between the vehicle and the stops shown. Plural forms live in Localizable.stringsdict; the value above is only the not-found fallback. */
 "stop_page.timeline.skipped_stops_fmt" = "%d fermate";

@@ -83,6 +83,18 @@ public class Application: CoreApplication, PushServiceDelegate, WCSessionDelegat
         appLaunchCount: { [userDataStore] in userDataStore.appLaunchCount }
     )
 
+    @MainActor
+    lazy var promptCoordinator = PromptCoordinator(
+        userDefaults: userDefaults,
+        notificationCenter: notificationCenter
+    )
+
+    @MainActor
+    lazy var reviewPromptPolicy = ReviewPromptPolicy(
+        userDefaults: userDefaults,
+        bundle: applicationBundle
+    )
+
     /// Responsible for figuring out how to navigate between view controllers.
     @MainActor
     lazy var viewRouter = ViewRouter(application: self)
@@ -333,16 +345,15 @@ public class Application: CoreApplication, PushServiceDelegate, WCSessionDelegat
         }
     )
 
+    // Deliberately no Simulator carve-out: Simulators get real (sandbox) APNs tokens, so don't
+    // re-add a `#if targetEnvironment(simulator)` guard here. See docs/push-notifications.md §6
+    // for what a sandbox token does and doesn't receive.
     private func configurePushNotifications(launchOptions: [AnyHashable: Any]) {
         guard let pushServiceProvider = config.pushServiceProvider else { return }
 
-        #if targetEnvironment(simulator)
-            Logger.warn("Push notifications don't work on the Simulator. Run this app on a device instead!")
-            return
-        #else
-            self.pushService = PushService(serviceProvider: pushServiceProvider, delegate: self)
-            self.pushService?.start(launchOptions: launchOptions)
-        #endif
+        let pushService = PushService(serviceProvider: pushServiceProvider, delegate: self)
+        self.pushService = pushService
+        pushService.start(launchOptions: launchOptions)
     }
 
     public func pushServicePresentingController(_ pushService: PushService) -> UIViewController? {
@@ -406,10 +417,17 @@ public class Application: CoreApplication, PushServiceDelegate, WCSessionDelegat
     }
 
     private func presentDonationUI(_ presentingController: UIViewController, id: String?) {
+        // `donationsEnabled` already folds in `obacoService != nil`, which is
+        // exactly what `buildLearnMoreView`/`buildObservableDonationModel` need
+        // to succeed — without this guard, a push arriving while donations are
+        // disabled or Obaco is unavailable would both persist a false "shown"
+        // state and crash on `buildLearnMoreView`'s internal `fatalError()`.
+        guard donationsManager.donationsEnabled else { return }
+
         analytics?.reportEvent(pageURL: "app://localhost/donations", label: AnalyticsLabels.donationPushNotificationTapped, value: id)
 
         let learnMoreView = donationsManager.buildLearnMoreView(presentingController: presentingController, donationPushNotificationID: id)
-        presentingController.present(UIHostingController(rootView: learnMoreView), animated: true)
+        presentingController.presentDonationModal(learnMoreView, coordinator: promptCoordinator)
     }
 
     // MARK: - Alerts Store
@@ -506,8 +524,8 @@ public class Application: CoreApplication, PushServiceDelegate, WCSessionDelegat
         // Re-register the push token with OBACloud so the server's inactivity prune never
         // drops this device, and so locale changes propagate. The manager dedupes, so this
         // only hits the network when something changed or the last POST is older than
-        // PushRegistrationManager.refreshInterval. Skipped on the Simulator and in apps
-        // without a configured push provider, where pushService is never set.
+        // PushRegistrationManager.refreshInterval. Skipped in apps without a configured
+        // push provider, where pushService is never set.
         if pushService != nil {
             Task { await pushRegistrationManager.refreshRegistration() }
         }
@@ -664,11 +682,16 @@ public class Application: CoreApplication, PushServiceDelegate, WCSessionDelegat
 
                     // Construct Region from URL data. umamiAnalytics applies the
                     // both-or-nothing rule; no rule logic lives here.
+                    //
+                    // regionIdentifier must come from the link: Region falls back to a
+                    // random id when it's nil, and every Obaco call for the region then
+                    // 404s against an id the sidecar has never heard of.
                     let currentRegion = Region(
                         name: regionData.name,
                         OBABaseURL: regionData.obaURL,
                         coordinateRegion: adjustedRegionCoordinate,
                         contactEmail: "example@example.com",
+                        regionIdentifier: regionData.regionID,
                         openTripPlannerURL: regionData.otpURL,
                         sidecarBaseURL: regionData.sidecarURL,
                         umamiAnalytics: regionData.umamiAnalytics)

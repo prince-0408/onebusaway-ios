@@ -21,6 +21,10 @@ public struct StopURLData {
 ///
 /// - Parameters:
 ///   - name: The name of the region to be added. This is a human-readable string that identifies the region.
+///   - regionID: The region's identifier on the Obaco sidecar. Optional, because links generated before
+///               `region-id` was emitted omit it — but every sidecar-backed feature (alerts, alarms, push
+///               registration, surveys) 404s when it's missing, since `Region` then falls back to a random
+///               identifier the sidecar has never heard of.
 ///   - obaURL: The URL to the OneBusAway (OBA) server for the region. This URL is used to access transit data.
 ///   - otpURL: An optional URL to the OpenTripPlanner (OTP) server, used for trip planning.
 ///   - sidecarURL: An optional base URL for the Obaco sidecar server.
@@ -30,6 +34,7 @@ public struct StopURLData {
 ///              invalid URL); use `umamiAnalytics`.
 public struct AddRegionURLData {
     public let name: String
+    public let regionID: Int?
     public let obaURL: URL
     public let otpURL: URL?
     public let sidecarURL: URL?
@@ -57,7 +62,7 @@ public enum URLType {
 }
 /// Provides support for deep linking into the app by way of a custom URL scheme.
 ///
-/// Custom URL scheme deep linking (e.g. `onebusaway://view-stop?region_id=1&stop_id=12345`)
+/// Custom URL scheme deep linking (e.g. `onebusaway://view-stop?stopID=12345&regionID=1`)
 /// is the most reliable way to perform deep linking into the iOS app from an extension like the Today View.
 /// The only reason we don't use it everywhere is because the URLs generated are completely useless unless
 /// their recipient has a compatible version of OneBusAway installed on their device.
@@ -118,8 +123,8 @@ public class URLSchemeRouter: NSObject {
 
     // MARK: - Add Region URLs
     /// Decodes an `AddRegionURLData` from `add-region` URL components. `name` and a valid
-    /// `oba-url` are required; `otp-url`, `sidecar-url`, `umami-url`, and `umami-id` are
-    /// optional, and invalid optional values degrade to `nil`.
+    /// `oba-url` are required; `region-id`, `otp-url`, `sidecar-url`, `umami-url`, and
+    /// `umami-id` are optional, and invalid optional values degrade to `nil`.
     private func decodeAddRegion(from components: URLComponents) -> URLType? {
         guard
             let name = components.queryItem(named: "name")?.value,
@@ -134,8 +139,16 @@ public class URLSchemeRouter: NSObject {
             umamiID = trimmed.isEmpty ? nil : trimmed
         }
 
+        // A malformed region-id degrades to nil rather than rejecting the link:
+        // the region is still worth adding, it just loses sidecar features.
+        var regionID: Int?
+        if let rawRegionID = components.queryItem(named: "region-id")?.value {
+            regionID = Int(rawRegionID.strip())
+        }
+
         return .addRegion(AddRegionURLData(
             name: name,
+            regionID: regionID,
             obaURL: obaURL,
             otpURL: optionalURL(named: "otp-url", in: components),
             sidecarURL: optionalURL(named: "sidecar-url", in: components),
