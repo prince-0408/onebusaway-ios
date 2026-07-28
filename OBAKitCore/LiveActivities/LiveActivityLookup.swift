@@ -7,6 +7,8 @@
 //  LICENSE file in the root directory of this source tree.
 //
 
+#if canImport(ActivityKit)
+import Foundation
 import ActivityKit
 
 extension TripAttributes.StaticData {
@@ -53,3 +55,5 @@ extension Activity where Attributes == TripAttributes {
         }
     }
 }
+#endif
+
