@@ -8,7 +8,7 @@
 //
 
 import XCTest
-import Nimble
+import Testing
 @testable import OBAKitCore
 
 @MainActor
@@ -21,7 +21,7 @@ class ErrorClassifierTests: XCTestCase {
         let result = ErrorClassifier.classify(error, regionName: "Puget Sound")
 
         guard let apiError = result as? APIError else {
-            fail("Expected APIError, got \(type(of: result))")
+            Issue.record("Expected APIError, got \(type(of: result))")
             return
         }
 
@@ -29,7 +29,7 @@ class ErrorClassifierTests: XCTestCase {
         case .captivePortal:
             break // Expected
         default:
-            fail("Expected .captivePortal, got \(apiError)")
+            Issue.record("Expected .captivePortal, got \(apiError)")
         }
     }
 
@@ -40,7 +40,7 @@ class ErrorClassifierTests: XCTestCase {
         let result = ErrorClassifier.classify(error, regionName: "Puget Sound")
 
         guard let apiError = result as? APIError else {
-            fail("Expected APIError, got \(type(of: result))")
+            Issue.record("Expected APIError, got \(type(of: result))")
             return
         }
 
@@ -48,7 +48,7 @@ class ErrorClassifierTests: XCTestCase {
         case .requestNotFound:
             break // Expected — 404s should not become serverUnavailable
         default:
-            fail("Expected .requestNotFound, got \(apiError)")
+            Issue.record("Expected .requestNotFound, got \(apiError)")
         }
     }
 
@@ -57,7 +57,7 @@ class ErrorClassifierTests: XCTestCase {
         let result = ErrorClassifier.classify(error, regionName: "Puget Sound")
 
         guard let apiError = result as? APIError else {
-            fail("Expected APIError, got \(type(of: result))")
+            Issue.record("Expected APIError, got \(type(of: result))")
             return
         }
 
@@ -65,11 +65,32 @@ class ErrorClassifierTests: XCTestCase {
         case .noResponseBody:
             break // Expected
         default:
-            fail("Expected .noResponseBody, got \(apiError)")
+            Issue.record("Expected .noResponseBody, got \(apiError)")
         }
     }
 
-    // MARK: - Server Error Upgrade (5xx → serverUnavailable)
+    func test_classify_invalidContentType_passesThrough() {
+        let error = APIError.invalidContentType(
+            originalError: nil,
+            expectedContentType: "application/json",
+            actualContentType: "text/html"
+        )
+        let result = ErrorClassifier.classify(error, regionName: "Puget Sound")
+
+        guard let apiError = result as? APIError else {
+            Issue.record("Expected APIError, got \(type(of: result))")
+            return
+        }
+
+        switch apiError {
+        case .invalidContentType:
+            break
+        default:
+            Issue.record("Expected .invalidContentType, got \(apiError)")
+        }
+    }
+
+    // MARK: - Server Error Classification (500 vs other 5xx)
 
     func test_classify_requestFailure500_becomesServerError() {
         let url = URL(string: "https://api.pugetsound.onebusaway.org/api/where/stops.json")!
@@ -78,15 +99,15 @@ class ErrorClassifierTests: XCTestCase {
         let result = ErrorClassifier.classify(error, regionName: "Puget Sound")
 
         guard let apiError = result as? APIError else {
-            fail("Expected APIError, got \(type(of: result))")
+            Issue.record("Expected APIError, got \(type(of: result))")
             return
         }
 
         switch apiError {
         case .serverError(let regionName):
-            expect(regionName) == "Puget Sound"
+            #expect(regionName == "Puget Sound")
         default:
-            fail("Expected .serverError, got \(apiError)")
+            Issue.record("Expected .serverError, got \(apiError)")
         }
     }
 
@@ -94,10 +115,29 @@ class ErrorClassifierTests: XCTestCase {
         let error = APIError.serverError(regionName: "Puget Sound")
         let description = error.localizedDescription
 
-        expect(description).to(contain("Puget Sound"))
-        expect(description).to(contain("try again"))
+        #expect(description.contains("Puget Sound"))
+        #expect(description.contains("try again"))
     }
 
+    func test_classify_requestFailure502_becomesServerUnavailable() {
+        let url = URL(string: "https://api.pugetsound.onebusaway.org/api/where/stops.json")!
+        let response = HTTPURLResponse(url: url, statusCode: 502, httpVersion: nil, headerFields: nil)!
+        let error = APIError.requestFailure(response)
+        let result = ErrorClassifier.classify(error, regionName: "Puget Sound")
+
+        guard let apiError = result as? APIError else {
+            Issue.record("Expected APIError, got \(type(of: result))")
+            return
+        }
+
+        switch apiError {
+        case .serverUnavailable(let regionName, let statusCode):
+            #expect(regionName == "Puget Sound")
+            #expect(statusCode == 502)
+        default:
+            Issue.record("Expected .serverUnavailable, got \(apiError)")
+        }
+    }
     func test_classify_requestFailure503_becomesServerUnavailable() {
         let url = URL(string: "https://api.pugetsound.onebusaway.org/api/where/stops.json")!
         let response = HTTPURLResponse(url: url, statusCode: 503, httpVersion: nil, headerFields: nil)!
@@ -105,19 +145,37 @@ class ErrorClassifierTests: XCTestCase {
         let result = ErrorClassifier.classify(error, regionName: "Tampa")
 
         guard let apiError = result as? APIError else {
-            fail("Expected APIError, got \(type(of: result))")
+            Issue.record("Expected APIError, got \(type(of: result))")
             return
         }
 
         switch apiError {
         case .serverUnavailable(let regionName, let statusCode):
-            expect(regionName) == "Tampa"
-            expect(statusCode) == 503
+            #expect(regionName == "Tampa")
+            #expect(statusCode == 503)
         default:
-            fail("Expected .serverUnavailable, got \(apiError)")
+            Issue.record("Expected .serverUnavailable, got \(apiError)")
         }
     }
 
+    func test_classify_requestFailure501_doesNotBecomeServerUnavailable() {
+        let url = URL(string: "https://api.pugetsound.onebusaway.org/api/where/stops.json")!
+        let response = HTTPURLResponse(url: url, statusCode: 501, httpVersion: nil, headerFields: nil)!
+        let error = APIError.requestFailure(response)
+        let result = ErrorClassifier.classify(error, regionName: "Puget Sound")
+
+        guard let apiError = result as? APIError else {
+            Issue.record("Expected APIError, got \(type(of: result))")
+            return
+        }
+
+        switch apiError {
+        case .requestFailure(let resp):
+            #expect(resp.statusCode == 501)
+        default:
+            Issue.record("Expected .requestFailure for 501, got \(apiError)")
+        }
+    }
     func test_classify_requestFailure500_withoutRegionName_staysAsRequestFailure() {
         let url = URL(string: "https://api.pugetsound.onebusaway.org/api/where/stops.json")!
         let response = HTTPURLResponse(url: url, statusCode: 500, httpVersion: nil, headerFields: nil)!
@@ -125,18 +183,36 @@ class ErrorClassifierTests: XCTestCase {
         let result = ErrorClassifier.classify(error, regionName: nil)
 
         guard let apiError = result as? APIError else {
-            fail("Expected APIError, got \(type(of: result))")
+            Issue.record("Expected APIError, got \(type(of: result))")
             return
         }
 
         switch apiError {
         case .requestFailure(let resp):
-            expect(resp.statusCode) == 500
+            #expect(resp.statusCode == 500)
         default:
-            fail("Expected .requestFailure to pass through when regionName is nil, got \(apiError)")
+            Issue.record("Expected .requestFailure to pass through when regionName is nil, got \(apiError)")
         }
     }
 
+    func test_classify_requestFailure503_withoutRegionName_staysAsRequestFailure() {
+        let url = URL(string: "https://api.pugetsound.onebusaway.org/api/where/stops.json")!
+        let response = HTTPURLResponse(url: url, statusCode: 503, httpVersion: nil, headerFields: nil)!
+        let error = APIError.requestFailure(response)
+        let result = ErrorClassifier.classify(error, regionName: nil)
+
+        guard let apiError = result as? APIError else {
+            Issue.record("Expected APIError, got \(type(of: result))")
+            return
+        }
+
+        switch apiError {
+        case .requestFailure(let resp):
+            #expect(resp.statusCode == 503)
+        default:
+            Issue.record("Expected .requestFailure to pass through when regionName is nil, got \(apiError)")
+        }
+    }
     func test_classify_requestFailure400_doesNotBecomeServerUnavailable() {
         let url = URL(string: "https://api.pugetsound.onebusaway.org/api/where/stops.json")!
         let response = HTTPURLResponse(url: url, statusCode: 400, httpVersion: nil, headerFields: nil)!
@@ -144,19 +220,71 @@ class ErrorClassifierTests: XCTestCase {
         let result = ErrorClassifier.classify(error, regionName: "Puget Sound")
 
         guard let apiError = result as? APIError else {
-            fail("Expected APIError, got \(type(of: result))")
+            Issue.record("Expected APIError, got \(type(of: result))")
             return
         }
 
         // 4xx errors are client errors, not server-down situations.
         switch apiError {
         case .requestFailure(let resp):
-            expect(resp.statusCode) == 400
+            #expect(resp.statusCode == 400)
         default:
-            fail("Expected .requestFailure for 4xx, got \(apiError)")
+            Issue.record("Expected .requestFailure for 4xx, got \(apiError)")
         }
     }
 
+    // MARK: - Cellular Data Restriction (Injectable)
+
+    func test_classify_networkFailure_withCellularRestricted_becomesCellularDataRestricted() {
+        let error = APIError.networkFailure(nil)
+        let result = ErrorClassifier.classify(error, regionName: "Puget Sound", isCellularDataRestricted: true)
+
+        guard let apiError = result as? APIError else {
+            Issue.record("Expected APIError, got \(type(of: result))")
+            return
+        }
+
+        switch apiError {
+        case .cellularDataRestricted:
+            break
+        default:
+            Issue.record("Expected .cellularDataRestricted, got \(apiError)")
+        }
+    }
+
+    func test_classify_networkFailure_withoutCellularRestricted_staysAsNetworkFailure() {
+        let error = APIError.networkFailure(nil)
+        let result = ErrorClassifier.classify(error, regionName: "Puget Sound", isCellularDataRestricted: false)
+
+        guard let apiError = result as? APIError else {
+            Issue.record("Expected APIError, got \(type(of: result))")
+            return
+        }
+
+        switch apiError {
+        case .networkFailure:
+            break
+        default:
+            Issue.record("Expected .networkFailure, got \(apiError)")
+        }
+    }
+
+    func test_classify_urlErrorNotConnected_withCellularRestricted_becomesCellularDataRestricted() {
+        let urlError = NSError(domain: NSURLErrorDomain, code: NSURLErrorNotConnectedToInternet, userInfo: nil)
+        let result = ErrorClassifier.classify(urlError, regionName: "Puget Sound", isCellularDataRestricted: true)
+
+        guard let apiError = result as? APIError else {
+            Issue.record("Expected APIError, got \(type(of: result))")
+            return
+        }
+
+        switch apiError {
+        case .cellularDataRestricted:
+            break
+        default:
+            Issue.record("Expected .cellularDataRestricted, got \(apiError)")
+        }
+    }
     // MARK: - DecodingError Classification
 
     func test_classify_decodingError_withRegionName_becomesServerUnavailable() {
@@ -167,16 +295,16 @@ class ErrorClassifierTests: XCTestCase {
         let result = ErrorClassifier.classify(decodingError, regionName: "San Diego")
 
         guard let apiError = result as? APIError else {
-            fail("Expected APIError, got \(type(of: result))")
+            Issue.record("Expected APIError, got \(type(of: result))")
             return
         }
 
         switch apiError {
         case .serverUnavailable(let regionName, let statusCode):
-            expect(regionName) == "San Diego"
-            expect(statusCode).to(beNil())
+            #expect(regionName == "San Diego")
+            #expect(statusCode == nil)
         default:
-            fail("Expected .serverUnavailable, got \(apiError)")
+            Issue.record("Expected .serverUnavailable, got \(apiError)")
         }
     }
 
@@ -188,8 +316,8 @@ class ErrorClassifierTests: XCTestCase {
 
         // Should NOT be the raw "The data couldn't be read because it is missing."
         let description = result.localizedDescription
-        expect(description).toNot(contain("couldn't be read"))
-        expect(description).to(contain("server"))
+        #expect(!description.contains("couldn't be read"))
+        #expect(description.contains("server"))
     }
 
     // MARK: - NSURLError Classification
@@ -199,15 +327,15 @@ class ErrorClassifierTests: XCTestCase {
         let result = ErrorClassifier.classify(urlError, regionName: "York Region")
 
         guard let apiError = result as? APIError else {
-            fail("Expected APIError, got \(type(of: result))")
+            Issue.record("Expected APIError, got \(type(of: result))")
             return
         }
 
         switch apiError {
         case .serverUnavailable(let regionName, _):
-            expect(regionName) == "York Region"
+            #expect(regionName == "York Region")
         default:
-            fail("Expected .serverUnavailable for timeout, got \(apiError)")
+            Issue.record("Expected .serverUnavailable for timeout, got \(apiError)")
         }
     }
 
@@ -216,24 +344,40 @@ class ErrorClassifierTests: XCTestCase {
         let result = ErrorClassifier.classify(urlError, regionName: "Tampa")
 
         guard let apiError = result as? APIError else {
-            fail("Expected APIError, got \(type(of: result))")
+            Issue.record("Expected APIError, got \(type(of: result))")
             return
         }
 
         switch apiError {
         case .serverUnavailable(let regionName, _):
-            expect(regionName) == "Tampa"
+            #expect(regionName == "Tampa")
         default:
-            fail("Expected .serverUnavailable, got \(apiError)")
+            Issue.record("Expected .serverUnavailable, got \(apiError)")
         }
     }
 
+    func test_classify_urlErrorCannotFindHost_withRegionName_becomesServerUnavailable() {
+        let urlError = NSError(domain: NSURLErrorDomain, code: NSURLErrorCannotFindHost, userInfo: nil)
+        let result = ErrorClassifier.classify(urlError, regionName: "San Diego")
+
+        guard let apiError = result as? APIError else {
+            Issue.record("Expected APIError, got \(type(of: result))")
+            return
+        }
+
+        switch apiError {
+        case .serverUnavailable(let regionName, _):
+            #expect(regionName == "San Diego")
+        default:
+            Issue.record("Expected .serverUnavailable, got \(apiError)")
+        }
+    }
     func test_classify_urlErrorTimedOut_withoutRegionName_becomesNetworkFailure() {
         let urlError = NSError(domain: NSURLErrorDomain, code: NSURLErrorTimedOut, userInfo: nil)
         let result = ErrorClassifier.classify(urlError, regionName: nil)
 
         guard let apiError = result as? APIError else {
-            fail("Expected APIError, got \(type(of: result))")
+            Issue.record("Expected APIError, got \(type(of: result))")
             return
         }
 
@@ -241,7 +385,7 @@ class ErrorClassifierTests: XCTestCase {
         case .networkFailure:
             break // Expected fallback when no region name
         default:
-            fail("Expected .networkFailure when regionName is nil, got \(apiError)")
+            Issue.record("Expected .networkFailure when regionName is nil, got \(apiError)")
         }
     }
 
@@ -273,7 +417,7 @@ class ErrorClassifierTests: XCTestCase {
         let result = ErrorClassifier.classify(urlError, regionName: "Puget Sound")
 
         guard let apiError = result as? APIError else {
-            fail("Expected APIError, got \(type(of: result))")
+            Issue.record("Expected APIError, got \(type(of: result))")
             return
         }
 
@@ -281,10 +425,63 @@ class ErrorClassifierTests: XCTestCase {
         case .networkFailure:
             break // Expected
         default:
-            fail("Expected .networkFailure for unknown URL error, got \(apiError)")
+            Issue.record("Expected .networkFailure for unknown URL error, got \(apiError)")
         }
     }
 
+    // MARK: - Idempotency (already-classified errors pass through unchanged)
+
+    func test_classify_serverError_passesThrough() {
+        let error = APIError.serverError(regionName: "Puget Sound")
+        let result = ErrorClassifier.classify(error, regionName: "Tampa")
+
+        guard let apiError = result as? APIError else {
+            Issue.record("Expected APIError, got \(type(of: result))")
+            return
+        }
+
+        switch apiError {
+        case .serverError(let regionName):
+            #expect(regionName == "Puget Sound")
+        default:
+            Issue.record("Expected .serverError to pass through, got \(apiError)")
+        }
+    }
+
+    func test_classify_serverUnavailable_passesThrough() {
+        let error = APIError.serverUnavailable(regionName: "Puget Sound", statusCode: 503)
+        let result = ErrorClassifier.classify(error, regionName: "Tampa")
+
+        guard let apiError = result as? APIError else {
+            Issue.record("Expected APIError, got \(type(of: result))")
+            return
+        }
+
+        switch apiError {
+        case .serverUnavailable(let regionName, let statusCode):
+            #expect(regionName == "Puget Sound")
+            #expect(statusCode == 503)
+        default:
+            Issue.record("Expected .serverUnavailable to pass through, got \(apiError)")
+        }
+    }
+
+    func test_classify_cellularDataRestricted_passesThrough() {
+        let error = APIError.cellularDataRestricted
+        let result = ErrorClassifier.classify(error, regionName: "Puget Sound")
+
+        guard let apiError = result as? APIError else {
+            Issue.record("Expected APIError, got \(type(of: result))")
+            return
+        }
+
+        switch apiError {
+        case .cellularDataRestricted:
+            break
+        default:
+            Issue.record("Expected .cellularDataRestricted to pass through, got \(apiError)")
+        }
+    }
     // MARK: - Non-Network Errors Pass Through
 
     func test_classify_arbitraryError_passesThrough() {
@@ -293,7 +490,7 @@ class ErrorClassifierTests: XCTestCase {
         ])
         let result = ErrorClassifier.classify(error, regionName: "Puget Sound")
 
-        expect(result.localizedDescription) == "Something unrelated happened"
+        #expect(result.localizedDescription == "Something unrelated happened")
     }
 
     // MARK: - serverUnavailable Error Description
@@ -302,16 +499,16 @@ class ErrorClassifierTests: XCTestCase {
         let error = APIError.serverUnavailable(regionName: "Puget Sound", statusCode: 502)
         let description = error.localizedDescription
 
-        expect(description).to(contain("Puget Sound"))
-        expect(description).to(contain("down"))
+        #expect(description.contains("Puget Sound"))
+        #expect(description.contains("down"))
     }
 
     func test_cellularDataRestricted_errorDescription_mentionsSettings() {
         let error = APIError.cellularDataRestricted
         let description = error.localizedDescription
 
-        expect(description).to(contain("Settings"))
-        expect(description).to(contain("Cellular"))
+        #expect(description.contains("Settings"))
+        #expect(description.contains("Cellular"))
     }
 }
 
