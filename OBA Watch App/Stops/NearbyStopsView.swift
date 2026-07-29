@@ -175,53 +175,61 @@ struct NearbyStopRow: View {
     let routesSummary: String?
     
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 10) {
             Image(systemName: stop.iconName)
-                .font(.system(size: 14, weight: .bold))
+                .font(.system(size: 13, weight: .bold))
                 .foregroundColor(.white)
-                .frame(width: 30, height: 30)
+                .frame(width: 32, height: 32)
                 .background(Color.green.gradient)
                 .clipShape(Circle())
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 3) {
                 Text(stop.name)
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(.system(size: 15, weight: .semibold))
                     .foregroundColor(.white)
                     .lineLimit(1)
                 
-                HStack(spacing: 6) {
+                HStack(spacing: 4) {
                     if let code = stop.code {
                         Text(String(format: OBALoc("nearby_stops.stop_code_fmt", value: "#%@", comment: "Stop code format"), code))
-                            .font(.system(size: 12))
+                            .font(.system(size: 11))
                             .foregroundColor(.secondary)
+                            .lineLimit(1)
                     }
 
                     if let location = currentLocation, stop.latitude != 0.0 || stop.longitude != 0.0 {
                         let stopLocation = CLLocation(latitude: stop.latitude, longitude: stop.longitude)
-                        if let walkInfo = WalkTimeInfo.compute(from: location, to: stopLocation) {
+                        if stop.code != nil {
                             Text("•")
-                                .font(.system(size: 12))
+                                .font(.system(size: 11))
                                 .foregroundColor(.secondary)
+                        }
+
+                        if let walkInfo = WalkTimeInfo.compute(from: location, to: stopLocation) {
                             Text(walkInfo.formattedWalkTime)
-                                .font(.system(size: 12, weight: .medium))
+                                .font(.system(size: 11, weight: .medium))
                                 .foregroundColor(.secondary)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.85)
                         } else {
                             let distance = stopLocation.distance(from: location)
-                            Text(formatDistance(distance))
-                                .font(.system(size: 12, weight: .medium))
+                            Text("🚶 \(formatDistance(distance))")
+                                .font(.system(size: 11, weight: .medium))
                                 .foregroundColor(.secondary)
+                                .lineLimit(1)
                         }
                     }
                 }
 
-                if let routesSummary {
+                if let routesSummary, !routesSummary.isEmpty {
                     Text(routesSummary)
-                        .font(.system(size: 12))
-                        .foregroundColor(.secondary)
+                        .font(.system(size: 11, weight: .regular))
+                        .foregroundColor(.blue.opacity(0.9))
                         .lineLimit(1)
                 }
             }
         }
+        .padding(.vertical, 3)
     }
     
     private func formatDistance(_ meters: Double) -> String {

@@ -36,8 +36,14 @@ struct WalkTimeInfo: Equatable {
         distanceFormatter.units = .default
         let distString = distanceFormatter.string(fromDistance: distance)
         
-        let walkFmt = OBALoc("walk_time.format", value: "🚶 %d min (%@)", comment: "Walk time format with minutes and distance")
-        let walkString = String(format: walkFmt, minutes, distString)
+        let walkString: String
+        if minutes > 120 {
+            let walkFmt = OBALoc("walk_time.distance_only_format", value: "🚶 %@", comment: "Walk distance format")
+            walkString = String(format: walkFmt, distString)
+        } else {
+            let walkFmt = OBALoc("walk_time.format", value: "🚶 %d min (%@)", comment: "Walk time format with minutes and distance")
+            walkString = String(format: walkFmt, minutes, distString)
+        }
         
         return WalkTimeInfo(minutes: minutes, formattedDistance: distString, formattedWalkTime: walkString)
     }

@@ -126,14 +126,12 @@ struct StopArrivalsView: View {
                     }
                 }
                 .padding(.vertical, 4)
-            }
-            .listRowBackground(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(Color.white.opacity(0.1))
-            )
+                .listRowBackground(
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(Color.white.opacity(0.1))
+                )
 
-            if viewModel.availableRouteFilters.count > 1 {
-                Section {
+                if viewModel.availableRouteFilters.count > 1 {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 6) {
                             Button {
@@ -169,8 +167,9 @@ struct StopArrivalsView: View {
                             }
                         }
                     }
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets(top: 2, leading: 0, bottom: 2, trailing: 0))
                 }
-                .listRowBackground(Color.clear)
             }
 
             if viewModel.isLoading {
@@ -425,88 +424,101 @@ struct ArrivalRowView: View {
     let arrival: OBAArrival
     var relativeTransferInfo: (text: String, isMissed: Bool)? = nil
     
+    @State private var showAlertSheet = false
+    
     var body: some View {
-        HStack(spacing: 8) {
-            // Route badge
-            Text(arrival.routeShortName ?? "?")
-                .font(.system(size: 13, weight: .bold, design: .rounded))
-                .foregroundColor(.white)
-                .frame(minWidth: 38)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 3)
-                .background(
-                    Capsule()
-                        .fill(routeColor)
-                )
-            
-            VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: 5) {
+            // Header: Route Pill + Headsign + Service Alert Icon
+            HStack(alignment: .center, spacing: 6) {
+                // Route badge
+                Text(arrival.routeShortName ?? "?")
+                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
+                    .background(
+                        Capsule()
+                            .fill(routeColor)
+                    )
+                    .layoutPriority(2)
+                
                 Text(arrival.headsign ?? OBALoc("common.unknown", value: "Unknown", comment: "Unknown value"))
-                    .font(.subheadline)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(.primary)
                     .lineLimit(1)
+                    .layoutPriority(1)
                 
-                HStack(spacing: 4) {
-                    if arrival.isPredicted {
-                        Image(systemName: "location.fill")
-                            .font(.system(size: 8))
-                            .foregroundColor(.green)
-                    }
-                    
-                    TimelineView(.periodic(from: .now, by: 1)) { context in
-                        let mins = arrival.minutesFromNow(at: context.date)
-                        Text(arrival.timeString(at: context.date))
-                            .font(.caption)
-                            .fontWeight(mins <= 1 ? .bold : .regular)
-                            .foregroundColor(mins <= 1 ? .green : .secondary)
-                    }
-                    
-                    if let statusLabel = arrival.scheduleStatusLabel {
-                        Text(statusLabel)
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                    }
-                }
+                Spacer(minLength: 0)
                 
-                if let relativeInfo = relativeTransferInfo {
-                    Text(relativeInfo.text)
-                        .font(.system(size: 10, weight: .semibold))
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 2)
-                        .background(relativeInfo.isMissed ? Color.red.opacity(0.2) : Color.green.opacity(0.2))
-                        .foregroundColor(relativeInfo.isMissed ? .red : .green)
-                        .cornerRadius(6)
+                if arrival.hasServiceAlert {
+                    Button {
+                        showAlertSheet = true
+                    } label: {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(.yellow)
+                    }
+                    .buttonStyle(.plain)
                 }
-
-                WatchOccupancyStatusView(occupancyStatus: arrival.occupancyEnum, realtimeData: arrival.isPredicted)
             }
             
-            Spacer()
-
-            if arrival.hasServiceAlert {
-                Button {
-                    showAlertSheet = true
-                } label: {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundColor(.yellow)
+            // Timing & Schedule Status Row
+            HStack(alignment: .center, spacing: 4) {
+                if arrival.isPredicted {
+                    Image(systemName: "location.fill")
+                        .font(.system(size: 9))
+                        .foregroundColor(.green)
                 }
-                .buttonStyle(.plain)
-                .sheet(isPresented: $showAlertSheet) {
-                    NavigationStack {
-                        ServiceAlertDetailView(alert: WatchServiceAlert(
-                            id: arrival.id,
-                            title: arrival.alertTitle ?? OBALoc("alerts.service_advisory", value: "Service Advisory", comment: "Service advisory title"),
-                            body: arrival.alertDescription,
-                            severity: "WARNING",
-                            affectedRoutes: arrival.routeShortName != nil ? [arrival.routeShortName!] : nil
-                        ))
+                
+                TimelineView(.periodic(from: .now, by: 1)) { context in
+                    let mins = arrival.minutesFromNow(at: context.date)
+                    Text(arrival.timeString(at: context.date))
+                        .font(.system(size: 14, weight: mins <= 1 ? .bold : .semibold, design: .rounded))
+                        .foregroundColor(mins <= 1 ? .green : (arrival.isPredicted ? .green : .primary))
+                        .lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: false)
+                }
+                
+                Spacer(minLength: 4)
+                
+                if let statusLabel = arrival.scheduleStatusLabel {
+                    Text(statusLabel)
+                        .font(.system(size: 11, weight: .regular))
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                }
+            }
+            
+            // Transfer / Occupancy info row (if present)
+            if relativeTransferInfo != nil || arrival.occupancyEnum != nil {
+                HStack(spacing: 6) {
+                    if let relativeInfo = relativeTransferInfo {
+                        Text(relativeInfo.text)
+                            .font(.system(size: 10, weight: .semibold))
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 2)
+                            .background(relativeInfo.isMissed ? Color.red.opacity(0.2) : Color.green.opacity(0.2))
+                            .foregroundColor(relativeInfo.isMissed ? .red : .green)
+                            .cornerRadius(6)
                     }
+
+                    WatchOccupancyStatusView(occupancyStatus: arrival.occupancyEnum, realtimeData: arrival.isPredicted)
                 }
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 3)
+        .sheet(isPresented: $showAlertSheet) {
+            NavigationStack {
+                ServiceAlertDetailView(alert: WatchServiceAlert(
+                    id: arrival.id,
+                    title: arrival.alertTitle ?? OBALoc("alerts.service_advisory", value: "Service Advisory", comment: "Service advisory title"),
+                    body: arrival.alertDescription,
+                    severity: "WARNING",
+                    affectedRoutes: arrival.routeShortName != nil ? [arrival.routeShortName!] : nil
+                ))
+            }
+        }
     }
-    
-    @State private var showAlertSheet = false
     
     private var routeColor: Color {
         // Use a consistent color based on route ID
@@ -515,6 +527,7 @@ struct ArrivalRowView: View {
         return Color(hue: hue, saturation: 0.7, brightness: 0.8)
     }
 }
+
 
 
 

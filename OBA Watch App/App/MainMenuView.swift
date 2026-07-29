@@ -15,6 +15,7 @@ struct MainMenuView: View {
     /// Becomes true only after the debounce window closes without a successful sync,
     /// preventing a flash on normal fast launches.
     @State private var showTimeSyncWarning: Bool = false
+    @State private var activeAlarms: [WatchAlarmItem] = AlarmsSyncManager.shared.currentAlarms()
 
     private var regionName: String {
         let defaultAppName = (Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String)
@@ -55,50 +56,17 @@ struct MainMenuView: View {
             }
 
             // Active Proximity Alarm Banner
-            if let activeAlarm = AlarmsSyncManager.shared.currentAlarms().first {
+            if let activeAlarm = activeAlarms.first {
                 Section {
-                    HStack(spacing: 8) {
-                        Image(systemName: "bell.fill")
-                            .font(.system(size: 16, weight: .bold))
-                            .foregroundColor(.orange)
-                        
-                        VStack(alignment: .leading, spacing: 2) {
-                            HStack(spacing: 4) {
-                                Text(activeAlarm.routeShortName ?? OBALoc("common.bus", value: "Bus", comment: "Default bus label"))
-                                    .font(.system(size: 13, weight: .bold))
-                                    .foregroundColor(.white)
-                                Text("•")
-                                    .foregroundColor(.secondary)
-                                Text(activeAlarm.headsign ?? "")
-                                    .font(.system(size: 10))
-                                    .foregroundColor(.secondary)
-                                    .lineLimit(1)
-                            }
-                            
-                            if let scheduled = activeAlarm.scheduledTime {
-                                Text(scheduled, style: .relative)
-                                    .font(.system(size: 11, weight: .semibold))
-                                    .foregroundColor(.orange)
-                            }
-                        }
-                        
-                        Spacer()
-                        
-                        Button {
-                            AlarmsSyncManager.shared.removeAlarm(stopID: activeAlarm.stopID, routeShortName: activeAlarm.routeShortName)
-                            AlarmHapticScheduler.shared.stopExtendedRuntimeSession()
-                        } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.system(size: 16))
-                                .foregroundColor(.secondary)
-                        }
-                        .buttonStyle(.plain)
+                    NavigationLink {
+                        LazyView(StopArrivalsView(stopID: activeAlarm.stopID, stopName: activeAlarm.headsign))
+                    } label: {
+                        activeAlarmBanner(for: activeAlarm)
                     }
-                    .padding(.vertical, 4)
                 }
                 .listRowBackground(
                     RoundedRectangle(cornerRadius: 14)
-                        .fill(Color.orange.opacity(0.15))
+                        .fill(Color.orange.opacity(0.18))
                         .overlay(
                             RoundedRectangle(cornerRadius: 14)
                                 .strokeBorder(Color.orange.opacity(0.4), lineWidth: 1)
@@ -168,6 +136,7 @@ struct MainMenuView: View {
         }
         .navigationTitle(regionName)
         .onAppear {
+            activeAlarms = AlarmsSyncManager.shared.currentAlarms()
             // Show the warning only after a 15-second window, so it doesn't
             // flash briefly on fast connections where sync completes quickly.
             Task {
@@ -181,8 +150,65 @@ struct MainMenuView: View {
                 }
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: AlarmsSyncManager.alarmsUpdatedNotification)) { _ in
+            activeAlarms = AlarmsSyncManager.shared.currentAlarms()
+        }
         .onChange(of: appState.timeSyncSucceeded) { _, succeeded in
             if succeeded { showTimeSyncWarning = false }
         }
+    }
+
+    @ViewBuilder
+    private func activeAlarmBanner(for activeAlarm: WatchAlarmItem) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "bell.fill")
+                .font(.system(size: 14, weight: .bold))
+                .foregroundColor(.orange)
+                .padding(6)
+                .background(Circle().fill(Color.orange.opacity(0.2)))
+            
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 4) {
+                    Text(activeAlarm.routeShortName ?? OBALoc("common.bus", value: "Bus", comment: "Default bus label"))
+                        .font(.system(size: 13, weight: .bold, design: .rounded))
+                        .foregroundColor(.white)
+                    
+                    if let headsign = activeAlarm.headsign, !headsign.isEmpty {
+                        Text("•")
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary)
+                        Text(headsign)
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                    }
+                }
+                
+                if let scheduled = activeAlarm.scheduledTime {
+                    Text(scheduled, style: .relative)
+                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .foregroundColor(.orange)
+                }
+            }
+            
+            Spacer(minLength: 4)
+            
+            Button {
+                WatchFeedbackGenerator.shared.click()
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    AlarmsSyncManager.shared.removeAlarm(stopID: activeAlarm.stopID, routeShortName: activeAlarm.routeShortName)
+                    AlarmHapticScheduler.shared.stopExtendedRuntimeSession()
+                    activeAlarms = AlarmsSyncManager.shared.currentAlarms()
+                }
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundColor(Color.white.opacity(0.75))
+                    .padding(4)
+                    .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.vertical, 4)
     }
 }
