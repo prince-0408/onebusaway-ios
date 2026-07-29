@@ -24,6 +24,8 @@ struct WatchInteractiveMapView: View {
     @State private var liveVehicles: [OBATripForLocation] = []
     @State private var isLoading = false
     @State private var timer: Timer?
+    @State private var routePolyline: [CLLocationCoordinate2D] = []
+    @State private var polylineRouteID: String? = nil
     
     init(initialRegion: MKCoordinateRegion? = nil, stops: [OBAStop] = [], vehicles: [OBAVehicle] = []) {
         self.initialRegion = initialRegion
@@ -48,6 +50,12 @@ struct WatchInteractiveMapView: View {
             Map(position: $mapPosition, selection: $selectedMarkerID) {
                 UserAnnotation()
                 
+                // Draw route line
+                if !routePolyline.isEmpty {
+                    MapPolyline(coordinates: routePolyline)
+                        .stroke(.blue, lineWidth: 3.5)
+                }
+                
                 // Stops: Markers with train or bus symbol based on transit mode
                 ForEach(displayedStops) { stop in
                     if stop.latitude != 0.0 || stop.longitude != 0.0 {
@@ -62,16 +70,35 @@ struct WatchInteractiveMapView: View {
                     }
                 }
                 
-                // Vehicles: Green Markers with a bus symbol
+                // Vehicles: Rotated arrowhead Annotations
                 ForEach(displayedVehicles) { vehicle in
                     if let lat = vehicle.latitude, let lon = vehicle.longitude {
                         let coord = CLLocationCoordinate2D(latitude: lat, longitude: lon)
-                        Marker(
+                        Annotation(
                             vehicle.routeShortName ?? "Bus",
-                            systemImage: "bus.fill",
                             coordinate: coord
-                        )
-                        .tint(.green)
+                        ) {
+                            VStack(spacing: 0) {
+                                Image(systemName: "location.north.navigation.fill")
+                                    .font(.system(size: 11, weight: .bold))
+                                    .foregroundColor(.white)
+                                    .rotationEffect(Angle(degrees: vehicle.orientation ?? 0))
+                                    .padding(4)
+                                    .background(Circle().fill(Color.green))
+                                    .overlay(
+                                        Circle().stroke(Color.white, lineWidth: 1.5)
+                                    )
+                                    .shadow(radius: 2)
+                                
+                                Text(vehicle.routeShortName ?? "Bus")
+                                    .font(.system(size: 7, weight: .bold))
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 4)
+                                    .padding(.vertical, 0.5)
+                                    .background(RoundedRectangle(cornerRadius: 3).fill(Color.black.opacity(0.7)))
+                                    .offset(y: 1)
+                            }
+                        }
                         .tag(vehicle.id)
                     }
                 }
@@ -85,28 +112,69 @@ struct WatchInteractiveMapView: View {
             
             // Tracked Vehicle Floating Banner
             if let vehicle = trackedVehicle {
-                HStack(spacing: 6) {
-                    Image(systemName: "bus.fill")
-                        .font(.system(size: 10))
-                        .foregroundColor(.green)
-                    Text("Tracking \(vehicle.routeShortName ?? "Bus")")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundColor(.white)
+                HStack(spacing: 8) {
+                    // Left circle badge
+                    ZStack {
+                        Circle()
+                            .fill(Color.blue.opacity(0.12))
+                            .frame(width: 28, height: 28)
+                        Image(systemName: "bus.fill")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(.blue)
+                    }
+                    
+                    // Middle text info
+                    VStack(alignment: .leading, spacing: 0) {
+                        if let lat = vehicle.latitude, let lon = vehicle.longitude {
+                            Text(formattedDistance(latitude: lat, longitude: lon))
+                                .font(.system(size: 13, weight: .bold))
+                                .foregroundColor(.primary)
+                        } else {
+                            Text("Tracking")
+                                .font(.system(size: 13, weight: .bold))
+                                .foregroundColor(.primary)
+                        }
+                        
+                        Text(vehicle.tripHeadsign ?? vehicle.routeShortName ?? "Vehicle")
+                            .font(.system(size: 9))
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                    }
+                    
+                    Spacer()
+                    
+                    // Direction Arrow (Live)
+                    if let lat = vehicle.latitude, let lon = vehicle.longitude {
+                        Image(systemName: "location.fill")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundColor(.blue)
+                            .rotationEffect(Angle(degrees: relativeBearing(lat: lat, lon: lon) - 45)) // location.fill points top-right (45 deg) by default
+                            .padding(.trailing, 2)
+                    }
+                    
+                    // Close button
                     Button {
                         withAnimation {
                             trackedVehicle = nil
                         }
                     } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 12))
-                            .foregroundColor(.gray)
+                        Image(systemName: "xmark")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(.secondary)
+                            .padding(5)
+                            .background(Circle().fill(Color.gray.opacity(0.15)))
                     }
                     .buttonStyle(.plain)
                 }
                 .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(Capsule().fill(Color.black.opacity(0.8)))
-                .padding(6)
+                .padding(.vertical, 6)
+                .background(
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(.ultraThinMaterial)
+                        .shadow(color: Color.black.opacity(0.2), radius: 4, x: 0, y: 2)
+                )
+                .padding(.horizontal, 6)
+                .padding(.top, 4)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             }
             
@@ -191,6 +259,18 @@ struct WatchInteractiveMapView: View {
                 selectedMarkerID = nil
             }
         }
+        .onChange(of: trackedVehicle) { _, newVehicle in
+            if let newVehicle = newVehicle, let routeID = newVehicle.routeID {
+                Task {
+                    await loadRoutePolyline(routeID: routeID)
+                }
+            } else {
+                withAnimation {
+                    routePolyline = []
+                    polylineRouteID = nil
+                }
+            }
+        }
     }
     
     private func loadOverlays() async {
@@ -231,5 +311,59 @@ struct WatchInteractiveMapView: View {
         } catch {
             Logger.error("Failed to fetch live vehicles for map: \(error)")
         }
+    }
+    
+    private func loadRoutePolyline(routeID: String) async {
+        guard polylineRouteID != routeID else { return }
+        polylineRouteID = routeID
+        do {
+            if let shapeID = try await appState.apiClient.fetchShapeIDForRoute(routeID: routeID) {
+                let encodedPoints = try await appState.apiClient.fetchShape(shapeID: shapeID)
+                let decoded = PolylineDecoder.decode(encodedPolyline: encodedPoints)
+                withAnimation {
+                    self.routePolyline = decoded
+                }
+            } else {
+                withAnimation {
+                    self.routePolyline = []
+                }
+            }
+        } catch {
+            Logger.error("Failed to fetch shape for route \(routeID): \(error)")
+            withAnimation {
+                self.routePolyline = []
+            }
+        }
+    }
+
+    private func formattedDistance(latitude: Double, longitude: Double) -> String {
+        let userLoc = appState.currentLocation ?? appState.effectiveLocation
+        let vehicleLoc = CLLocation(latitude: latitude, longitude: longitude)
+        let distance = userLoc.distance(from: vehicleLoc)
+        if distance < 1000 {
+            return String(format: "%.0f m", distance)
+        } else {
+            return String(format: "%.1f km", distance / 1000.0)
+        }
+    }
+    
+    private func relativeBearing(lat: Double, lon: Double) -> Double {
+        let userLoc = appState.currentLocation ?? appState.effectiveLocation
+        let from = userLoc.coordinate
+        let to = CLLocationCoordinate2D(latitude: lat, longitude: lon)
+        return bearing(from: from, to: to)
+    }
+    
+    private func bearing(from: CLLocationCoordinate2D, to: CLLocationCoordinate2D) -> Double {
+        let lat1 = from.latitude * .pi / 180
+        let lon1 = from.longitude * .pi / 180
+        let lat2 = to.latitude * .pi / 180
+        let lon2 = to.longitude * .pi / 180
+        
+        let dLon = lon2 - lon1
+        let y = sin(dLon) * cos(lat2)
+        let x = cos(lat1) * sin(lat2) - sin(lat1) * cos(lat2) * cos(dLon)
+        let radians = atan2(y, x)
+        return radians * 180 / .pi
     }
 }

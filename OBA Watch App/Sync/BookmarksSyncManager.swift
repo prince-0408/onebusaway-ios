@@ -50,6 +50,12 @@ final class BookmarksSyncManager {
                 UserDefaults.standard.set(encodedData, forKey: storageKey)
                 UserDefaults.standard.synchronize()
                 NotificationCenter.default.post(name: Self.bookmarksUpdatedNotification, object: nil)
+                
+                // Notify phone of the change
+                let message: [String: Any] = ["bookmarks": current.map { bm -> [String: Any] in
+                    (try? JSONSerialization.jsonObject(with: JSONEncoder().encode(bm)) as? [String: Any]) ?? [:]
+                }]
+                _ = WatchAppState.shared.sendMessageToPhone(message)
             } catch {
                 Logger.error("Failed to add bookmark: \(error)")
             }

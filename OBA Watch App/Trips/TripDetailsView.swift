@@ -145,19 +145,44 @@ struct TripDetailsView: View {
                 .frame(height: 160)
                 .clipShape(RoundedRectangle(cornerRadius: 16))
 
-                if viewModel.vehicleCoordinate != nil {
-                    HStack(spacing: 4) {
-                        Circle()
-                            .fill(Color(red: 0.0, green: 0.88, blue: 0.4))
-                            .frame(width: 6, height: 6)
-                        Text(OBALoc("trip_details.live_tracking", value: "Live Tracking", comment: "Live tracking pill"))
+                if let vCoord = viewModel.vehicleCoordinate {
+                    HStack(spacing: 6) {
+                        // Left circle badge
+                        ZStack {
+                            Circle()
+                                .fill(Color.blue.opacity(0.12) )
+                                .frame(width: 22, height: 22)
+                            Image(systemName: resolvedGlyph)
+                                .font(.system(size: 9, weight: .bold))
+                                .foregroundColor(.blue)
+                        }
+                        
+                        // Middle text info
+                        VStack(alignment: .leading, spacing: 0) {
+                            Text(formattedDistance(latitude: vCoord.latitude, longitude: vCoord.longitude))
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundColor(.primary)
+                            
+                            Text(headsign ?? routeShortName ?? "Live")
+                                .font(.system(size: 7))
+                                .foregroundColor(.secondary)
+                                .lineLimit(1)
+                        }
+                        
+                        // Direction Arrow (Live)
+                        Image(systemName: "location.fill")
                             .font(.system(size: 9, weight: .bold))
-                            .foregroundColor(.white)
+                            .foregroundColor(.blue)
+                            .rotationEffect(Angle(degrees: relativeBearing(lat: vCoord.latitude, lon: vCoord.longitude) - 45)) // location.fill points top-right (45 deg) by default
                     }
-                    .padding(.horizontal, 8)
+                    .padding(.horizontal, 6)
                     .padding(.vertical, 4)
-                    .background(Capsule().fill(Color.black.opacity(0.85)))
-                    .padding(8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(.ultraThinMaterial)
+                            .shadow(color: Color.black.opacity(0.15), radius: 3, x: 0, y: 1.5)
+                    )
+                    .padding(6)
                 }
             }
             .overlay(
@@ -355,8 +380,13 @@ struct TripDetailsView: View {
     @ViewBuilder
     private func stopsSection(_ details: OBATripExtendedDetails) -> some View {
         if let schedule = details.schedule {
+            let nextStopId = viewModel.tripDetails?.status?.nextStop
+            let nextStopIndex = schedule.stopTimes.firstIndex(where: { $0.stopId == nextStopId }) ?? -1
+            
             Section(OBALoc("trip_details.section.stops", value: "Stops", comment: "Stops section header")) {
                 ForEach(Array(schedule.stopTimes.enumerated()), id: \.offset) { index, stopTime in
+                    let isVisited = nextStopIndex != -1 && index < nextStopIndex
+                    
                     if let stopID = stopTime.stopId {
                         let arrivalSecs = stopTime.arrivalTime ?? stopTime.departureTime ?? 0
                         let arrDate = (details.serviceDate ?? Date()).addingTimeInterval(TimeInterval(arrivalSecs))
@@ -372,7 +402,10 @@ struct TripDetailsView: View {
                                 stopTime: stopTime,
                                 isFirst: index == 0,
                                 isLast: index == schedule.stopTimes.count - 1,
-                                serviceDate: details.serviceDate
+                                serviceDate: details.serviceDate,
+                                nextStopId: nextStopId,
+                                isVisited: isVisited,
+                                resolvedGlyph: resolvedGlyph
                             )
                         }
                         .listRowBackground(
@@ -384,7 +417,10 @@ struct TripDetailsView: View {
                             stopTime: stopTime,
                             isFirst: index == 0,
                             isLast: index == schedule.stopTimes.count - 1,
-                            serviceDate: details.serviceDate
+                            serviceDate: details.serviceDate,
+                            nextStopId: nextStopId,
+                            isVisited: isVisited,
+                            resolvedGlyph: resolvedGlyph
                         )
                         .listRowBackground(
                             RoundedRectangle(cornerRadius: 16)
@@ -470,6 +506,37 @@ struct TripDetailsView: View {
         f.timeStyle = .short
         return f
     }()
+
+    private func formattedDistance(latitude: Double, longitude: Double) -> String {
+        let userLoc = appState.currentLocation ?? appState.effectiveLocation
+        let vehicleLoc = CLLocation(latitude: latitude, longitude: longitude)
+        let distance = userLoc.distance(from: vehicleLoc)
+        if distance < 1000 {
+            return String(format: "%.0f m", distance)
+        } else {
+            return String(format: "%.1f km", distance / 1000.0)
+        }
+    }
+    
+    private func relativeBearing(lat: Double, lon: Double) -> Double {
+        let userLoc = appState.currentLocation ?? appState.effectiveLocation
+        let from = userLoc.coordinate
+        let to = CLLocationCoordinate2D(latitude: lat, longitude: lon)
+        return bearing(from: from, to: to)
+    }
+    
+    private func bearing(from: CLLocationCoordinate2D, to: CLLocationCoordinate2D) -> Double {
+        let lat1 = from.latitude * .pi / 180
+        let lon1 = from.longitude * .pi / 180
+        let lat2 = to.latitude * .pi / 180
+        let lon2 = to.longitude * .pi / 180
+        
+        let dLon = lon2 - lon1
+        let y = sin(dLon) * cos(lat2)
+        let x = cos(lat1) * sin(lat2) - sin(lat1) * cos(lat2) * cos(dLon)
+        let radians = atan2(y, x)
+        return radians * 180 / .pi
+    }
 }
 
 struct StopRow: View {
@@ -477,37 +544,57 @@ struct StopRow: View {
     let isFirst: Bool
     let isLast: Bool
     let serviceDate: Date?
+    let nextStopId: String?
+    let isVisited: Bool
+    let resolvedGlyph: String
     
     var body: some View {
         HStack(spacing: 12) {
             // Timeline indicator
             VStack(spacing: 0) {
+                let isVehicleApproaching = stopTime.stopId != nil && stopTime.stopId == nextStopId
+                
                 if !isFirst {
                     Rectangle()
-                        .fill(Color.green.opacity(0.5))
+                        .fill(isVisited ? Color.gray.opacity(0.3) : Color.green.opacity(0.5))
                         .frame(width: 2, height: 12)
                 } else {
                     Color.clear.frame(width: 2, height: 12)
                 }
                 
                 ZStack {
-                    Circle()
-                        .fill(.white)
-                        .frame(width: 12, height: 12)
-                    Circle()
-                        .strokeBorder(Color.green, lineWidth: 2)
-                        .frame(width: 12, height: 12)
+                    if isVehicleApproaching {
+                        Circle()
+                            .fill(Color(red: 0.0, green: 0.88, blue: 0.4))
+                            .frame(width: 20, height: 20)
+                            .shadow(color: .black.opacity(0.3), radius: 2)
+                        Image(systemName: resolvedGlyph)
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundColor(.white)
+                    } else if isVisited {
+                        Circle()
+                            .fill(Color.gray.opacity(0.35))
+                            .frame(width: 8, height: 8)
+                    } else {
+                        Circle()
+                            .fill(.white)
+                            .frame(width: 12, height: 12)
+                        Circle()
+                            .strokeBorder(Color.green, lineWidth: 2)
+                            .frame(width: 12, height: 12)
+                    }
                 }
+                .frame(width: 20, height: 20)
                 
                 if !isLast {
                     Rectangle()
-                        .fill(Color.green.opacity(0.5))
+                        .fill((isVisited && !isVehicleApproaching) ? Color.gray.opacity(0.3) : Color.green.opacity(0.5))
                         .frame(width: 2)
                 } else {
                     Color.clear.frame(width: 2)
                 }
             }
-            .frame(width: 12)
+            .frame(width: 20)
             
             // Content Card
              VStack(alignment: .leading, spacing: 2) {

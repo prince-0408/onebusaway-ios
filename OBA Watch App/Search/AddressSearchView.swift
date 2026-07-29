@@ -226,7 +226,7 @@ struct AddressSearchView_Previews: PreviewProvider {
 
 // MARK: - Extensions
 
-private extension MKPlacemark {
+extension MKPlacemark {
     var formattedAddress: String? {
         var components = [String]()
         

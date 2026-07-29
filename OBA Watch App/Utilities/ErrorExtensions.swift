@@ -42,7 +42,6 @@ extension Error {
                 return OBALoc("common.error.unable_load", value: "Unable to load data.", comment: "Unable to load data")
             }
         }
-        
         let desc = self.localizedDescription.lowercased()
         let normalized = desc.replacingOccurrences(of: "’", with: "'")
         if normalized.contains("the data couldn't be read") || normalized.contains("format") {

@@ -82,25 +82,6 @@ struct MainMenuView: View {
                 }
             }
 
-            // Trip Planning Section - Make this prominent
-            Section {
-                NavigationLink {
-                    TripPlanningEntryView()
-                } label: {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Label(OBALoc("common.trip_planner", value: "Trip Planner", comment: "Title for trip planner menu item"), systemImage: "figure.walk")
-                            .font(.headline)
-                            .foregroundColor(.green)
-                        Text(OBALoc("main_menu.plan_your_journey", value: "Plan your journey", comment: "Subtitle for trip planner menu item"))
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                    }
-                    .padding(.vertical, 4)
-                }
-            } header: {
-                Text(OBALoc("main_menu.section.plan", value: "Plan", comment: "Section header for planning"))
-            }
-            
             // Other useful actions but minimized
             Section {
                 NavigationLink {

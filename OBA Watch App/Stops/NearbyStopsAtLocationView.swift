@@ -41,24 +41,6 @@ struct NearbyStopsAtLocationView: View {
                 routeSummaryByStopID: nil,
                 searchText: $searchText
             )
-            .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        let ok = DeepLinkSyncManager.shared.planTripOnPhone(
-                            originLat: coordinate.latitude,
-                            originLon: coordinate.longitude,
-                            destLat: nil,
-                            destLon: nil
-                        )
-                        if !ok {
-                            WatchFeedbackGenerator.shared.error()
-                            infoMessage = OBALoc("deeplink.failure", value: "Unable to contact iPhone. Make sure your devices are connected.", comment: "Deep link failure")
-                        }
-                    } label: {
-                        Label(OBALoc("common.plan_on_phone", value: "Plan on Phone", comment: "Action to plan trip on phone"), systemImage: "figure.walk")
-                    }
-                }
-            }
         } emptyState: {
             emptyStateView
         }

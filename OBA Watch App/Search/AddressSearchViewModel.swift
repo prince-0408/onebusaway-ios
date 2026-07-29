@@ -40,6 +40,14 @@ final class AddressSearchViewModel: ObservableObject {
                 request.naturalLanguageQuery = trimmed
                 request.resultTypes = [.address, .pointOfInterest]
                 
+                // Bias search results to the local transit region
+                let center = WatchAppState.shared.effectiveLocation.coordinate
+                request.region = MKCoordinateRegion(
+                    center: center,
+                    latitudinalMeters: 50_000, // 50 km local bounding area
+                    longitudinalMeters: 50_000
+                )
+                
                 let search = MKLocalSearch(request: request)
                 let response = try await search.start()
                 
