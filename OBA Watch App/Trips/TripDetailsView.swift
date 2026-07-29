@@ -87,20 +87,32 @@ struct TripDetailsView: View {
         Section {
             ZStack(alignment: .topLeading) {
                 Map(position: $mapPosition) {
-                    // Outer dark contrast casing + thick vibrant mint green route line
+                    // Outer dark contrast casing
                     if !viewModel.polyline.isEmpty {
                         MapPolyline(coordinates: viewModel.polyline)
                             .stroke(Color.black.opacity(0.85), style: StrokeStyle(lineWidth: 9, lineCap: .round, lineJoin: .round))
                         
-                        MapPolyline(coordinates: viewModel.polyline)
-                            .stroke(
-                                LinearGradient(
-                                    colors: [Color(red: 0.0, green: 0.9, blue: 0.45), Color(red: 0.1, green: 0.98, blue: 0.55)],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                ),
-                                style: StrokeStyle(lineWidth: 6, lineCap: .round, lineJoin: .round)
-                            )
+                        // Passed Route Segment (Muted Slate Gray)
+                        if !viewModel.passedPolyline.isEmpty {
+                            MapPolyline(coordinates: viewModel.passedPolyline)
+                                .stroke(
+                                    Color(red: 0.35, green: 0.45, blue: 0.58).opacity(0.75),
+                                    style: StrokeStyle(lineWidth: 5.5, lineCap: .round, lineJoin: .round)
+                                )
+                        }
+                        
+                        // Upcoming Route Segment (Vibrant Mint Green)
+                        if !viewModel.upcomingPolyline.isEmpty {
+                            MapPolyline(coordinates: viewModel.upcomingPolyline)
+                                .stroke(
+                                    LinearGradient(
+                                        colors: [Color(red: 0.0, green: 0.9, blue: 0.45), Color(red: 0.1, green: 0.98, blue: 0.55)],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    ),
+                                    style: StrokeStyle(lineWidth: 6, lineCap: .round, lineJoin: .round)
+                                )
+                        }
                     }
                     
                     // Stop Markers - Native MapKit Markers matching WatchInteractiveMapView style
@@ -119,24 +131,14 @@ struct TripDetailsView: View {
                         }
                     }
                     
-                    // Live Bus Vehicle Marker - pulsing halo + crisp dark ring
+                    // Live Bus Vehicle Marker - Animated Blinking Radar Ring
                     if let coord = viewModel.vehicleCoordinate {
                         Annotation("", coordinate: coord, anchor: .center) {
-                            ZStack {
-                                Circle()
-                                    .fill(Color(red: 0.0, green: 0.9, blue: 0.45).opacity(0.3))
-                                    .frame(width: 34, height: 34)
-                                Circle()
-                                    .fill(Color.black.opacity(0.85))
-                                    .frame(width: 28, height: 28)
-                                Circle()
-                                    .fill(Color(red: 0.0, green: 0.88, blue: 0.4))
-                                    .frame(width: 24, height: 24)
-                                Image(systemName: "bus.fill")
-                                    .font(.system(size: 12, weight: .bold))
-                                    .foregroundColor(.white)
-                            }
-                            .shadow(color: .black.opacity(0.6), radius: 3, y: 1.5)
+                            PulsingVehicleMarker(
+                                title: routeShortName ?? "Bus",
+                                heading: viewModel.glider.currentHeading,
+                                isTracked: true
+                            )
                         }
                     }
                 }

@@ -26,6 +26,7 @@ struct WatchInteractiveMapView: View {
     @State private var timer: Timer?
     @State private var routePolyline: [CLLocationCoordinate2D] = []
     @State private var polylineRouteID: String? = nil
+    @StateObject private var glider = VehiclePolylineGlider()
     
     init(initialRegion: MKCoordinateRegion? = nil, stops: [OBAStop] = [], vehicles: [OBAVehicle] = []) {
         self.initialRegion = initialRegion
@@ -50,10 +51,30 @@ struct WatchInteractiveMapView: View {
             Map(position: $mapPosition, selection: $selectedMarkerID) {
                 UserAnnotation()
                 
-                // Draw route line
+                // Draw route line - Passed (Muted Slate Gray) & Upcoming (Vibrant Mint Green)
                 if !routePolyline.isEmpty {
                     MapPolyline(coordinates: routePolyline)
-                        .stroke(.blue, lineWidth: 3.5)
+                        .stroke(Color.black.opacity(0.85), style: StrokeStyle(lineWidth: 8, lineCap: .round, lineJoin: .round))
+
+                    if !passedRoutePolyline.isEmpty {
+                        MapPolyline(coordinates: passedRoutePolyline)
+                            .stroke(
+                                Color(red: 0.35, green: 0.45, blue: 0.58).opacity(0.75),
+                                style: StrokeStyle(lineWidth: 4.5, lineCap: .round, lineJoin: .round)
+                            )
+                    }
+
+                    if !upcomingRoutePolyline.isEmpty {
+                        MapPolyline(coordinates: upcomingRoutePolyline)
+                            .stroke(
+                                LinearGradient(
+                                    colors: [Color(red: 0.0, green: 0.9, blue: 0.45), Color(red: 0.1, green: 0.98, blue: 0.55)],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                ),
+                                style: StrokeStyle(lineWidth: 5.5, lineCap: .round, lineJoin: .round)
+                            )
+                    }
                 }
                 
                 // Stops: Markers with train or bus symbol based on transit mode
@@ -70,7 +91,7 @@ struct WatchInteractiveMapView: View {
                     }
                 }
                 
-                // Vehicles: Rotated arrowhead Annotations
+                // Vehicles: Animated Blinking & Pulsing Vehicle Markers
                 ForEach(displayedVehicles) { vehicle in
                     if let lat = vehicle.latitude, let lon = vehicle.longitude {
                         let coord = CLLocationCoordinate2D(latitude: lat, longitude: lon)
@@ -78,26 +99,11 @@ struct WatchInteractiveMapView: View {
                             vehicle.routeShortName ?? "Bus",
                             coordinate: coord
                         ) {
-                            VStack(spacing: 0) {
-                                Image(systemName: "location.north.navigation.fill")
-                                    .font(.system(size: 11, weight: .bold))
-                                    .foregroundColor(.white)
-                                    .rotationEffect(Angle(degrees: vehicle.orientation ?? 0))
-                                    .padding(4)
-                                    .background(Circle().fill(Color.green))
-                                    .overlay(
-                                        Circle().stroke(Color.white, lineWidth: 1.5)
-                                    )
-                                    .shadow(radius: 2)
-                                
-                                Text(vehicle.routeShortName ?? "Bus")
-                                    .font(.system(size: 7, weight: .bold))
-                                    .foregroundColor(.white)
-                                    .padding(.horizontal, 4)
-                                    .padding(.vertical, 0.5)
-                                    .background(RoundedRectangle(cornerRadius: 3).fill(Color.black.opacity(0.7)))
-                                    .offset(y: 1)
-                            }
+                            PulsingVehicleMarker(
+                                title: vehicle.routeShortName ?? "Bus",
+                                heading: vehicle.orientation ?? (glider.currentHeading != 0 ? glider.currentHeading : 0),
+                                isTracked: trackedVehicle?.id == vehicle.id || trackedVehicle?.vehicleID == vehicle.vehicleID
+                            )
                         }
                         .tag(vehicle.id)
                     }
@@ -300,11 +306,16 @@ struct WatchInteractiveMapView: View {
             
             // Auto-center camera if tracking a vehicle
             if let tracked = trackedVehicle, let updated = trips.first(where: { $0.id == tracked.id || $0.vehicleID == tracked.vehicleID }) {
-                self.trackedVehicle = updated
                 if let lat = updated.latitude, let lon = updated.longitude {
                     let coord = CLLocationCoordinate2D(latitude: lat, longitude: lon)
-                    withAnimation {
-                        mapPosition = .region(MKCoordinateRegion(center: coord, latitudinalMeters: 500, longitudinalMeters: 500))
+                    glider.setTargetLocation(coord)
+                    withAnimation(.easeInOut(duration: 2.5)) {
+                        self.trackedVehicle = updated
+                        self.mapPosition = .region(MKCoordinateRegion(center: coord, latitudinalMeters: 500, longitudinalMeters: 500))
+                    }
+                } else {
+                    withAnimation(.easeInOut(duration: 2.5)) {
+                        self.trackedVehicle = updated
                     }
                 }
             }
@@ -323,6 +334,7 @@ struct WatchInteractiveMapView: View {
                 withAnimation {
                     self.routePolyline = decoded
                 }
+                glider.updatePolyline(decoded)
             } else {
                 withAnimation {
                     self.routePolyline = []
@@ -365,5 +377,46 @@ struct WatchInteractiveMapView: View {
         let x = cos(lat1) * sin(lat2) - sin(lat1) * cos(lat2) * cos(dLon)
         let radians = atan2(y, x)
         return radians * 180 / .pi
+    }
+    
+    private var polylineSplitIndex: Int? {
+        guard let vehicle = trackedVehicle,
+              let lat = vehicle.latitude, let lon = vehicle.longitude,
+              !routePolyline.isEmpty else { return nil }
+        let vCoord = CLLocationCoordinate2D(latitude: lat, longitude: lon)
+        var minDistance: Double = .greatestFiniteMagnitude
+        var closestIndex = 0
+        for (idx, coord) in routePolyline.enumerated() {
+            let dist = haversine(vCoord, coord)
+            if dist < minDistance {
+                minDistance = dist
+                closestIndex = idx
+            }
+        }
+        return closestIndex
+    }
+
+    private var passedRoutePolyline: [CLLocationCoordinate2D] {
+        let gPassed = glider.passedPolyline
+        if !gPassed.isEmpty { return gPassed }
+        guard let idx = polylineSplitIndex, idx > 0 else { return [] }
+        return Array(routePolyline[0...idx])
+    }
+
+    private var upcomingRoutePolyline: [CLLocationCoordinate2D] {
+        let gUpcoming = glider.upcomingPolyline
+        if !gUpcoming.isEmpty { return gUpcoming }
+        guard let idx = polylineSplitIndex else { return routePolyline }
+        return Array(routePolyline[idx..<routePolyline.count])
+    }
+
+    private func haversine(_ a: CLLocationCoordinate2D, _ b: CLLocationCoordinate2D) -> Double {
+        let R = 6371000.0
+        let phi1 = a.latitude * .pi / 180
+        let phi2 = b.latitude * .pi / 180
+        let dphi = (b.latitude - a.latitude) * .pi / 180
+        let dl = (b.longitude - a.longitude) * .pi / 180
+        let h = sin(dphi/2)*sin(dphi/2) + cos(phi1)*cos(phi2)*sin(dl/2)*sin(dl/2)
+        return 2 * R * asin(sqrt(h))
     }
 }

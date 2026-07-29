@@ -21,10 +21,18 @@ class TripDetailsViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var vehicleLatitude: Double?
     @Published var vehicleLongitude: Double?
+    @Published var animatedVehicleCoordinate: CLLocationCoordinate2D?
+    @Published var glider = VehiclePolylineGlider()
     
     private var trackingTask: Task<Void, Never>?
     
     var vehicleCoordinate: CLLocationCoordinate2D? {
+        if let glided = glider.currentCoordinate {
+            return glided
+        }
+        if let animated = animatedVehicleCoordinate {
+            return animated
+        }
         if let lat = vehicleLatitude, let lon = vehicleLongitude, lat != 0.0, lon != 0.0 {
             return CLLocationCoordinate2D(latitude: lat, longitude: lon)
         }
@@ -36,7 +44,51 @@ class TripDetailsViewModel: ObservableObject {
         }
         return nil
     }
+
+    /// Smoothly updates vehicle position using dead-reckoning glider along polyline
+    func updateVehicleCoordinateSmoothly(newLat: Double, newLon: Double) {
+        guard newLat != 0.0, newLon != 0.0 else { return }
+        let newTarget = CLLocationCoordinate2D(latitude: newLat, longitude: newLon)
+        self.vehicleLatitude = newLat
+        self.vehicleLongitude = newLon
+        
+        glider.setTargetLocation(newTarget)
+        
+        withAnimation(.easeInOut(duration: 2.5)) {
+            self.animatedVehicleCoordinate = newTarget
+        }
+    }
     
+    var polylineSplitIndex: Int? {
+        guard let vCoord = vehicleCoordinate, !polyline.isEmpty else { return nil }
+        var minDistance: Double = .greatestFiniteMagnitude
+        var closestIndex = 0
+        for (idx, coord) in polyline.enumerated() {
+            let dist = haversine(vCoord, coord)
+            if dist < minDistance {
+                minDistance = dist
+                closestIndex = idx
+            }
+        }
+        return closestIndex
+    }
+
+    /// The portion of the route polyline already traversed by the vehicle (passed route).
+    var passedPolyline: [CLLocationCoordinate2D] {
+        let gPassed = glider.passedPolyline
+        if !gPassed.isEmpty { return gPassed }
+        guard let idx = polylineSplitIndex, idx > 0 else { return [] }
+        return Array(polyline[0...idx])
+    }
+
+    /// The portion of the route polyline ahead of the vehicle (upcoming route).
+    var upcomingPolyline: [CLLocationCoordinate2D] {
+        let gUpcoming = glider.upcomingPolyline
+        if !gUpcoming.isEmpty { return gUpcoming }
+        guard let idx = polylineSplitIndex else { return polyline }
+        return Array(polyline[idx..<polyline.count])
+    }
+
     var vehicleDistanceAlongTrip: Double? {
         if let stopTimes = tripDetails?.schedule?.stopTimes, !stopTimes.isEmpty {
             // 1. If status reports the upcoming stop ID, use that stop's distance
@@ -160,8 +212,7 @@ class TripDetailsViewModel: ObservableObject {
             
             // If status position is directly available in trip details, populate vehicle coordinates immediately
             if let pos = finalStatus?.position, pos.lat != 0.0, pos.lon != 0.0 {
-                self.vehicleLatitude = pos.lat
-                self.vehicleLongitude = pos.lon
+                updateVehicleCoordinateSmoothly(newLat: pos.lat, newLon: pos.lon)
             }
             
             // Fetch trip info for shapeID
@@ -176,6 +227,7 @@ class TripDetailsViewModel: ObservableObject {
                     return CLLocationCoordinate2D(latitude: lat, longitude: lon)
                 }
             }
+            glider.updatePolyline(self.polyline)
 
             await resolveLiveVehiclePosition(tripIDToFetch: tripIDToFetch)
             startLiveTrackingLoop(tripIDToFetch: tripIDToFetch)
@@ -208,8 +260,7 @@ class TripDetailsViewModel: ObservableObject {
             do {
                 let vehicleStatus = try await apiClient.fetchTripForVehicle(vehicleID: vID)
                 if let pos = vehicleStatus.status?.position, pos.lat != 0.0, pos.lon != 0.0 {
-                    self.vehicleLatitude = pos.lat
-                    self.vehicleLongitude = pos.lon
+                    updateVehicleCoordinateSmoothly(newLat: pos.lat, newLon: pos.lon)
                     if let updatedStatus = vehicleStatus.status {
                         self.tripDetails = OBATripExtendedDetails(
                             tripId: self.tripDetails?.tripId ?? tripIDToFetch,
@@ -227,8 +278,7 @@ class TripDetailsViewModel: ObservableObject {
         }
 
         if let pos = tripDetails?.status?.position, pos.lat != 0.0, pos.lon != 0.0 {
-            self.vehicleLatitude = pos.lat
-            self.vehicleLongitude = pos.lon
+            updateVehicleCoordinateSmoothly(newLat: pos.lat, newLon: pos.lon)
             return
         }
 
@@ -241,8 +291,7 @@ class TripDetailsViewModel: ObservableObject {
                 let nearby = try await apiClient.fetchVehiclesReliably(latitude: center.latitude, longitude: center.longitude, latSpan: 0.1, lonSpan: 0.1)
                 if let match = nearby.first(where: { $0.id == tripIDToFetch || (activeVehicleID != nil && $0.vehicleID == activeVehicleID) }),
                    let lat = match.latitude, let lon = match.longitude, lat != 0.0, lon != 0.0 {
-                    self.vehicleLatitude = lat
-                    self.vehicleLongitude = lon
+                    updateVehicleCoordinateSmoothly(newLat: lat, newLon: lon)
                 }
             } catch {
                 Logger.error("Failed to query nearby vehicles: \(error)")
