@@ -292,20 +292,67 @@ public struct WatchBookmark: Identifiable, Codable, Equatable, Hashable, Sendabl
 
 /// A lightweight alarm model for watchOS.
 public struct WatchAlarmItem: Identifiable, Codable, Equatable, Sendable {
+    public enum AlarmType: String, Codable, Equatable, Sendable {
+        case departureTime
+        case destinationGeofence
+    }
+
     public let id: String
     public let stopID: OBAStopID
     public let routeShortName: String?
     public let headsign: String?
     public let scheduledTime: Date?
     public let status: String?
+    public let alarmType: AlarmType
+    public let offsetMinutes: Int
+    public let latitude: Double?
+    public let longitude: Double?
+    public let geofenceRadiusMeters: Double
 
-    public init(id: String, stopID: OBAStopID, routeShortName: String? = nil, headsign: String? = nil, scheduledTime: Date? = nil, status: String? = nil) {
+    public init(
+        id: String,
+        stopID: OBAStopID,
+        routeShortName: String? = nil,
+        headsign: String? = nil,
+        scheduledTime: Date? = nil,
+        status: String? = nil,
+        alarmType: AlarmType = .departureTime,
+        offsetMinutes: Int = 5,
+        latitude: Double? = nil,
+        longitude: Double? = nil,
+        geofenceRadiusMeters: Double = 200.0
+    ) {
         self.id = id
         self.stopID = stopID
         self.routeShortName = routeShortName
         self.headsign = headsign
         self.scheduledTime = scheduledTime
         self.status = status
+        self.alarmType = alarmType
+        self.offsetMinutes = offsetMinutes
+        self.latitude = latitude
+        self.longitude = longitude
+        self.geofenceRadiusMeters = geofenceRadiusMeters
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, stopID, routeShortName, headsign, scheduledTime, status
+        case alarmType, offsetMinutes, latitude, longitude, geofenceRadiusMeters
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try container.decode(String.self, forKey: .id)
+        self.stopID = try container.decode(OBAStopID.self, forKey: .stopID)
+        self.routeShortName = try container.decodeIfPresent(String.self, forKey: .routeShortName)
+        self.headsign = try container.decodeIfPresent(String.self, forKey: .headsign)
+        self.scheduledTime = try container.decodeIfPresent(Date.self, forKey: .scheduledTime)
+        self.status = try container.decodeIfPresent(String.self, forKey: .status)
+        self.alarmType = (try container.decodeIfPresent(AlarmType.self, forKey: .alarmType)) ?? .departureTime
+        self.offsetMinutes = (try container.decodeIfPresent(Int.self, forKey: .offsetMinutes)) ?? 5
+        self.latitude = try container.decodeIfPresent(Double.self, forKey: .latitude)
+        self.longitude = try container.decodeIfPresent(Double.self, forKey: .longitude)
+        self.geofenceRadiusMeters = (try container.decodeIfPresent(Double.self, forKey: .geofenceRadiusMeters)) ?? 200.0
     }
 }
 

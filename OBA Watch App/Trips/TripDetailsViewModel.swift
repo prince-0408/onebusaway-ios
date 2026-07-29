@@ -33,12 +33,21 @@ class TripDetailsViewModel: ObservableObject {
         if let animated = animatedVehicleCoordinate {
             return animated
         }
-        if let lat = vehicleLatitude, let lon = vehicleLongitude, lat != 0.0, lon != 0.0 {
-            return CLLocationCoordinate2D(latitude: lat, longitude: lon)
-        }
         if let pos = tripDetails?.status?.position, pos.lat != 0.0, pos.lon != 0.0 {
             return CLLocationCoordinate2D(latitude: pos.lat, longitude: pos.lon)
         }
+        if let lat = vehicleLatitude, let lon = vehicleLongitude, lat != 0.0, lon != 0.0 {
+            return CLLocationCoordinate2D(latitude: lat, longitude: lon)
+        }
+        
+        // Priority: Use the current/next stop location from server status if live GPS position is omitted
+        if let nextStopID = tripDetails?.status?.nextStop ?? tripDetails?.status?.closestStop,
+           let schedule = tripDetails?.schedule,
+           let stop = schedule.stopTimes.first(where: { $0.stopId == nextStopID }),
+           let sLat = stop.latitude, let sLon = stop.longitude, sLat != 0.0, sLon != 0.0 {
+            return CLLocationCoordinate2D(latitude: sLat, longitude: sLon)
+        }
+        
         if let lat = initialTrip?.latitude, let lon = initialTrip?.longitude, lat != 0.0, lon != 0.0 {
             return CLLocationCoordinate2D(latitude: lat, longitude: lon)
         }
@@ -60,24 +69,64 @@ class TripDetailsViewModel: ObservableObject {
     }
     
     var polylineSplitIndex: Int? {
-        guard let vCoord = vehicleCoordinate, !polyline.isEmpty else { return nil }
-        var minDistance: Double = .greatestFiniteMagnitude
-        var closestIndex = 0
-        for (idx, coord) in polyline.enumerated() {
-            let dist = haversine(vCoord, coord)
-            if dist < minDistance {
-                minDistance = dist
-                closestIndex = idx
+        guard !polyline.isEmpty else { return nil }
+        
+        // Priority 1: Match from server's real-time nextStop ID (Exact sync with schedule list!)
+        if let schedule = tripDetails?.schedule, !schedule.stopTimes.isEmpty {
+            let nextStopID = tripDetails?.status?.nextStop ?? tripDetails?.status?.closestStop
+            if let nextStopID = nextStopID,
+               let nextStopIdx = schedule.stopTimes.firstIndex(where: { $0.stopId == nextStopID }) {
+                
+                // 1A. Search backwards for valid GPS stop coordinate
+                for idxToCheck in stride(from: nextStopIdx, through: 0, by: -1) {
+                    let st = schedule.stopTimes[idxToCheck]
+                    if let sLat = st.latitude, let sLon = st.longitude, sLat != 0.0, sLon != 0.0 {
+                        let stopCoord = CLLocationCoordinate2D(latitude: sLat, longitude: sLon)
+                        var minDist: Double = .greatestFiniteMagnitude
+                        var bestIdx = 0
+                        for (pIdx, c) in polyline.enumerated() {
+                            let d = haversine(stopCoord, c)
+                            if d < minDist {
+                                minDist = d
+                                bestIdx = pIdx
+                            }
+                        }
+                        if bestIdx > 0 { return bestIdx }
+                    }
+                }
+                
+                // 1B. Guaranteed fallback: Use stop progress ratio along polyline
+                let totalStops = max(1, schedule.stopTimes.count - 1)
+                let ratio = Double(nextStopIdx) / Double(totalStops)
+                let ratioIdx = Int(Double(polyline.count - 1) * ratio)
+                if ratioIdx > 0 {
+                    return min(ratioIdx, polyline.count - 1)
+                }
             }
         }
-        return closestIndex
+
+        // Priority 2: Fallback to vehicleCoordinate
+        if let vCoord = vehicleCoordinate, vCoord.latitude != 0.0, vCoord.longitude != 0.0 {
+            var minDistance: Double = .greatestFiniteMagnitude
+            var closestIndex = 0
+            for (idx, coord) in polyline.enumerated() {
+                let dist = haversine(vCoord, coord)
+                if dist < minDistance {
+                    minDistance = dist
+                    closestIndex = idx
+                }
+            }
+            if closestIndex > 0 { return closestIndex }
+        }
+
+        return nil
     }
 
     /// The portion of the route polyline already traversed by the vehicle (passed route).
     var passedPolyline: [CLLocationCoordinate2D] {
         let gPassed = glider.passedPolyline
         if !gPassed.isEmpty { return gPassed }
-        guard let idx = polylineSplitIndex, idx > 0 else { return [] }
+        guard let idx = polylineSplitIndex, idx > 0, idx < polyline.count else { return [] }
         return Array(polyline[0...idx])
     }
 
@@ -85,7 +134,7 @@ class TripDetailsViewModel: ObservableObject {
     var upcomingPolyline: [CLLocationCoordinate2D] {
         let gUpcoming = glider.upcomingPolyline
         if !gUpcoming.isEmpty { return gUpcoming }
-        guard let idx = polylineSplitIndex else { return polyline }
+        guard let idx = polylineSplitIndex, idx < polyline.count else { return polyline }
         return Array(polyline[idx..<polyline.count])
     }
 
@@ -246,7 +295,7 @@ class TripDetailsViewModel: ObservableObject {
         trackingTask = Task { @MainActor [weak self] in
             guard let self = self else { return }
             while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 10_000_000_000) // 10 seconds live poll
+                try? await Task.sleep(nanoseconds: 5_000_000_000) // 5 seconds snappy live poll
                 if Task.isCancelled { break }
                 await self.resolveLiveVehiclePosition(tripIDToFetch: tripIDToFetch)
             }
@@ -256,6 +305,23 @@ class TripDetailsViewModel: ObservableObject {
     private func resolveLiveVehiclePosition(tripIDToFetch: String) async {
         let activeVehicleID = self.vehicleID ?? tripDetails?.status?.vehicleID
         
+        // Priority 1: Fetch fresh trip details to keep nextStop, schedule status, and position 100% in sync
+        if let freshDetails = try? await apiClient.fetchTripDetails(tripID: tripIDToFetch) {
+            let newStatus = freshDetails.status ?? self.tripDetails?.status
+            self.tripDetails = OBATripExtendedDetails(
+                tripId: freshDetails.tripId,
+                serviceDate: freshDetails.serviceDate ?? self.tripDetails?.serviceDate,
+                frequency: freshDetails.frequency ?? self.tripDetails?.frequency,
+                status: newStatus,
+                schedule: freshDetails.schedule ?? self.tripDetails?.schedule
+            )
+            if let pos = newStatus?.position, pos.lat != 0.0, pos.lon != 0.0 {
+                updateVehicleCoordinateSmoothly(newLat: pos.lat, newLon: pos.lon)
+                return
+            }
+        }
+
+        // Priority 2: Query vehicle directly if vehicleID is available
         if let vID = activeVehicleID, !vID.isEmpty {
             do {
                 let vehicleStatus = try await apiClient.fetchTripForVehicle(vehicleID: vID)
@@ -282,7 +348,7 @@ class TripDetailsViewModel: ObservableObject {
             return
         }
 
-        // Query nearby vehicles along polyline or schedule center
+        // Priority 3: Query nearby vehicles along polyline or schedule center
         if let center = polyline.first ?? (tripDetails?.schedule?.stopTimes.first.flatMap { st in
             if let lat = st.latitude, let lon = st.longitude { return CLLocationCoordinate2D(latitude: lat, longitude: lon) }
             return nil

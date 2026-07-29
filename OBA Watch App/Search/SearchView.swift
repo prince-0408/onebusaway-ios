@@ -137,53 +137,7 @@ struct SearchView: View {
         let trimmed = viewModel.searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         if !trimmed.isEmpty {
             Section(OBALoc("search.quick.header", value: "Quick Search", comment: "Quick search header")) {
-                NavigationLink {
-                    RouteSearchView(initialQuery: viewModel.searchText)
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "bus.fill")
-                            .foregroundColor(.green)
-                        Text(OBALoc("search.quick.route", value: "Route:", comment: "Quick search route"))
-                        Text(viewModel.searchText)
-                            .fontWeight(.semibold)
-                    }
-                }
-
-                NavigationLink {
-                    AddressSearchView(initialQuery: viewModel.searchText)
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "mappin.and.ellipse")
-                            .foregroundColor(.blue)
-                        Text(OBALoc("search.quick.address", value: "Address:", comment: "Quick search address"))
-                        Text(viewModel.searchText)
-                            .fontWeight(.semibold)
-                    }
-                }
-
-                NavigationLink {
-                    StopSearchResultsView(initialQuery: viewModel.searchText)
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "tram.fill")
-                            .foregroundColor(.orange)
-                        Text(OBALoc("search.quick.stop", value: "Stop:", comment: "Quick search stop"))
-                        Text(viewModel.searchText)
-                            .fontWeight(.semibold)
-                    }
-                }
-
-                NavigationLink {
-                    VehicleSearchView(initialQuery: viewModel.searchText)
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "car.fill")
-                            .foregroundColor(.purple)
-                        Text(OBALoc("search.quick.vehicle", value: "Vehicle:", comment: "Quick search vehicle"))
-                        Text(viewModel.searchText)
-                            .fontWeight(.semibold)
-                    }
-                }
+                QuickSearchButtonsView(query: viewModel.searchText)
             }
         }
 
@@ -302,6 +256,142 @@ struct SearchResultRow: View {
         } else {
             return String(format: "%.1f km", distanceMeters / 1000.0)
         }
+    }
+}
+
+struct QuickSearchButtonsView: View {
+    let query: String
+    
+    @State private var navToRoute = false
+    @State private var navToAddress = false
+    @State private var navToStop = false
+    @State private var navToVehicle = false
+
+    var body: some View {
+        VStack(spacing: 3) {
+            // Button 1: Route
+            Button {
+                navToRoute = true
+            } label: {
+                GlassQuickSearchCardContent(
+                    iconName: "bus.fill",
+                    iconColor: .green,
+                    title: OBALoc("search.quick.route", value: "Route:", comment: "Quick search route"),
+                    query: query
+                )
+            }
+            .buttonStyle(.plain)
+            .modifier(GlassCapsuleModifier())
+            .background(
+                NavigationLink(destination: RouteSearchView(initialQuery: query), isActive: $navToRoute) {
+                    EmptyView()
+                }
+                .hidden()
+            )
+
+            // Button 2: Address
+            Button {
+                navToAddress = true
+            } label: {
+                GlassQuickSearchCardContent(
+                    iconName: "mappin.and.ellipse",
+                    iconColor: .blue,
+                    title: OBALoc("search.quick.address", value: "Address:", comment: "Quick search address"),
+                    query: query
+                )
+            }
+            .buttonStyle(.plain)
+            .modifier(GlassCapsuleModifier())
+            .background(
+                NavigationLink(destination: AddressSearchView(initialQuery: query), isActive: $navToAddress) {
+                    EmptyView()
+                }
+                .hidden()
+            )
+
+            // Button 3: Stop
+            Button {
+                navToStop = true
+            } label: {
+                GlassQuickSearchCardContent(
+                    iconName: "tram.fill",
+                    iconColor: .orange,
+                    title: OBALoc("search.quick.stop", value: "Stop:", comment: "Quick search stop"),
+                    query: query
+                )
+            }
+            .buttonStyle(.plain)
+            .modifier(GlassCapsuleModifier())
+            .background(
+                NavigationLink(destination: StopSearchResultsView(initialQuery: query), isActive: $navToStop) {
+                    EmptyView()
+                }
+                .hidden()
+            )
+
+            // Button 4: Vehicle
+            Button {
+                navToVehicle = true
+            } label: {
+                GlassQuickSearchCardContent(
+                    iconName: "car.fill",
+                    iconColor: .purple,
+                    title: OBALoc("search.quick.vehicle", value: "Vehicle:", comment: "Quick search vehicle"),
+                    query: query
+                )
+            }
+            .buttonStyle(.plain)
+            .modifier(GlassCapsuleModifier())
+            .background(
+                NavigationLink(destination: VehicleSearchView(initialQuery: query), isActive: $navToVehicle) {
+                    EmptyView()
+                }
+                .hidden()
+            )
+        }
+        .listRowInsets(EdgeInsets(top: 2, leading: 0, bottom: 2, trailing: 0))
+        .listRowBackground(Color.clear)
+    }
+}
+
+struct GlassQuickSearchCardContent: View {
+    let iconName: String
+    let iconColor: Color
+    let title: String
+    let query: String
+
+    var body: some View {
+        HStack(spacing: 8) {
+            ZStack {
+                Circle()
+                    .fill(iconColor.opacity(0.22))
+                    .frame(width: 26, height: 26)
+                
+                Image(systemName: iconName)
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundColor(iconColor)
+            }
+            
+            HStack(spacing: 4) {
+                Text(title)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(.white.opacity(0.85))
+                
+                Text(query)
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundColor(.white)
+                    .lineLimit(1)
+            }
+            
+            Spacer()
+            
+            Image(systemName: "chevron.right")
+                .font(.system(size: 9, weight: .bold))
+                .foregroundColor(.white.opacity(0.35))
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .contentShape(Capsule())
     }
 }
 

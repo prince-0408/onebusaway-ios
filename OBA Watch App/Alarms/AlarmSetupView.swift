@@ -4,109 +4,231 @@
 //
 
 import SwiftUI
+import CoreLocation
 import OBAKitCore
 
 struct AlarmSetupView: View {
     @Environment(\.dismiss) private var dismiss
-    
+
     let stopID: OBAStopID
     let stopName: String?
     let routeShortName: String?
     let headsign: String?
     let departureTime: Date?
+    let latitude: Double?
+    let longitude: Double?
 
+    @State private var alarmType: WatchAlarmItem.AlarmType = .departureTime
+    @State private var selectedOffsetMinutes: Int = 5
+    @State private var selectedGeofenceRadius: Double = 200.0
     @State private var hasAlarm = false
 
+    init(
+        stopID: OBAStopID,
+        stopName: String?,
+        routeShortName: String?,
+        headsign: String?,
+        departureTime: Date?,
+        latitude: Double? = nil,
+        longitude: Double? = nil
+    ) {
+        self.stopID = stopID
+        self.stopName = stopName
+        self.routeShortName = routeShortName
+        self.headsign = headsign
+        self.departureTime = departureTime
+        self.latitude = latitude
+        self.longitude = longitude
+    }
+
     var body: some View {
-        ScrollView {
-            VStack(spacing: 12) {
-                Image(systemName: hasAlarm ? "bell.fill" : "bell")
-                    .font(.system(size: 36))
-                    .foregroundColor(hasAlarm ? .orange : .secondary)
+        VStack(spacing: 6) {
+            // Compact Header: Route & Stop Info
+            HStack(spacing: 6) {
+                Image(systemName: hasAlarm ? "bell.fill" : "bell.badge.fill")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundColor(hasAlarm ? .orange : .accentColor)
 
-                VStack(spacing: 2) {
+                VStack(alignment: .leading, spacing: 1) {
                     Text(routeShortName ?? OBALoc("common.bus", value: "Bus", comment: "Default bus label"))
-                        .font(.headline)
+                        .font(.system(size: 14, weight: .bold))
                         .foregroundColor(.white)
-                    
-                    if let headsign = headsign, !headsign.isEmpty {
-                        Text(headsign)
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                            .lineLimit(1)
-                    }
+                        .lineLimit(1)
 
-                    if let stopName = stopName {
-                        Text(stopName)
-                            .font(.caption2)
+                    let subTitle = headsign ?? stopName ?? ""
+                    if !subTitle.isEmpty {
+                        Text(subTitle)
+                            .font(.system(size: 10))
                             .foregroundColor(.secondary)
                             .lineLimit(1)
                     }
                 }
+                Spacer()
+            }
+            .padding(.horizontal, 6)
+            .padding(.vertical, 4)
+            .background(Color.white.opacity(0.08))
+            .clipShape(RoundedRectangle(cornerRadius: 10))
 
-                if let time = departureTime {
-                    HStack(spacing: 4) {
-                        Text(OBALoc("alarm_setup.departs", value: "Departs:", comment: "Departure label"))
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                        Text(time, style: .time)
-                            .font(.system(size: 13, weight: .bold))
-                            .foregroundColor(.green)
-                    }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Color.white.opacity(0.08))
-                    .cornerRadius(8)
-                }
+            if hasAlarm {
+                VStack(spacing: 8) {
+                    Text(OBALoc("alarms.active_alarm_set", value: "Active Alarm Set", comment: "Active alarm title"))
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(.orange)
 
-                if hasAlarm {
                     Button(role: .destructive) {
                         AlarmsSyncManager.shared.removeAlarm(stopID: stopID, routeShortName: routeShortName)
                         WatchFeedbackGenerator.shared.success()
                         dismiss()
                     } label: {
-                        Label(OBALoc("alarms.remove_alarm", value: "Remove Alarm", comment: "Remove proximity alarm"), systemImage: "bell.slash.fill")
+                        Label(OBALoc("alarms.remove_alarm", value: "Remove Alarm", comment: "Remove alarm button"), systemImage: "bell.slash.fill")
+                            .font(.system(size: 12, weight: .bold))
                     }
                     .buttonStyle(.bordered)
+
+                    Button {
+                        AlarmHapticScheduler.shared.playTestHaptic(type: alarmType)
+                    } label: {
+                        Label(OBALoc("alarm_setup.test_haptic", value: "Test Haptics", comment: "Test haptics button"), systemImage: "waveform")
+                            .font(.system(size: 10))
+                            .foregroundColor(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.top, 4)
+            } else {
+                // Segmented Mode Selector Capsule (Departure vs Geofence)
+                HStack(spacing: 4) {
+                    Button {
+                        alarmType = .departureTime
+                        WatchFeedbackGenerator.shared.selectionChanged()
+                    } label: {
+                        HStack(spacing: 3) {
+                            Image(systemName: "clock.fill")
+                                .font(.system(size: 9))
+                            Text(OBALoc("alarm_setup.type_departure_short", value: "Departure", comment: "Departure short label"))
+                                .font(.system(size: 10, weight: .bold))
+                        }
+                        .padding(.vertical, 5)
+                        .frame(maxWidth: .infinity)
+                        .background(alarmType == .departureTime ? Color.orange : Color.white.opacity(0.1))
+                        .foregroundColor(alarmType == .departureTime ? .black : .white)
+                        .clipShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+
+                    Button {
+                        alarmType = .destinationGeofence
+                        WatchFeedbackGenerator.shared.selectionChanged()
+                    } label: {
+                        HStack(spacing: 3) {
+                            Image(systemName: "location.fill")
+                                .font(.system(size: 9))
+                            Text(OBALoc("alarm_setup.type_geofence_short", value: "Geofence", comment: "Geofence short label"))
+                                .font(.system(size: 10, weight: .bold))
+                        }
+                        .padding(.vertical, 5)
+                        .frame(maxWidth: .infinity)
+                        .background(alarmType == .destinationGeofence ? Color.green : Color.white.opacity(0.1))
+                        .foregroundColor(alarmType == .destinationGeofence ? .black : .white)
+                        .clipShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                // Threshold Selector Row
+                if alarmType == .departureTime {
+                    HStack(spacing: 4) {
+                        ForEach([2, 5, 10, 15], id: \.self) { mins in
+                            Button {
+                                selectedOffsetMinutes = mins
+                                WatchFeedbackGenerator.shared.selectionChanged()
+                            } label: {
+                                Text("\(mins)m")
+                                    .font(.system(size: 11, weight: .bold))
+                                    .padding(.vertical, 5)
+                                    .frame(maxWidth: .infinity)
+                                    .background(selectedOffsetMinutes == mins ? Color.orange : Color.white.opacity(0.12))
+                                    .foregroundColor(selectedOffsetMinutes == mins ? .black : .white)
+                                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
                 } else {
+                    HStack(spacing: 4) {
+                        ForEach([100.0, 200.0, 500.0], id: \.self) { radius in
+                            Button {
+                                selectedGeofenceRadius = radius
+                                WatchFeedbackGenerator.shared.selectionChanged()
+                            } label: {
+                                Text("\(Int(radius))m")
+                                    .font(.system(size: 10, weight: .bold))
+                                    .padding(.vertical, 5)
+                                    .frame(maxWidth: .infinity)
+                                    .background(selectedGeofenceRadius == radius ? Color.green : Color.white.opacity(0.12))
+                                    .foregroundColor(selectedGeofenceRadius == radius ? .black : .white)
+                                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+
+                Spacer(minLength: 0)
+
+                // Compact Action Row: Slim Set Alarm + Test Waveform Icon
+                HStack(spacing: 6) {
                     Button {
                         let alarm = WatchAlarmItem(
                             id: UUID().uuidString,
                             stopID: stopID,
                             routeShortName: routeShortName,
                             headsign: headsign ?? "",
-                            scheduledTime: departureTime ?? Date()
+                            scheduledTime: departureTime ?? Date(),
+                            status: alarmType == .departureTime ? "\(selectedOffsetMinutes)m lead" : "Within \(Int(selectedGeofenceRadius))m",
+                            alarmType: alarmType,
+                            offsetMinutes: selectedOffsetMinutes,
+                            latitude: latitude,
+                            longitude: longitude,
+                            geofenceRadiusMeters: selectedGeofenceRadius
                         )
                         AlarmsSyncManager.shared.addAlarm(alarm)
                         AlarmHapticScheduler.shared.startExtendedRuntimeSession()
                         WatchFeedbackGenerator.shared.success()
                         dismiss()
                     } label: {
-                        Label(OBALoc("alarms.set_alarm", value: "Set Proximity Alarm", comment: "Set proximity alarm"), systemImage: "bell.fill")
-                            .foregroundColor(.white)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(.orange)
-                    
-                    Button {
-                        AlarmHapticScheduler.shared.playTestHaptic()
-                    } label: {
-                        Label(OBALoc("alarm_setup.test_haptic", value: "Test Wrist Haptics", comment: "Test haptics button"), systemImage: "waveform")
-                            .font(.system(size: 11))
-                            .foregroundColor(.secondary)
+                        Text(
+                            alarmType == .departureTime ?
+                                OBALoc("alarms.set_time_alarm", value: "Set Alarm", comment: "Set time alarm button") :
+                                OBALoc("alarms.set_geofence_alarm", value: "Set GPS Alarm", comment: "Set GPS alarm button")
+                        )
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(.black)
+                        .padding(.vertical, 7)
+                        .frame(maxWidth: .infinity)
+                        .background(alarmType == .departureTime ? Color.orange : Color.green)
+                        .clipShape(Capsule())
                     }
                     .buttonStyle(.plain)
-                    .padding(.top, 2)
-                    
-                    Text(OBALoc("alarm_setup.details", value: "Wrist haptics will alert you 5m and 1m before departure.", comment: "Proximity alarm haptics info"))
-                        .font(.system(size: 9))
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 4)
+
+                    // Compact Test Haptic Waveform Button
+                    Button {
+                        AlarmHapticScheduler.shared.playTestHaptic(type: alarmType)
+                    } label: {
+                        Image(systemName: "waveform")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(.white)
+                            .frame(width: 30, height: 30)
+                            .background(Color.white.opacity(0.15))
+                            .clipShape(Circle())
+                    }
+                    .buttonStyle(.plain)
                 }
             }
-            .padding()
         }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 2)
         .navigationTitle(OBALoc("alarms.title", value: "Alarms", comment: "Alarms title"))
         .onAppear {
             hasAlarm = AlarmsSyncManager.shared.hasAlarm(stopID: stopID, routeShortName: routeShortName)

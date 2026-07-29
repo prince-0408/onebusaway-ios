@@ -16,7 +16,11 @@ struct GlassCapsuleModifier: ViewModifier {
             content
                 .background(
                     Capsule()
-                        .fill(Color.white.opacity(0.08))
+                        .fill(Color.white.opacity(0.12))
+                )
+                .overlay(
+                    Capsule()
+                        .stroke(Color.white.opacity(0.2), lineWidth: 1)
                 )
         }
     }

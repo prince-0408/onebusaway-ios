@@ -22,10 +22,20 @@ struct TripDetailsView: View {
     @State private var mapPosition: MapCameraPosition = .automatic
     
     private var resolvedGlyph: String {
-        let text = "\(routeShortName ?? "") \(headsign ?? "")".lowercased()
-        if text.contains("train") || text.contains("rail") || text.contains("subway") || text.contains("tram") || text.contains("link") {
-            return "train.side.front.car"
+        let routeStr = (routeShortName ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let text = "\(routeStr) \(headsign ?? "")".lowercased()
+        
+        if text.contains("train") || text.contains("rail") || text.contains("subway") ||
+           text.contains("tram") || text.contains("link") || text.contains("metro") ||
+           text.contains("skm") || text.contains("s-bahn") || text.contains("u-bahn") {
+            return "tram.fill"
         }
+        
+        // Single or 2-digit route numbers (1-20) in European/Poznań transit are Trams (e.g. Route 4)
+        if let num = Int(routeStr), num >= 1 && num <= 20 {
+            return "tram.fill"
+        }
+        
         return "bus.fill"
     }
     
@@ -81,64 +91,51 @@ struct TripDetailsView: View {
                 updateCameraPosition()
             }
         }
+        .onChange(of: viewModel.tripDetails?.status?.nextStop) { _, _ in
+            updateCameraPosition()
+        }
     }
 
     private var mapSection: some View {
         Section {
             ZStack(alignment: .topLeading) {
                 Map(position: $mapPosition) {
-                    // Outer dark contrast casing
+                    // Route Polyline - Single clean vibrant green route line
                     if !viewModel.polyline.isEmpty {
+                        // Dark contrast casing
                         MapPolyline(coordinates: viewModel.polyline)
-                            .stroke(Color.black.opacity(0.85), style: StrokeStyle(lineWidth: 9, lineCap: .round, lineJoin: .round))
+                            .stroke(Color.black.opacity(0.85), style: StrokeStyle(lineWidth: 6.5, lineCap: .round, lineJoin: .round))
                         
-                        // Passed Route Segment (Muted Slate Gray)
-                        if !viewModel.passedPolyline.isEmpty {
-                            MapPolyline(coordinates: viewModel.passedPolyline)
-                                .stroke(
-                                    Color(red: 0.35, green: 0.45, blue: 0.58).opacity(0.75),
-                                    style: StrokeStyle(lineWidth: 5.5, lineCap: .round, lineJoin: .round)
-                                )
-                        }
-                        
-                        // Upcoming Route Segment (Vibrant Mint Green)
-                        if !viewModel.upcomingPolyline.isEmpty {
-                            MapPolyline(coordinates: viewModel.upcomingPolyline)
-                                .stroke(
-                                    LinearGradient(
-                                        colors: [Color(red: 0.0, green: 0.9, blue: 0.45), Color(red: 0.1, green: 0.98, blue: 0.55)],
-                                        startPoint: .leading,
-                                        endPoint: .trailing
-                                    ),
-                                    style: StrokeStyle(lineWidth: 6, lineCap: .round, lineJoin: .round)
-                                )
-                        }
+                        // Vibrant mint green route line
+                        MapPolyline(coordinates: viewModel.polyline)
+                            .stroke(Color(red: 0.0, green: 0.88, blue: 0.45), style: StrokeStyle(lineWidth: 4, lineCap: .round, lineJoin: .round))
                     }
                     
-                    // Stop Markers - Native MapKit Markers matching WatchInteractiveMapView style
+                    // Stop Markers - Stop icon pins (Active next stop highlighted with green pill)
                     if let schedule = viewModel.tripDetails?.schedule {
-                        let isTrainMode = resolvedGlyph.contains("train")
-                        ForEach(Array(schedule.stopTimes.enumerated()), id: \.offset) { _, st in
+                        let nextStopId = viewModel.tripDetails?.status?.nextStop
+                        let nextStopIndex = schedule.stopTimes.firstIndex(where: { $0.stopId == nextStopId }) ?? -1
+
+                        ForEach(Array(schedule.stopTimes.enumerated()), id: \.offset) { index, st in
                             if let lat = st.latitude, let lon = st.longitude {
                                 let coord = CLLocationCoordinate2D(latitude: lat, longitude: lon)
-                                Marker(
-                                    st.stopHeadsign ?? "",
-                                    systemImage: resolvedGlyph,
-                                    coordinate: coord
-                                )
-                                .tint(isTrainMode ? .indigo : .blue)
+                                let isVisited = nextStopIndex != -1 && index < nextStopIndex
+                                let isNextStop = nextStopIndex != -1 && index == nextStopIndex
+                                let stopName = st.stopHeadsign ?? ""
+                                
+                                let pinColor: Color = {
+                                    if isVisited {
+                                        return Color(white: 0.35)
+                                    } else if isNextStop {
+                                        return Color(red: 0.0, green: 0.78, blue: 0.38)
+                                    } else {
+                                        return Color(red: 0.0, green: 0.85, blue: 0.45)
+                                    }
+                                }()
+
+                                Marker(stopName, systemImage: resolvedGlyph, coordinate: coord)
+                                    .tint(pinColor)
                             }
-                        }
-                    }
-                    
-                    // Live Bus Vehicle Marker - Animated Blinking Radar Ring
-                    if let coord = viewModel.vehicleCoordinate {
-                        Annotation("", coordinate: coord, anchor: .center) {
-                            PulsingVehicleMarker(
-                                title: routeShortName ?? "Bus",
-                                heading: viewModel.glider.currentHeading,
-                                isTracked: true
-                            )
                         }
                     }
                 }
@@ -152,22 +149,48 @@ struct TripDetailsView: View {
                         // Left circle badge
                         ZStack {
                             Circle()
-                                .fill(Color.blue.opacity(0.12) )
-                                .frame(width: 22, height: 22)
+                                .fill(Color.blue.opacity(0.2))
+                                .frame(width: 24, height: 24)
                             Image(systemName: resolvedGlyph)
-                                .font(.system(size: 9, weight: .bold))
+                                .font(.system(size: 11, weight: .bold))
                                 .foregroundColor(.blue)
                         }
                         
-                        // Middle text info
-                        VStack(alignment: .leading, spacing: 0) {
-                            Text(formattedDistance(latitude: vCoord.latitude, longitude: vCoord.longitude))
-                                .font(.system(size: 11, weight: .bold))
-                                .foregroundColor(.primary)
+                        // Informative Real-time Info (Status + Next Stop / Destination)
+                        VStack(alignment: .leading, spacing: 1) {
+                            HStack(spacing: 4) {
+                                if let status = viewModel.tripDetails?.status,
+                                   let deviation = status.scheduleDeviation {
+                                    Text(deviationString(seconds: deviation))
+                                        .font(.system(size: 11, weight: .bold))
+                                        .foregroundColor(deviationColor(seconds: deviation))
+                                } else if viewModel.tripDetails?.status?.predicted == true {
+                                    Text(OBALoc("status.on_time", value: "On time", comment: "On time status"))
+                                        .font(.system(size: 11, weight: .bold))
+                                        .foregroundColor(.green)
+                                } else {
+                                    let distText = formattedDistance(latitude: vCoord.latitude, longitude: vCoord.longitude)
+                                    Text(distText == OBALoc("status.live", value: "Live", comment: "Live status label") ? OBALoc("status.in_service", value: "In Service", comment: "In service label") : distText)
+                                        .font(.system(size: 11, weight: .bold))
+                                        .foregroundColor(.white)
+                                }
+                            }
                             
-                            Text(headsign ?? routeShortName ?? "Live")
-                                .font(.system(size: 7))
-                                .foregroundColor(.secondary)
+                            let targetStopText: String = {
+                                if let nextID = viewModel.tripDetails?.status?.nextStop,
+                                   let st = viewModel.tripDetails?.schedule?.stopTimes.first(where: { $0.stopId == nextID }),
+                                   let name = st.stopHeadsign, !name.isEmpty {
+                                    return "Next: \(name)"
+                                }
+                                if let dest = headsign, !dest.isEmpty {
+                                    return "To: \(dest)"
+                                }
+                                return routeShortName ?? "Live"
+                            }()
+
+                            Text(targetStopText)
+                                .font(.system(size: 9, weight: .semibold))
+                                .foregroundColor(.white.opacity(0.85))
                                 .lineLimit(1)
                         }
                         
@@ -175,14 +198,14 @@ struct TripDetailsView: View {
                         Image(systemName: "location.fill")
                             .font(.system(size: 9, weight: .bold))
                             .foregroundColor(.blue)
-                            .rotationEffect(Angle(degrees: relativeBearing(lat: vCoord.latitude, lon: vCoord.longitude) - 45)) // location.fill points top-right (45 deg) by default
+                            .rotationEffect(Angle(degrees: relativeBearing(lat: vCoord.latitude, lon: vCoord.longitude) - 45))
                     }
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 4)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 5)
                     .background(
                         RoundedRectangle(cornerRadius: 12)
                             .fill(.ultraThinMaterial)
-                            .shadow(color: Color.black.opacity(0.15), radius: 3, x: 0, y: 1.5)
+                            .shadow(color: Color.black.opacity(0.2), radius: 3, x: 0, y: 1.5)
                     )
                     .padding(6)
                 }
@@ -197,10 +220,23 @@ struct TripDetailsView: View {
     }
 
     private func updateCameraPosition() {
-        withAnimation {
-            if let vCoord = viewModel.vehicleCoordinate {
-                // Focus camera tightly on live bus location
-                mapPosition = .region(MKCoordinateRegion(center: vCoord, latitudinalMeters: 600, longitudinalMeters: 600))
+        withAnimation(.easeInOut(duration: 0.8)) {
+            // Priority 1: Focus map camera on the real-time active next stop location
+            if let schedule = viewModel.tripDetails?.schedule,
+               let nextStopID = viewModel.tripDetails?.status?.nextStop ?? viewModel.tripDetails?.status?.closestStop,
+               let stop = schedule.stopTimes.first(where: { $0.stopId == nextStopID }),
+               let lat = stop.latitude, let lon = stop.longitude, lat != 0.0, lon != 0.0 {
+                mapPosition = .region(MKCoordinateRegion(
+                    center: CLLocationCoordinate2D(latitude: lat, longitude: lon),
+                    latitudinalMeters: 650,
+                    longitudinalMeters: 650
+                ))
+            } else if let vCoord = viewModel.vehicleCoordinate {
+                mapPosition = .region(MKCoordinateRegion(
+                    center: vCoord,
+                    latitudinalMeters: 650,
+                    longitudinalMeters: 650
+                ))
             } else if let region = computeBoundingRegion(coordinates: viewModel.polyline) {
                 mapPosition = .region(region)
             }
@@ -513,7 +549,9 @@ struct TripDetailsView: View {
         let userLoc = appState.currentLocation ?? appState.effectiveLocation
         let vehicleLoc = CLLocation(latitude: latitude, longitude: longitude)
         let distance = userLoc.distance(from: vehicleLoc)
-        if distance < 1000 {
+        if distance > 200_000 {
+            return OBALoc("status.live", value: "Live", comment: "Live status label")
+        } else if distance < 1000 {
             return String(format: "%.0f m", distance)
         } else {
             return String(format: "%.1f km", distance / 1000.0)

@@ -348,7 +348,9 @@ struct StopArrivalsView: View {
                     stopName: viewModel.stopName ?? stopName,
                     routeShortName: nil,
                     headsign: nil,
-                    departureTime: viewModel.upcomingArrivals.first?.arrivalTime
+                    departureTime: viewModel.upcomingArrivals.first?.arrivalTime,
+                    latitude: viewModel.stopLatitude,
+                    longitude: viewModel.stopLongitude
                 )
             }
         }

@@ -22,4 +22,8 @@ public class WatchFeedbackGenerator {
     public func click() {
         play(.click)
     }
+
+    public func selectionChanged() {
+        play(.click)
+    }
 }
