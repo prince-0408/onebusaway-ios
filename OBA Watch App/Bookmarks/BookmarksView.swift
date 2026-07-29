@@ -63,9 +63,77 @@ struct BookmarksView: View {
     
     private var bookmarksList: some View {
         List {
-            ForEach(viewModel.groupedBookmarks) { group in
-                if viewModel.groupedBookmarks.count > 1 || group.name != OBALoc("common.bookmarks", value: "Bookmarks", comment: "Default bookmarks group name") {
-                    Section(header: Label(group.name, systemImage: "folder.fill").foregroundColor(.blue)) {
+            // Search Input Section - Single Layer Native Watch Field
+            Section {
+                TextField(OBALoc("common.search", value: "Search", comment: "Search input placeholder"), text: $viewModel.searchText)
+            }
+
+            // Sort & Sync Controls Section
+            Section {
+                VStack(spacing: 6) {
+                    // Sort Mode Segmented Switcher
+                    HStack(spacing: 4) {
+                        ForEach(BookmarkSortOption.allCases) { mode in
+                            Button {
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    viewModel.sortOption = mode
+                                }
+                            } label: {
+                                Text(mode.rawValue)
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundColor(viewModel.sortOption == mode ? .white : .secondary)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 5)
+                                    .background(
+                                        Capsule()
+                                            .fill(viewModel.sortOption == mode ? Color.blue : Color.white.opacity(0.12))
+                                    )
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    
+                    // Sync Status Line
+                    HStack {
+                        HStack(spacing: 4) {
+                            Image(systemName: "arrow.clockwise")
+                                .font(.system(size: 10))
+                                .foregroundColor(.blue)
+                            Text(syncStatusText)
+                                .font(.system(size: 10))
+                                .foregroundColor(.secondary)
+                        }
+                        Spacer()
+                        Button {
+                            viewModel.forceSyncWithPhone()
+                        } label: {
+                            Text(OBALoc("common.sync", value: "Sync", comment: "Sync button"))
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundColor(.blue)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.vertical, 2)
+            }
+            .listRowBackground(Color.clear)
+            .listRowInsets(EdgeInsets(top: 2, leading: 0, bottom: 4, trailing: 0))
+
+            // Bookmarks Sections
+            ForEach(viewModel.filteredGroupedBookmarks) { group in
+                if viewModel.filteredGroupedBookmarks.count > 1 || group.name != OBALoc("common.bookmarks", value: "Bookmarks", comment: "Default bookmarks group name") {
+                    Section(header: HStack {
+                        Label(group.name, systemImage: "folder.fill")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(.blue)
+                        Spacer()
+                        Text("\(group.items.count)")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(.secondary)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 1)
+                            .background(Capsule().fill(Color.gray.opacity(0.2)))
+                    }) {
                         groupRows(group.items)
                     }
                 } else {
@@ -75,6 +143,19 @@ struct BookmarksView: View {
                 }
             }
         }
+    }
+    
+    private var syncStatusText: String {
+        if let date = viewModel.lastSyncedDate {
+            let elapsed = Int(Date().timeIntervalSince(date))
+            if elapsed < 10 {
+                return OBALoc("bookmarks.synced_just_now", value: "Synced just now", comment: "Synced just now label")
+            }
+            let formatter = RelativeDateTimeFormatter()
+            formatter.unitsStyle = .short
+            return String(format: OBALoc("bookmarks.synced_fmt", value: "Synced %@", comment: "Synced time label"), formatter.localizedString(for: date, relativeTo: Date()))
+        }
+        return OBALoc("bookmarks.synced", value: "Synced", comment: "Synced label")
     }
 
     @ViewBuilder

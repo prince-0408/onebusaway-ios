@@ -78,6 +78,7 @@ struct AlarmSetupView: View {
                             scheduledTime: departureTime ?? Date()
                         )
                         AlarmsSyncManager.shared.addAlarm(alarm)
+                        AlarmHapticScheduler.shared.startExtendedRuntimeSession()
                         WatchFeedbackGenerator.shared.success()
                         dismiss()
                     } label: {
@@ -86,6 +87,16 @@ struct AlarmSetupView: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(.orange)
+                    
+                    Button {
+                        AlarmHapticScheduler.shared.playTestHaptic()
+                    } label: {
+                        Label(OBALoc("alarm_setup.test_haptic", value: "Test Wrist Haptics", comment: "Test haptics button"), systemImage: "waveform")
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.top, 2)
                     
                     Text(OBALoc("alarm_setup.details", value: "Wrist haptics will alert you 5m and 1m before departure.", comment: "Proximity alarm haptics info"))
                         .font(.system(size: 9))

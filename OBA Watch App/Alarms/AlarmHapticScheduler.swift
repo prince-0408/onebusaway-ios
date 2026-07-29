@@ -20,13 +20,14 @@ import OBAKitCore
 /// Each alarm+threshold combo fires at most once, tracked via `UserDefaults`
 /// to prevent repeated haptics across polls.
 @MainActor
-final class AlarmHapticScheduler {
+final class AlarmHapticScheduler: NSObject, WKExtendedRuntimeSessionDelegate {
 
     static let shared = AlarmHapticScheduler()
 
     // MARK: - Private State
 
     private var timer: Timer?
+    private var runtimeSession: WKExtendedRuntimeSession?
 
     private var firedKeys: Set<String> {
         get { Set(Self.defaults.stringArray(forKey: Self.firedKeysStorageKey) ?? []) }
@@ -38,7 +39,8 @@ final class AlarmHapticScheduler {
 
     // MARK: - Lifecycle
 
-    private init() {
+    private override init() {
+        super.init()
         requestNotificationPermission()
     }
 
@@ -60,17 +62,62 @@ final class AlarmHapticScheduler {
         }
     }
 
-    /// Stop the polling loop (call when app goes to background).
+    /// Stop the polling loop.
     func stop() {
         timer?.invalidate()
         timer = nil
+        stopExtendedRuntimeSession()
+    }
+
+    /// Start WKExtendedRuntimeSession to maintain background execution while wrist is down.
+    func startExtendedRuntimeSession() {
+        guard runtimeSession == nil else { return }
+        let session = WKExtendedRuntimeSession()
+        session.delegate = self
+        session.start()
+        runtimeSession = session
+    }
+
+    /// Stop the background extended runtime session.
+    func stopExtendedRuntimeSession() {
+        runtimeSession?.invalidate()
+        runtimeSession = nil
+    }
+
+    /// Plays a test haptic sequence on the wrist so users can preview the alert feel.
+    func playTestHaptic() {
+        WKInterfaceDevice.current().play(.directionDown)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+            WKInterfaceDevice.current().play(.success)
+        }
+    }
+
+    // MARK: - WKExtendedRuntimeSessionDelegate
+
+    nonisolated func extendedRuntimeSessionDidStart(_ extendedRuntimeSession: WKExtendedRuntimeSession) {
+        Logger.info("Extended runtime session started for active alarm tracking")
+    }
+
+    nonisolated func extendedRuntimeSessionWillExpire(_ extendedRuntimeSession: WKExtendedRuntimeSession) {
+        Logger.info("Extended runtime session will expire")
+    }
+
+    nonisolated func extendedRuntimeSession(_ extendedRuntimeSession: WKExtendedRuntimeSession, didInvalidateWith reason: WKExtendedRuntimeSessionInvalidationReason, error: Error?) {
+        Task { @MainActor in
+            self.runtimeSession = nil
+        }
     }
 
     // MARK: - Internal
 
     private func tick() {
         let alarms = AlarmsSyncManager.shared.currentAlarms()
-        guard !alarms.isEmpty else { return }
+        guard !alarms.isEmpty else {
+            stopExtendedRuntimeSession()
+            return
+        }
+
+        startExtendedRuntimeSession()
 
         let now = Date()
         var fired = firedKeys

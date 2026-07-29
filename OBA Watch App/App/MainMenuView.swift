@@ -54,6 +54,58 @@ struct MainMenuView: View {
                 )
             }
 
+            // Active Proximity Alarm Banner
+            if let activeAlarm = AlarmsSyncManager.shared.currentAlarms().first {
+                Section {
+                    HStack(spacing: 8) {
+                        Image(systemName: "bell.fill")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(.orange)
+                        
+                        VStack(alignment: .leading, spacing: 2) {
+                            HStack(spacing: 4) {
+                                Text(activeAlarm.routeShortName ?? OBALoc("common.bus", value: "Bus", comment: "Default bus label"))
+                                    .font(.system(size: 13, weight: .bold))
+                                    .foregroundColor(.white)
+                                Text("•")
+                                    .foregroundColor(.secondary)
+                                Text(activeAlarm.headsign ?? "")
+                                    .font(.system(size: 10))
+                                    .foregroundColor(.secondary)
+                                    .lineLimit(1)
+                            }
+                            
+                            if let scheduled = activeAlarm.scheduledTime {
+                                Text(scheduled, style: .relative)
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundColor(.orange)
+                            }
+                        }
+                        
+                        Spacer()
+                        
+                        Button {
+                            AlarmsSyncManager.shared.removeAlarm(stopID: activeAlarm.stopID, routeShortName: activeAlarm.routeShortName)
+                            AlarmHapticScheduler.shared.stopExtendedRuntimeSession()
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 16))
+                                .foregroundColor(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(.vertical, 4)
+                }
+                .listRowBackground(
+                    RoundedRectangle(cornerRadius: 14)
+                        .fill(Color.orange.opacity(0.15))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 14)
+                                .strokeBorder(Color.orange.opacity(0.4), lineWidth: 1)
+                        )
+                )
+            }
+
             // Search & Map at the top
             Section {
                 NavigationLink {

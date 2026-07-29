@@ -44,47 +44,21 @@ struct AddressSearchView: View {
     
     private var searchFieldSection: some View {
         Section {
-            HStack(spacing: 8) {
-                Image(systemName: "magnifyingglass")
-                    .foregroundColor(.secondary)
-                    .font(.system(size: 16))
-                
-                TextField(OBALoc("address_search.placeholder", value: "Search places", comment: "Search field placeholder"), text: $viewModel.query)
-                    .onSubmit {
-                        viewModel.performSearch()
-                    }
-                    .submitLabel(.search)
-                    .textInputAutocapitalization(.never)
-                    .disableAutocorrection(true)
-                    .font(.system(size: 16))
-                    .onChange(of: viewModel.query) { _, newValue in
-                        if !newValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                            viewModel.performSearch()
-                        } else {
-                            viewModel.results = []
-                        }
-                    }
-                
-                if !viewModel.query.isEmpty {
-                    Button(action: {
-                        viewModel.query = ""
-                        viewModel.results = []
-                    }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(.secondary)
-                            .font(.system(size: 16))
-                    }
-                    .buttonStyle(.plain)
+            TextField(OBALoc("address_search.placeholder", value: "Search places", comment: "Search field placeholder"), text: $viewModel.query)
+                .onSubmit {
+                    viewModel.performSearch()
                 }
-            }
-            .padding(.vertical, 8)
-            .padding(.horizontal, 4)
+                .submitLabel(.search)
+                .textInputAutocapitalization(.never)
+                .disableAutocorrection(true)
+                .onChange(of: viewModel.query) { _, newValue in
+                    if !newValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        viewModel.performSearch()
+                    } else {
+                        viewModel.results = []
+                    }
+                }
         }
-        .listRowBackground(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color.white.opacity(0.15))
-        )
-        .listRowInsets(EdgeInsets(top: 0, leading: 8, bottom: 0, trailing: 8))
     }
     
     private var loadingSection: some View {

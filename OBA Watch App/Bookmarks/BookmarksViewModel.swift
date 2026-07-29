@@ -17,6 +17,14 @@ struct WatchBookmarkGroup: Identifiable, Sendable {
     let items: [WatchBookmark]
 }
 
+enum BookmarkSortOption: String, CaseIterable, Identifiable, Sendable {
+    case grouped = "Folders"
+    case proximity = "Nearby"
+    case alphabetical = "A-Z"
+    
+    var id: String { rawValue }
+}
+
 @MainActor
 class BookmarksViewModel: ObservableObject {
     @Published var bookmarks: [WatchBookmark] = [] {
@@ -25,6 +33,9 @@ class BookmarksViewModel: ObservableObject {
         }
     }
     @Published var groupedBookmarks: [WatchBookmarkGroup] = []
+    @Published var searchText: String = ""
+    @Published var sortOption: BookmarkSortOption = .grouped
+    @Published var lastSyncedDate: Date? = Date()
     @Published var isLoading = false
     @Published var errorMessage: String?
 
@@ -33,6 +44,37 @@ class BookmarksViewModel: ObservableObject {
     var currentLocation: CLLocation?
     
     var isViewActive: Bool = false
+    
+    /// Returns filtered and sorted bookmark groups based on `searchText` and `sortOption`.
+    var filteredGroupedBookmarks: [WatchBookmarkGroup] {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        
+        let matchingBookmarks: [WatchBookmark]
+        if query.isEmpty {
+            matchingBookmarks = bookmarks
+        } else {
+            matchingBookmarks = bookmarks.filter { bookmark in
+                bookmark.name.lowercased().contains(query) ||
+                (bookmark.routeShortName?.lowercased().contains(query) ?? false) ||
+                (bookmark.tripHeadsign?.lowercased().contains(query) ?? false)
+            }
+        }
+        
+        switch sortOption {
+        case .grouped:
+            if query.isEmpty {
+                return groupedBookmarks
+            } else {
+                return [WatchBookmarkGroup(name: OBALoc("bookmarks.search_results", value: "Search Results", comment: "Search results header"), items: matchingBookmarks)]
+            }
+        case .alphabetical:
+            let sorted = matchingBookmarks.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+            return [WatchBookmarkGroup(name: OBALoc("bookmarks.all_sorted", value: "All Bookmarks (A-Z)", comment: "Alphabetical bookmarks header"), items: sorted)]
+        case .proximity:
+            let sorted = sort(matchingBookmarks)
+            return [WatchBookmarkGroup(name: OBALoc("bookmarks.nearby_sorted", value: "Nearby Bookmarks", comment: "Proximity bookmarks header"), items: sorted)]
+        }
+    }
     
     // Shared storage key that can be written by the iOS app via app group.
     private let storageKey = "watch.bookmarks"
@@ -51,8 +93,15 @@ class BookmarksViewModel: ObservableObject {
             .store(in: &cancellables)
     }
     
+    func forceSyncWithPhone() {
+        WatchAppState.shared.requestSyncFromPhone()
+        lastSyncedDate = Date()
+        loadBookmarks()
+    }
+
     func loadBookmarks(from defaults: UserDefaults = WatchAppState.userDefaults) {
         print("[WatchOS Debug] BookmarksViewModel.loadBookmarks called")
+        lastSyncedDate = Date()
         let syncedBookmarks = BookmarksSyncManager.shared.getBookmarks()
         if !syncedBookmarks.isEmpty {
             print("[WatchOS Debug] BookmarksViewModel loaded \(syncedBookmarks.count) synced bookmarks")

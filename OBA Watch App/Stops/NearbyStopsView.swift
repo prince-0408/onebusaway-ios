@@ -98,19 +98,8 @@ struct NearbyStopsListView: View {
 
         return List {
             Section {
-                HStack(spacing: 8) {
-                    Image(systemName: "magnifyingglass")
-                        .font(.system(size: 16))
-                        .foregroundColor(.secondary)
-                    TextField(OBALoc("common.search_nearby_stops", value: "Search nearby stops", comment: "Placeholder text for search field"), text: $searchText)
-                        .font(.system(size: 16))
-                        .padding(.vertical, 8)
-                }
+                TextField(OBALoc("common.search_nearby_stops", value: "Search nearby stops", comment: "Placeholder text for search field"), text: $searchText)
             }
-            .listRowBackground(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(Color.white.opacity(0.15))
-            )
 
             if !limitedStops.isEmpty {
                 NavigationLink {

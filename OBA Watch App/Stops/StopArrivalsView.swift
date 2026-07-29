@@ -38,7 +38,11 @@ struct StopArrivalsView: View {
         List {
             if let transferContext = viewModel.transferContext {
                 Section {
-                    TransferBannerView(context: transferContext)
+                    TransferBannerView(
+                        context: transferContext,
+                        stopName: viewModel.stopName ?? stopName,
+                        connectingArrival: viewModel.arrivals.first
+                    )
                 }
                 .listRowBackground(Color.clear)
             }

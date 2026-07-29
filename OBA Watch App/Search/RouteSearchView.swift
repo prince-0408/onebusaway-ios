@@ -17,29 +17,16 @@ struct RouteSearchView: View {
     var body: some View {
         List {
             Section {
-                HStack(spacing: 8) {
-                    Image(systemName: "magnifyingglass")
-                        .foregroundColor(.secondary)
-                        .font(.system(size: 16))
-                    TextField(OBALoc("route_search.placeholder", value: "Search routes", comment: "Route search placeholder"), text: $viewModel.query)
-                        .onSubmit { viewModel.performSearch() }
-                        .onChange(of: viewModel.query) { _, newValue in
-                            if !newValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                                viewModel.performSearch()
-                            } else {
-                                viewModel.routes = []
-                            }
+                TextField(OBALoc("route_search.placeholder", value: "Search routes", comment: "Route search placeholder"), text: $viewModel.query)
+                    .onSubmit { viewModel.performSearch() }
+                    .onChange(of: viewModel.query) { _, newValue in
+                        if !newValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                            viewModel.performSearch()
+                        } else {
+                            viewModel.routes = []
                         }
-                        .font(.system(size: 16))
-                }
-                .padding(.vertical, 8)
-                .padding(.horizontal, 4)
+                    }
             }
-            .listRowBackground(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(Color.white.opacity(0.15))
-            )
-            .listRowInsets(EdgeInsets(top: 0, leading: 8, bottom: 0, trailing: 8))
 
             if viewModel.isLoading {
                 Section {

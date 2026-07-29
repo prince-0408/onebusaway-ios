@@ -17,27 +17,16 @@ struct StopSearchResultsView: View {
     var body: some View {
         List {
             Section {
-                HStack(spacing: 8) {
-                    Image(systemName: "magnifyingglass")
-                        .font(.system(size: 16))
-                        .foregroundColor(.secondary)
-                    TextField(OBALoc("stop_search.placeholder", value: "Search stops", comment: "Search stops placeholder"), text: $viewModel.query)
-                        .font(.system(size: 16))
-                        .padding(.vertical, 8)
-                        .onSubmit { viewModel.performSearch() }
-                        .onChange(of: viewModel.query) { _, newValue in
-                            if !newValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                                viewModel.performSearch()
-                            } else {
-                                viewModel.stops = []
-                            }
+                TextField(OBALoc("stop_search.placeholder", value: "Search stops", comment: "Search stops placeholder"), text: $viewModel.query)
+                    .onSubmit { viewModel.performSearch() }
+                    .onChange(of: viewModel.query) { _, newValue in
+                        if !newValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                            viewModel.performSearch()
+                        } else {
+                            viewModel.stops = []
                         }
-                }
+                    }
             }
-            .listRowBackground(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(Color.white.opacity(0.15))
-            )
 
             if viewModel.isLoading {
                 Section {

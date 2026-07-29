@@ -15,20 +15,9 @@ struct VehicleSearchView: View {
     var body: some View {
         List {
             Section {
-                HStack(spacing: 8) {
-                    Image(systemName: "magnifyingglass")
-                        .font(.system(size: 16))
-                        .foregroundColor(.secondary)
-                    TextField(OBALoc("vehicle_search.placeholder", value: "Vehicle ID", comment: "Vehicle ID placeholder"), text: $viewModel.query)
-                        .font(.system(size: 16))
-                        .padding(.vertical, 8)
-                        .onSubmit { viewModel.performSearch() }
-                }
+                TextField(OBALoc("vehicle_search.placeholder", value: "Vehicle ID", comment: "Vehicle ID placeholder"), text: $viewModel.query)
+                    .onSubmit { viewModel.performSearch() }
             }
-            .listRowBackground(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(Color.white.opacity(0.15))
-            )
 
             if viewModel.isLoading {
                 Section {
