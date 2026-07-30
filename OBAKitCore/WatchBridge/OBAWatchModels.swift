@@ -266,6 +266,8 @@ public struct WatchBookmark: Identifiable, Codable, Equatable, Hashable, Sendabl
     public let routeShortName: String?
     public let tripHeadsign: String?
     public let groupName: String?
+    public let groupColorHex: String?
+    public let groupIconSymbol: String?
     public let sortOrder: Int?
     public let stop: OBAStop?
 
@@ -276,6 +278,8 @@ public struct WatchBookmark: Identifiable, Codable, Equatable, Hashable, Sendabl
         routeShortName: String? = nil,
         tripHeadsign: String? = nil,
         groupName: String? = nil,
+        groupColorHex: String? = nil,
+        groupIconSymbol: String? = nil,
         sortOrder: Int? = nil,
         stop: OBAStop? = nil
     ) {
@@ -285,6 +289,8 @@ public struct WatchBookmark: Identifiable, Codable, Equatable, Hashable, Sendabl
         self.routeShortName = routeShortName
         self.tripHeadsign = tripHeadsign
         self.groupName = groupName
+        self.groupColorHex = groupColorHex
+        self.groupIconSymbol = groupIconSymbol
         self.sortOrder = sortOrder
         self.stop = stop
     }

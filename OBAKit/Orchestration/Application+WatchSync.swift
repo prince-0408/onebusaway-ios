@@ -267,10 +267,14 @@ extension Application {
     }
 
     private func buildBookmarkData() -> [[String: Any]]? {
-        let groups = Dictionary(uniqueKeysWithValues: userDataStore.bookmarkGroups.map { ($0.id, $0.name) })
+        let groups = Dictionary(uniqueKeysWithValues: userDataStore.bookmarkGroups.map { ($0.id, $0) })
         let watchBookmarks = userDataStore.bookmarks.map { bm -> WatchBookmark in
-            let groupName = bm.groupID.flatMap { groups[$0] }
-            return bm.buildWatchBookmarkObject(groupName: groupName)
+            let group = bm.groupID.flatMap { groups[$0] }
+            return bm.buildWatchBookmarkObject(
+                groupName: group?.name,
+                groupColorHex: nil,
+                groupIconSymbol: nil
+            )
         }
         return buildWatchData(items: watchBookmarks, defaultsKey: "watch.bookmarks", logName: "bookmarks")
     }

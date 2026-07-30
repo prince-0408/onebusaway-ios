@@ -155,7 +155,7 @@ struct SearchView: View {
                     .foregroundColor(.red)
                     .font(.caption2)
             }
-        } else if !viewModel.bookmarkResults.isEmpty || !viewModel.searchResults.isEmpty {
+        } else if !viewModel.bookmarkResults.isEmpty || !viewModel.routeResults.isEmpty || !viewModel.vehicleResults.isEmpty || !viewModel.searchResults.isEmpty {
             if !viewModel.bookmarkResults.isEmpty {
                 Section(OBALoc("search.section.bookmarks", value: "Bookmarks", comment: "Bookmarks section header")) {
                     ForEach(viewModel.bookmarkResults) { bm in
@@ -184,6 +184,63 @@ struct SearchView: View {
                 }
             }
             
+            if !viewModel.routeResults.isEmpty {
+                Section(OBALoc("search.section.routes", value: "Routes", comment: "Routes section header")) {
+                    ForEach(viewModel.routeResults, id: \.id) { route in
+                        NavigationLink {
+                            LazyView(RouteDetailView(route: route))
+                        } label: {
+                            HStack(spacing: 8) {
+                                Image(systemName: "bus.fill")
+                                    .font(.system(size: 12, weight: .bold))
+                                    .foregroundColor(.white)
+                                    .frame(width: 22, height: 22)
+                                    .background(Color.green.gradient)
+                                    .clipShape(Circle())
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(route.shortName ?? route.id)
+                                        .font(.headline)
+                                    if let long = route.longName, !long.isEmpty {
+                                        Text(long)
+                                            .font(.caption2)
+                                            .foregroundColor(.secondary)
+                                            .lineLimit(1)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if !viewModel.vehicleResults.isEmpty {
+                Section(OBALoc("search.section.vehicles", value: "Vehicles", comment: "Vehicles section header")) {
+                    ForEach(viewModel.vehicleResults) { vehicle in
+                        NavigationLink {
+                            LazyView(TripDetailsView(
+                                tripID: vehicle.tripID ?? "",
+                                vehicleID: vehicle.id,
+                                routeShortName: vehicle.routeShortName,
+                                headsign: vehicle.tripHeadsign,
+                                initialTrip: vehicle.toTripForLocation()
+                            ))
+                        } label: {
+                            VehicleRow(
+                                vehicleID: vehicle.id,
+                                routeShortName: vehicle.routeShortName,
+                                tripHeadsign: vehicle.tripHeadsign,
+                                lastUpdateTime: vehicle.lastUpdateTime,
+                                status: vehicle.status,
+                                phase: vehicle.phase,
+                                tripID: vehicle.tripID,
+                                latitude: vehicle.latitude,
+                                longitude: vehicle.longitude
+                            )
+                        }
+                    }
+                }
+            }
+
             if !viewModel.searchResults.isEmpty {
                 Section(OBALoc("search.section.stops", value: "Stops", comment: "Stops section header")) {
                     ForEach(viewModel.searchResults) { stop in

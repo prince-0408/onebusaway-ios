@@ -80,19 +80,40 @@ struct RouteSearchView: View {
                 }
             } else if !viewModel.query.isEmpty && !viewModel.isLoading {
                 Section {
-                    VStack(spacing: 12) {
-                        Spacer(minLength: 20)
-                        Image(systemName: "magnifyingglass")
-                            .font(.system(size: 30))
-                            .foregroundColor(.secondary.opacity(0.5))
-                        Text(OBALoc("route_search.no_results.title", value: "No Routes Found", comment: "No results title"))
-                            .font(.system(size: 16, weight: .semibold))
-                        Text(OBALoc("route_search.no_results.subtitle", value: "Try a different search term.", comment: "No results subtitle"))
-                            .font(.system(size: 12))
+                    VStack(spacing: 10) {
+                        Image(systemName: "bus")
+                            .font(.system(size: 28))
+                            .foregroundColor(.secondary.opacity(0.6))
+                        Text(String(format: OBALoc("route_search.no_match", value: "No Routes Named '%@'", comment: "No routes matching title"), viewModel.query))
+                            .font(.system(size: 14, weight: .semibold))
+                            .multilineTextAlignment(.center)
+                        Text(OBALoc("route_search.no_match_subtitle", value: "No bus or rail lines match this search term in your region.", comment: "No routes matching subtitle"))
+                            .font(.system(size: 11))
                             .foregroundColor(.secondary)
-                        Spacer(minLength: 20)
+                            .multilineTextAlignment(.center)
+
+                        NavigationLink {
+                            AddressSearchView(initialQuery: viewModel.query)
+                        } label: {
+                            Label(String(format: OBALoc("search.address_for", value: "Search Address '%@'", comment: "Search address shortcut"), viewModel.query), systemImage: "mappin.and.ellipse")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundColor(.blue)
+                        }
+                        .buttonStyle(.bordered)
+                        .padding(.top, 4)
+
+                        Button {
+                            viewModel.query = ""
+                            viewModel.performSearch()
+                        } label: {
+                            Text(OBALoc("route_search.show_all", value: "Show All Nearby Routes", comment: "Show all routes button"))
+                                .font(.system(size: 11))
+                                .foregroundColor(.secondary)
+                        }
+                        .buttonStyle(.plain)
                     }
                     .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
                     .listRowBackground(Color.clear)
                 }
             }

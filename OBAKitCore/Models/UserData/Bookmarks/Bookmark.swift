@@ -21,7 +21,11 @@ import Foundation
         buildWatchBookmarkObject(groupName: nil)
     }
 
-    public func buildWatchBookmarkObject(groupName: String? = nil) -> WatchBookmark {
+    public func buildWatchBookmarkObject(
+        groupName: String? = nil,
+        groupColorHex: String? = nil,
+        groupIconSymbol: String? = nil
+    ) -> WatchBookmark {
         let watchStop = OBAStop(
             id: stop.id,
             name: stop.name,
@@ -38,6 +42,8 @@ import Foundation
             routeShortName: routeShortName,
             tripHeadsign: tripHeadsign,
             groupName: groupName,
+            groupColorHex: groupColorHex,
+            groupIconSymbol: groupIconSymbol,
             sortOrder: sortOrder,
             stop: watchStop
         )

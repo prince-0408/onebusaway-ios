@@ -353,10 +353,11 @@ public final class OBAURLSessionAPIClient: OBAAPIClient {
         radius: Double
     ) async throws -> [OBARoute] {
         let path = "/api/where/routes-for-location.json"
+        let effectiveRadius = min(radius > 0 ? radius : 25000.0, 25000.0)
         var items: [URLQueryItem] = [
             URLQueryItem(name: "lat", value: String(latitude)),
             URLQueryItem(name: "lon", value: String(longitude)),
-            URLQueryItem(name: "radius", value: String(radius))
+            URLQueryItem(name: "radius", value: String(effectiveRadius))
         ]
         if !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             items.append(URLQueryItem(name: "query", value: query))
