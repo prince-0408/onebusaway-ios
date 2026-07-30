@@ -28,6 +28,16 @@ struct WatchInteractiveMapView: View {
     @State private var polylineRouteID: String? = nil
     @StateObject private var glider = VehiclePolylineGlider()
     
+    @AppStorage("watch_map_style_raw", store: WatchAppState.userDefaults) private var mapStyleRaw: String = "standard"
+
+    private var activeMapStyle: MapStyle {
+        if mapStyleRaw == "transit" {
+            return .standard(pointsOfInterest: .excludingAll)
+        } else {
+            return .standard(pointsOfInterest: .all)
+        }
+    }
+
     init(initialRegion: MKCoordinateRegion? = nil, stops: [OBAStop] = [], vehicles: [OBAVehicle] = []) {
         self.initialRegion = initialRegion
         self.stops = stops
@@ -109,12 +119,29 @@ struct WatchInteractiveMapView: View {
                     }
                 }
             }
-            .mapStyle(appState.mapStyle)
+            .mapStyle(activeMapStyle)
+            .id(mapStyleRaw)
             .mapControlVisibility(.hidden)
-            .mapControls {
-                MapCompass()
-                MapUserLocationButton()
+            
+            // Map Style Control Button (Top-Right Overlay)
+            VStack(spacing: 6) {
+                Button {
+                    withAnimation {
+                        mapStyleRaw = (mapStyleRaw == "transit") ? "standard" : "transit"
+                    }
+                } label: {
+                    Image(systemName: mapStyleRaw == "transit" ? "bus.fill" : "map")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(mapStyleRaw == "transit" ? .blue : .primary)
+                        .padding(6)
+                        .background(Circle().fill(.ultraThinMaterial))
+                }
+                .buttonStyle(.plain)
+                .frame(width: 26, height: 26)
             }
+            .padding(.top, 4)
+            .padding(.trailing, 4)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
             
             // Tracked Vehicle Floating Banner
             if let vehicle = trackedVehicle {

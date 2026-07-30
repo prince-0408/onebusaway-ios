@@ -239,9 +239,16 @@ class WatchAppState: NSObject, ObservableObject, CLLocationManagerDelegate, WCSe
     @Published var showRouteLabels: Bool {
         didSet { Self.userDefaults.set(showRouteLabels, forKey: "watch_show_route_labels") }
     }
+    @Published var mapStyleRaw: String {
+        didSet { Self.userDefaults.set(mapStyleRaw, forKey: "watch_map_style_raw") }
+    }
 
     var mapStyle: MapStyle {
-        return .standard(elevation: .realistic)
+        if mapStyleRaw == "transit" {
+            return .standard(pointsOfInterest: .excludingAll)
+        } else {
+            return .standard(pointsOfInterest: .all)
+        }
     }
 
     /// Updates the current region and API client.
@@ -329,6 +336,7 @@ class WatchAppState: NSObject, ObservableObject, CLLocationManagerDelegate, WCSe
         self.showsTraffic = defaults.bool(forKey: "watch_map_shows_traffic")
         self.showsCurrentHeading = defaults.object(forKey: "watch_map_shows_heading") as? Bool ?? true
         self.showRouteLabels = defaults.object(forKey: "watch_show_route_labels") as? Bool ?? true
+        self.mapStyleRaw = defaults.string(forKey: "watch_map_style_raw") ?? "standard"
 
         // Initialize stored properties.
         self.locationManager = manager

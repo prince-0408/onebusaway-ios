@@ -48,29 +48,34 @@ struct StopArrivalsView: View {
             }
 
             Section {
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(alignment: .top, spacing: 8) {
                         if let stopName = viewModel.stopName ?? stopName {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(stopName)
-                                    .font(.system(size: 16, weight: .bold))
+                                    .font(.system(size: 15, weight: .bold))
                                     .foregroundColor(.white)
                                     .lineLimit(2)
-                                Text(String(format: OBALoc("stop_arrivals.stop_id_fmt", value: "Stop %@", comment: "Stop ID format"), stopID))
-                                    .font(.system(size: 12))
+                                    .minimumScaleFactor(0.85)
+                                
+                                let cleanStopID = stopID.replacingOccurrences(of: "^[^_]+_", with: "", options: .regularExpression)
+                                Text(String(format: OBALoc("stop_arrivals.stop_id_fmt", value: "Stop #%@", comment: "Stop ID format"), cleanStopID))
+                                    .font(.system(size: 11))
                                     .foregroundColor(.secondary)
                                     .lineLimit(1)
                             }
                         }
-                        Spacer()
-                        HStack(spacing: 8) {
+                        
+                        Spacer(minLength: 4)
+                        
+                        HStack(spacing: 12) {
                             Button {
                                 withAnimation {
                                     viewModel.sortMode = (viewModel.sortMode == .byTime ? .byRoute : .byTime)
                                 }
                             } label: {
-                                Image(systemName: viewModel.sortMode == .byTime ? "arrow.up.arrow.down.circle" : "arrow.up.arrow.down.circle.fill")
-                                    .font(.system(size: 20))
+                                Image(systemName: viewModel.sortMode == .byTime ? "arrow.up.arrow.down" : "arrow.up.arrow.down.circle.fill")
+                                    .font(.system(size: 14, weight: .medium))
                                     .foregroundColor(.blue)
                             }
                             .buttonStyle(.plain)
@@ -79,36 +84,29 @@ struct StopArrivalsView: View {
                                 toggleStopBookmark()
                             } label: {
                                 Image(systemName: isStopBookmarked ? "star.fill" : "star")
-                                    .font(.system(size: 18))
+                                    .font(.system(size: 15, weight: .medium))
                                     .foregroundColor(.yellow)
                             }
                             .buttonStyle(.plain)
-
-                            Button {
-                                showActions = true
-                            } label: {
-                                Image(systemName: "ellipsis.circle")
-                                    .font(.system(size: 20))
-                                    .foregroundColor(.blue)
-                            }
-                            .buttonStyle(.plain)
                         }
+                        .padding(.top, 2)
                     }
 
-                    if viewModel.isOfflineMode {
-                        HStack(spacing: 4) {
-                            Image(systemName: "wifi.slash")
-                                .font(.system(size: 10))
-                                .foregroundColor(.orange)
-                            Text(OBALoc("stop_arrivals.offline_cached", value: "Offline (Cached Schedule)", comment: "Offline cached schedule banner"))
-                                .font(.system(size: 10, weight: .semibold))
-                                .foregroundColor(.orange)
-                        }
-                    } else if let updated = viewModel.lastUpdated {
-                        HStack(spacing: 4) {
-                            Text(String(format: OBALoc("stop_arrivals.updated_fmt", value: "Updated: %@", comment: "Last updated time format"), relativeUpdateString(from: updated)))
-                                .font(.system(size: 10))
-                                .foregroundColor(.secondary)
+                    HStack(spacing: 4) {
+                        if viewModel.isOfflineMode {
+                            HStack(spacing: 3) {
+                                Image(systemName: "wifi.slash")
+                                    .font(.system(size: 9))
+                                Text(OBALoc("stop_arrivals.offline_cached", value: "Offline (Cached Schedule)", comment: "Offline cached schedule banner"))
+                                    .font(.system(size: 9, weight: .medium))
+                            }
+                            .foregroundColor(.orange)
+                        } else {
+                            if let updated = viewModel.lastUpdated {
+                                Text(String(format: OBALoc("stop_arrivals.updated_fmt", value: "Updated: %@", comment: "Last updated time format"), relativeUpdateString(from: updated)))
+                                    .font(.system(size: 10))
+                                    .foregroundColor(.secondary)
+                            }
                             
                             let userLoc = WatchAppState.shared.effectiveLocation
                             if let lat = viewModel.stopLatitude, let lon = viewModel.stopLongitude, lat != 0.0 || lon != 0.0 {
@@ -117,18 +115,20 @@ struct StopArrivalsView: View {
                                     Text("•")
                                         .font(.system(size: 10))
                                         .foregroundColor(.secondary)
+                                    
                                     Text(walkInfo.formattedWalkTime)
-                                        .font(.system(size: 10, weight: .semibold))
-                                        .foregroundColor(.green)
+                                        .font(.system(size: 10, weight: .medium))
+                                        .foregroundColor(Color(red: 0.2, green: 0.85, blue: 0.45))
                                 }
                             }
                         }
                     }
+                    .padding(.top, 2)
                 }
                 .padding(.vertical, 4)
                 .listRowBackground(
                     RoundedRectangle(cornerRadius: 16)
-                        .fill(Color.white.opacity(0.1))
+                        .fill(Color.white.opacity(0.12))
                 )
 
                 if viewModel.availableRouteFilters.count > 1 {
@@ -234,6 +234,17 @@ struct StopArrivalsView: View {
             hiddenRoutesSection
         }
         .navigationTitle(OBALoc("stop_arrivals.title", value: "Arrivals", comment: "Title for stop arrivals screen"))
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    showActions = true
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(.primary)
+                }
+            }
+        }
         .sheet(isPresented: $showNearbyStops) {
             NavigationStack {
                 NearbyStopsView()
