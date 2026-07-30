@@ -693,6 +693,8 @@ public class Application: CoreApplication, PushServiceDelegate, WCSessionDelegat
                         contactEmail: "example@example.com",
                         regionIdentifier: regionData.regionID,
                         openTripPlannerURL: regionData.otpURL,
+                        openTripPlannerGraphQLURL: regionData.otpGraphQLURL,
+                        supportsOTPGraphQLBikeshare: regionData.supportsOTPGraphQLBikeshare,
                         sidecarBaseURL: regionData.sidecarURL,
                         umamiAnalytics: regionData.umamiAnalytics)
 

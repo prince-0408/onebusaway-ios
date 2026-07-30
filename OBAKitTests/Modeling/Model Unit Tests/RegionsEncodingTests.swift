@@ -7,18 +7,19 @@
 //  LICENSE file in the root directory of this source tree.
 //
 
-import XCTest
 import CoreLocation
 import MapKit
+import Foundation
 import Testing
 @testable import OBAKit
 @testable import OBAKitCore
 
 // swiftlint:disable function_body_length force_try
 
-class RegionsEncodingTests: OBATestCase {
+@Suite(.serialized)
+final class RegionsEncodingTests: OBATestCase {
 
-    func testRoundtrippingRegion() {
+    @Test func `Roundtripping region`() {
         let regionsObjects = try! Fixtures.loadRESTAPIPayload(type: [Region].self, fileName: "regions-v3.json")
 
         #expect(regionsObjects.count == 17)
@@ -81,7 +82,51 @@ class RegionsEncodingTests: OBATestCase {
         expectClose(bounds[1].lonSpan, 0.3967700000000036)
     }
 
-    func testUmamiAnalyticsDecoding() {
+    @Test func `OTP GraphQL fields decode and roundtrip`() {
+        let regions = try! Fixtures.loadRESTAPIPayload(type: [Region].self, fileName: "regions-v3.json")
+
+        // Puget Sound (region 1) carries both GraphQL keys in the fixture.
+        let pugetSound = regions[1]
+        #expect(pugetSound.openTripPlannerGraphQLURL == URL(string: "https://sound-transit-otp.ibi-transit.com/otp/")!)
+        #expect(pugetSound.supportsOTPGraphQLBikeshare)
+        #expect(pugetSound.isBikeshareEnabled)
+
+        // Tampa (region 0) has neither key: URL nil, flag defaults to false.
+        let tampa = regions[0]
+        #expect(tampa.openTripPlannerGraphQLURL == nil)
+        #expect(!tampa.supportsOTPGraphQLBikeshare)
+        #expect(!tampa.isBikeshareEnabled)
+
+        // Survives the plist round trip used for on-disk persistence.
+        let plist = try! PropertyListEncoder().encode(regions)
+        let roundTripped = try! PropertyListDecoder().decode([Region].self, from: plist)
+        #expect(roundTripped[1].openTripPlannerGraphQLURL == URL(string: "https://sound-transit-otp.ibi-transit.com/otp/")!)
+        #expect(roundTripped[1].supportsOTPGraphQLBikeshare)
+        #expect(roundTripped[0].openTripPlannerGraphQLURL == nil)
+        #expect(!roundTripped[0].supportsOTPGraphQLBikeshare)
+    }
+
+    @Test func `supportsOTP considers the GraphQL URL`() {
+        // A GraphQL-only region must still light up trip planning.
+        let graphQLOnly = Region(
+            name: "GraphQL Only",
+            OBABaseURL: URL(string: "http://www.example.com")!,
+            coordinateRegion: MKCoordinateRegion(
+                center: CLLocationCoordinate2D(latitude: 47.6, longitude: -122.3),
+                latitudinalMeters: 1000,
+                longitudinalMeters: 1000
+            ),
+            contactEmail: "contact@example.com",
+            openTripPlannerGraphQLURL: URL(string: "https://otp.example.com/otp/")!
+        )
+        #expect(graphQLOnly.supportsOTP)
+        #expect(graphQLOnly.openTripPlannerURL == nil)
+
+        // Bikeshare stays off without the explicit opt-in flag.
+        #expect(!graphQLOnly.isBikeshareEnabled)
+    }
+
+    @Test func `Umami analytics decoding`() {
         let regions = try! Fixtures.loadRESTAPIPayload(type: [Region].self, fileName: "regions-v3.json")
 
         // Present: region 0 decodes url + id.
@@ -103,7 +148,7 @@ class RegionsEncodingTests: OBATestCase {
         #expect(roundTripped[1].umamiAnalytics == nil)
     }
 
-    func testCustomRegions_creation() {
+    @Test func `Custom regions creation`() {
         let customRegion = Fixtures.customMinneapolisRegion
 
         #expect(customRegion.name == "Custom Region")
@@ -116,7 +161,7 @@ class RegionsEncodingTests: OBATestCase {
         expectClose(customRegion.serviceRect.width, 9453.3477, within: 0.1)
     }
 
-    func testCustomRegions_roundtripping() {
+    @Test func `Custom regions roundtripping`() {
         let customRegion = Fixtures.customMinneapolisRegion
         let plistData = try! PropertyListEncoder().encode([customRegion])
         let roundTripped = try! PropertyListDecoder().decode([Region].self, from: plistData)
@@ -134,23 +179,23 @@ class RegionsEncodingTests: OBATestCase {
 
     // MARK: - UmamiAnalyticsConfig inits
 
-    func testUmamiConfig_memberwiseInit() {
+    @Test func `Umami config memberwise init`() {
         let config = UmamiAnalyticsConfig(url: URL(string: "https://analytics.example.com")!, id: "site-123")
         #expect(config.url.absoluteString == "https://analytics.example.com")
         #expect(config.id == "site-123")
     }
 
-    func testUmamiConfig_failableInit_bothPresent() {
+    @Test func `Umami config failable init both present`() {
         let config = UmamiAnalyticsConfig(url: URL(string: "https://analytics.example.com"), id: "site-123")
         #expect(config?.id == "site-123")
     }
 
-    func testUmamiConfig_failableInit_trimsID() {
+    @Test func `Umami config failable init trims ID`() {
         let config = UmamiAnalyticsConfig(url: URL(string: "https://analytics.example.com"), id: "  site-123 \n")
         #expect(config?.id == "site-123")
     }
 
-    func testUmamiConfig_failableInit_partialPairsCollapseToNil() {
+    @Test func `Umami config failable init partial pairs collapse to nil`() {
         #expect(UmamiAnalyticsConfig(url: nil, id: "site-123") == nil)
         #expect(UmamiAnalyticsConfig(url: URL(string: "https://analytics.example.com"), id: nil) == nil)
         #expect(UmamiAnalyticsConfig(url: URL(string: "https://analytics.example.com"), id: "") == nil)
@@ -158,14 +203,14 @@ class RegionsEncodingTests: OBATestCase {
         #expect(UmamiAnalyticsConfig(url: nil, id: nil) == nil)
     }
 
-    func testCustomRegions_creation_withSidecarAndUmami() {
+    @Test func `Custom regions creation with sidecar and umami`() {
         let region = Fixtures.customRegionWithSidecarAndUmami
         #expect(region.sidecarBaseURL?.absoluteString == "https://obaco.example.com")
         #expect(region.umamiAnalytics?.url.absoluteString == "https://analytics.example.com")
         #expect(region.umamiAnalytics?.id == "site-uuid-123")
     }
 
-    func testCustomRegions_roundtripping_withSidecarAndUmami() {
+    @Test func `Custom regions roundtripping with sidecar and umami`() {
         let plistData = try! PropertyListEncoder().encode([Fixtures.customRegionWithSidecarAndUmami])
         let rt = try! PropertyListDecoder().decode([Region].self, from: plistData)[0]
 
