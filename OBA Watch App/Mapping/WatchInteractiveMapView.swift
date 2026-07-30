@@ -123,26 +123,6 @@ struct WatchInteractiveMapView: View {
             .id(mapStyleRaw)
             .mapControlVisibility(.hidden)
             
-            // Map Style Control Button (Top-Right Overlay)
-            VStack(spacing: 6) {
-                Button {
-                    withAnimation {
-                        mapStyleRaw = (mapStyleRaw == "transit") ? "standard" : "transit"
-                    }
-                } label: {
-                    Image(systemName: mapStyleRaw == "transit" ? "bus.fill" : "map")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundColor(mapStyleRaw == "transit" ? .blue : .primary)
-                        .padding(6)
-                        .background(Circle().fill(.ultraThinMaterial))
-                }
-                .buttonStyle(.plain)
-                .frame(width: 26, height: 26)
-            }
-            .padding(.top, 4)
-            .padding(.trailing, 4)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
-            
             // Tracked Vehicle Floating Banner
             if let vehicle = trackedVehicle {
                 HStack(spacing: 8) {
@@ -181,7 +161,7 @@ struct WatchInteractiveMapView: View {
                         Image(systemName: "location.fill")
                             .font(.system(size: 11, weight: .bold))
                             .foregroundColor(.blue)
-                            .rotationEffect(Angle(degrees: relativeBearing(lat: lat, lon: lon) - 45)) // location.fill points top-right (45 deg) by default
+                            .rotationEffect(Angle(degrees: relativeBearing(lat: lat, lon: lon) - 45))
                             .padding(.trailing, 2)
                     }
                     
@@ -220,24 +200,43 @@ struct WatchInteractiveMapView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
             
-            // Floating Recenter Button
-            Button {
-                let loc = appState.effectiveLocation
-                withAnimation {
-                    trackedVehicle = nil
-                    mapPosition = .region(MKCoordinateRegion(center: loc.coordinate, latitudinalMeters: 800, longitudinalMeters: 800))
+            // Map Overlay Controls (Grouped Bottom-Right Stack)
+            VStack(spacing: 8) {
+                // Transit Map Filter Toggle Button
+                Button {
+                    withAnimation {
+                        mapStyleRaw = (mapStyleRaw == "transit") ? "standard" : "transit"
+                    }
+                } label: {
+                    Image(systemName: mapStyleRaw == "transit" ? "bus.fill" : "map")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundColor(mapStyleRaw == "transit" ? .blue : .primary)
+                        .padding(8)
+                        .background(Circle().fill(.ultraThinMaterial))
+                        .shadow(color: Color.black.opacity(0.25), radius: 3, x: 0, y: 1)
                 }
-            } label: {
-                Image(systemName: "location.fill")
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundColor(.white)
-                    .padding(8)
-                    .background(Circle().fill(Color.blue.gradient))
-                    .shadow(radius: 4)
+                .buttonStyle(.plain)
+
+                // Location Recenter Button
+                Button {
+                    let loc = appState.effectiveLocation
+                    withAnimation {
+                        trackedVehicle = nil
+                        mapPosition = .region(MKCoordinateRegion(center: loc.coordinate, latitudinalMeters: 800, longitudinalMeters: 800))
+                    }
+                } label: {
+                    Image(systemName: "location.fill")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundColor(.blue)
+                        .padding(8)
+                        .background(Circle().fill(.ultraThinMaterial))
+                        .shadow(color: Color.black.opacity(0.25), radius: 3, x: 0, y: 1)
+                }
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
-            .padding(.trailing, 10)
-            .padding(.bottom, 10)
+            .padding(.trailing, 8)
+            .padding(.bottom, 8)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
         }
         .navigationTitle(OBALoc("map.interactive_title", value: "Map", comment: "Interactive map screen title"))
         .navigationBarTitleDisplayMode(.inline)
