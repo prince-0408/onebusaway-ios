@@ -103,7 +103,7 @@ struct ChooseRegionView: View {
                         Spacer()
                         if region.id == selectedRegionID {
                             Image(systemName: "checkmark")
-                                .foregroundColor(.green)
+                                .foregroundColor(.brand)
                         }
                     }
                 }

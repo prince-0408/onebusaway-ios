@@ -42,7 +42,7 @@ struct RegionOnboardingView: View {
                 Toggle(isOn: $shareCurrentLocation) {
                     HStack {
                         Image(systemName: "globe")
-                            .foregroundColor(.green)
+                            .foregroundColor(.brand)
                         Text(OBALoc("region_onboarding.share_location", value: "Share Current Location", comment: "Option to share current location"))
                             .font(.headline)
                     }
@@ -60,7 +60,7 @@ struct RegionOnboardingView: View {
                             Spacer()
                             if region.id == selectedRegionID {
                                 Image(systemName: "checkmark")
-                                    .foregroundColor(.green)
+                                    .foregroundColor(.brand)
                             }
                         }
                     }
@@ -84,7 +84,7 @@ struct RegionOnboardingView: View {
                 }
                 .buttonStyle(.plain)
                 .modifier(GlassCapsuleModifier())
-                .foregroundStyle(shareCurrentLocation ? Color.green : Color.gray)
+                .foregroundStyle(shareCurrentLocation ? Color.brand : Color.gray)
                 .listRowInsets(EdgeInsets())
                 .listRowBackground(Color.clear)
                 .padding(.horizontal, 4)

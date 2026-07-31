@@ -180,7 +180,7 @@ struct NearbyStopRow: View {
                 .font(.system(size: 13, weight: .bold))
                 .foregroundColor(.white)
                 .frame(width: 32, height: 32)
-                .background(Color.green.gradient)
+                .background(Color.brand.gradient)
                 .clipShape(Circle())
 
             VStack(alignment: .leading, spacing: 3) {
@@ -224,7 +224,7 @@ struct NearbyStopRow: View {
                 if let routesSummary, !routesSummary.isEmpty {
                     Text(routesSummary)
                         .font(.system(size: 11, weight: .regular))
-                        .foregroundColor(.blue.opacity(0.9))
+                        .foregroundColor(.brand.opacity(0.9))
                         .lineLimit(1)
                 }
             }

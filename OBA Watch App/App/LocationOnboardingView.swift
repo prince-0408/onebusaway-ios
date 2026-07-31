@@ -21,7 +21,7 @@ struct LocationOnboardingView: View {
                 .scaledToFit()
                 .frame(width: 52, height: 52)
                 .cornerRadius(12)
-                .shadow(color: .green.opacity(0.3), radius: 4)
+                .shadow(color: .brand.opacity(0.3), radius: 4)
                 .padding(.top, 24)
             
             VStack(spacing: 2) {
@@ -50,7 +50,7 @@ struct LocationOnboardingView: View {
                     Text(OBALoc("location_onboarding.allow_access", value: "Allow Access", comment: "Button title to request location permission"))
                         .font(.system(size: 15, weight: .semibold))
                 }
-                .foregroundStyle(Color.green)
+                .foregroundStyle(Color.brand)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 10)
             }

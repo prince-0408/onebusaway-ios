@@ -66,7 +66,7 @@ struct ServiceAlertDetailView: View {
                                         .font(.system(size: 11, weight: .bold))
                                         .padding(.horizontal, 8)
                                         .padding(.vertical, 3)
-                                        .background(Capsule().fill(Color.blue))
+                                        .background(Capsule().fill(Color.brand))
                                         .foregroundColor(.white)
                                 }
                             }
@@ -107,7 +107,7 @@ struct ServiceAlertDetailView: View {
                     }
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(.blue)
+                .tint(.brand)
             }
             .padding(.horizontal, 4)
         }

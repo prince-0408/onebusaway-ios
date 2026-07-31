@@ -129,7 +129,7 @@ struct AlarmSetupView: View {
                         }
                         .padding(.vertical, 5)
                         .frame(maxWidth: .infinity)
-                        .background(alarmType == .destinationGeofence ? Color.green : Color.white.opacity(0.1))
+                        .background(alarmType == .destinationGeofence ? Color.brand : Color.white.opacity(0.1))
                         .foregroundColor(alarmType == .destinationGeofence ? .black : .white)
                         .clipShape(Capsule())
                     }
@@ -166,7 +166,7 @@ struct AlarmSetupView: View {
                                     .font(.system(size: 10, weight: .bold))
                                     .padding(.vertical, 5)
                                     .frame(maxWidth: .infinity)
-                                    .background(selectedGeofenceRadius == radius ? Color.green : Color.white.opacity(0.12))
+                                    .background(selectedGeofenceRadius == radius ? Color.brand : Color.white.opacity(0.12))
                                     .foregroundColor(selectedGeofenceRadius == radius ? .black : .white)
                                     .clipShape(RoundedRectangle(cornerRadius: 6))
                             }
@@ -207,7 +207,7 @@ struct AlarmSetupView: View {
                         .foregroundColor(.black)
                         .padding(.vertical, 7)
                         .frame(maxWidth: .infinity)
-                        .background(alarmType == .departureTime ? Color.orange : Color.green)
+                        .background(alarmType == .departureTime ? Color.orange : Color.brand)
                         .clipShape(Capsule())
                     }
                     .buttonStyle(.plain)

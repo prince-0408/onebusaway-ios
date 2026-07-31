@@ -79,7 +79,7 @@ struct RecentStopRow: View {
         HStack(spacing: 8) {
             ZStack {
                 Circle()
-                    .fill(Color.blue.gradient)
+                    .fill(Color.brand.gradient)
                     .frame(width: 30, height: 30)
                 
                 Image(systemName: "bus.fill")
@@ -106,7 +106,7 @@ struct RecentStopRow: View {
                 if let routes = stop.routeNames, !routes.isEmpty {
                     Text(routes)
                         .font(.system(size: 11))
-                        .foregroundColor(.blue)
+                        .foregroundColor(.brand)
                         .lineLimit(1)
                 }
                 

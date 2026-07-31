@@ -45,7 +45,7 @@ struct ServiceAlertsView: View {
                                 HStack(spacing: 4) {
                                     Text("Routes: \(routes.joined(separator: ", "))")
                                         .font(.system(size: 10, weight: .semibold))
-                                        .foregroundColor(.blue)
+                                        .foregroundColor(.brand)
                                         .lineLimit(1)
                                 }
                             }

@@ -22,7 +22,7 @@ struct NearbyMapView: View {
             
             ForEach(stops.prefix(20)) { stop in
                 Marker(stop.name, systemImage: stop.iconName, coordinate: CLLocationCoordinate2D(latitude: stop.latitude, longitude: stop.longitude))
-                    .tint(stop.isTrain ? .indigo : .blue)
+                    .tint(stop.isTrain ? .indigo : .brand)
             }
         }
         .mapStyle(mapStyle)

@@ -43,8 +43,8 @@ struct AlarmsView: View {
                                     .font(.system(size: 10, weight: .bold))
                                     .padding(.horizontal, 6)
                                     .padding(.vertical, 2)
-                                    .background(Color.green.opacity(0.2))
-                                    .foregroundColor(.green)
+                                    .background(Color.brand.opacity(0.2))
+                                    .foregroundColor(.brand)
                                     .clipShape(Capsule())
                             }
                         }
@@ -64,10 +64,10 @@ struct AlarmsView: View {
                             HStack(spacing: 4) {
                                 Image(systemName: "location.fill")
                                     .font(.system(size: 9))
-                                    .foregroundColor(.green)
+                                    .foregroundColor(.brand)
                                 Text("\(distance)m away")
                                     .font(.system(size: 10, weight: .semibold))
-                                    .foregroundColor(.green)
+                                    .foregroundColor(.brand)
                             }
                         }
 

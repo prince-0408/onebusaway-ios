@@ -44,12 +44,12 @@ struct VehicleRow: View {
             // Bus Icon on the left
             ZStack {
                 Circle()
-                    .fill(Color.green.opacity(0.2))
+                    .fill(Color.brand.opacity(0.2))
                     .frame(width: 28, height: 28)
                 
                 Image(systemName: "bus.fill")
                     .font(.system(size: 14))
-                    .foregroundColor(.green)
+                    .foregroundColor(.brand)
             }
             
             VStack(alignment: .leading, spacing: 0) {

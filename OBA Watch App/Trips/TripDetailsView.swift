@@ -106,12 +106,12 @@ struct TripDetailsView: View {
                         MapPolyline(coordinates: viewModel.polyline)
                             .stroke(Color.black.opacity(0.85), style: StrokeStyle(lineWidth: 6.5, lineCap: .round, lineJoin: .round))
                         
-                        // Vibrant mint green route line
+                        // Brand route line
                         MapPolyline(coordinates: viewModel.polyline)
-                            .stroke(Color(red: 0.0, green: 0.88, blue: 0.45), style: StrokeStyle(lineWidth: 4, lineCap: .round, lineJoin: .round))
+                            .stroke(Color.brand, style: StrokeStyle(lineWidth: 4, lineCap: .round, lineJoin: .round))
                     }
                     
-                    // Stop Markers - Stop icon pins (Active next stop highlighted with green pill)
+                    // Stop Markers - Stop icon pins (Active next stop highlighted with brand pill)
                     if let schedule = viewModel.tripDetails?.schedule {
                         let nextStopId = viewModel.tripDetails?.status?.nextStop
                         let nextStopIndex = schedule.stopTimes.firstIndex(where: { $0.stopId == nextStopId }) ?? -1
@@ -127,9 +127,9 @@ struct TripDetailsView: View {
                                     if isVisited {
                                         return Color(white: 0.35)
                                     } else if isNextStop {
-                                        return Color(red: 0.0, green: 0.78, blue: 0.38)
+                                        return Color.brand
                                     } else {
-                                        return Color(red: 0.0, green: 0.85, blue: 0.45)
+                                        return Color.brand
                                     }
                                 }()
 
@@ -149,11 +149,11 @@ struct TripDetailsView: View {
                         // Left circle badge
                         ZStack {
                             Circle()
-                                .fill(Color.blue.opacity(0.2))
+                                .fill(Color.brand.opacity(0.2))
                                 .frame(width: 24, height: 24)
                             Image(systemName: resolvedGlyph)
                                 .font(.system(size: 11, weight: .bold))
-                                .foregroundColor(.blue)
+                                .foregroundColor(.brand)
                         }
                         
                         // Informative Real-time Info (Status + Next Stop / Destination)
@@ -197,7 +197,7 @@ struct TripDetailsView: View {
                         // Direction Arrow (Live)
                         Image(systemName: "location.fill")
                             .font(.system(size: 9, weight: .bold))
-                            .foregroundColor(.blue)
+                            .foregroundColor(.brand)
                             .rotationEffect(Angle(degrees: relativeBearing(lat: vCoord.latitude, lon: vCoord.longitude) - 45))
                     }
                     .padding(.horizontal, 8)
@@ -484,7 +484,7 @@ struct TripDetailsView: View {
                                 Text(OBALoc("trip_details.prev_trip", value: "Prev Trip", comment: "Previous trip button"))
                             }
                             .font(.system(size: 11, weight: .bold))
-                            .foregroundColor(.blue)
+                            .foregroundColor(.brand)
                             .padding(.vertical, 6)
                             .frame(maxWidth: .infinity)
                             .background(
@@ -504,7 +504,7 @@ struct TripDetailsView: View {
                                 Image(systemName: "chevron.right")
                             }
                             .font(.system(size: 11, weight: .bold))
-                            .foregroundColor(.blue)
+                            .foregroundColor(.brand)
                             .padding(.vertical, 6)
                             .frame(maxWidth: .infinity)
                             .background(
@@ -596,7 +596,7 @@ struct StopRow: View {
                 
                 if !isFirst {
                     Rectangle()
-                        .fill(isVisited ? Color.gray.opacity(0.3) : Color.green.opacity(0.5))
+                        .fill(isVisited ? Color.gray.opacity(0.3) : Color.brand.opacity(0.5))
                         .frame(width: 2, height: 12)
                 } else {
                     Color.clear.frame(width: 2, height: 12)
@@ -605,7 +605,7 @@ struct StopRow: View {
                 ZStack {
                     if isVehicleApproaching {
                         Circle()
-                            .fill(Color(red: 0.0, green: 0.88, blue: 0.4))
+                            .fill(Color.brand)
                             .frame(width: 20, height: 20)
                             .shadow(color: .black.opacity(0.3), radius: 2)
                         Image(systemName: resolvedGlyph)
@@ -620,7 +620,7 @@ struct StopRow: View {
                             .fill(.white)
                             .frame(width: 12, height: 12)
                         Circle()
-                            .strokeBorder(Color.green, lineWidth: 2)
+                            .strokeBorder(Color.brand, lineWidth: 2)
                             .frame(width: 12, height: 12)
                     }
                 }
@@ -628,7 +628,7 @@ struct StopRow: View {
                 
                 if !isLast {
                     Rectangle()
-                        .fill((isVisited && !isVehicleApproaching) ? Color.gray.opacity(0.3) : Color.green.opacity(0.5))
+                        .fill((isVisited && !isVehicleApproaching) ? Color.gray.opacity(0.3) : Color.brand.opacity(0.5))
                         .frame(width: 2)
                 } else {
                     Color.clear.frame(width: 2)
@@ -658,7 +658,7 @@ struct StopRow: View {
                      if let arrival = stopTime.arrivalTime {
                          Text(formatTime(seconds: arrival, serviceDate: serviceDate))
                              .font(.system(size: 13, weight: .bold))
-                             .foregroundColor(.green)
+                             .foregroundColor(.brand)
                      }
                  }
                  

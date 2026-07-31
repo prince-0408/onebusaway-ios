@@ -98,7 +98,7 @@ struct MainMenuView: View {
                     BookmarksView()
                 } label: {
                     Label(OBALoc("common.bookmarks", value: "Bookmarks", comment: "Title for bookmarks menu item"), systemImage: "bookmark.fill")
-                        .foregroundColor(.blue)
+                        .foregroundColor(.brand)
                 }
             }
 

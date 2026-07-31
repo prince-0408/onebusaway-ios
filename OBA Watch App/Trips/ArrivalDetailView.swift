@@ -241,7 +241,7 @@ struct ArrivalDetailView: View {
                     HStack(spacing: 8) {
                         Image(systemName: "list.bullet.rectangle.portrait")
                             .font(.system(size: 13, weight: .bold))
-                            .foregroundColor(.blue)
+                            .foregroundColor(.brand)
                         Text(OBALoc("arrival_detail.view_trip_schedule", value: "View Trip Schedule", comment: "Action to view trip schedule"))
                             .font(.system(size: 11, weight: .semibold))
                             .foregroundColor(.white)
@@ -318,10 +318,10 @@ struct ArrivalDetailView: View {
                             Annotation("", coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon), anchor: .center) {
                                 ZStack {
                                     Circle()
-                                        .fill(Color(red: 0.0, green: 0.85, blue: 0.35).opacity(0.3))
+                                        .fill(Color.brand.opacity(0.3))
                                         .frame(width: 26, height: 26)
                                     Circle()
-                                        .fill(Color(red: 0.0, green: 0.82, blue: 0.35))
+                                        .fill(Color.brand)
                                         .frame(width: 20, height: 20)
                                         .shadow(color: .black.opacity(0.5), radius: 3, y: 1)
                                     Image(systemName: "bus.fill")

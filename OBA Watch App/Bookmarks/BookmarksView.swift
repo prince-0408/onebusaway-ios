@@ -86,7 +86,7 @@ struct BookmarksView: View {
                                     .padding(.vertical, 5)
                                     .background(
                                         Capsule()
-                                            .fill(viewModel.sortOption == mode ? Color.blue : Color.white.opacity(0.12))
+                                            .fill(viewModel.sortOption == mode ? Color.brand : Color.white.opacity(0.12))
                                     )
                             }
                             .buttonStyle(.plain)
@@ -98,7 +98,7 @@ struct BookmarksView: View {
                         HStack(spacing: 4) {
                             Image(systemName: "arrow.clockwise")
                                 .font(.system(size: 10))
-                                .foregroundColor(.blue)
+                                .foregroundColor(.brand)
                             Text(syncStatusText)
                                 .font(.system(size: 10))
                                 .foregroundColor(.secondary)
@@ -109,7 +109,7 @@ struct BookmarksView: View {
                         } label: {
                             Text(OBALoc("common.sync", value: "Sync", comment: "Sync button"))
                                 .font(.system(size: 10, weight: .bold))
-                                .foregroundColor(.blue)
+                                .foregroundColor(.brand)
                         }
                         .buttonStyle(.plain)
                     }
@@ -125,7 +125,7 @@ struct BookmarksView: View {
                     Section(header: HStack {
                         Label(group.name, systemImage: "folder.fill")
                             .font(.system(size: 11, weight: .semibold))
-                            .foregroundColor(.blue)
+                            .foregroundColor(.brand)
                         Spacer()
                         Text("\(group.items.count)")
                             .font(.system(size: 10, weight: .bold))
@@ -182,7 +182,7 @@ struct BookmarkRow: View {
                 .font(.system(size: 10, weight: .bold))
                 .foregroundColor(.white)
                 .frame(width: 24, height: 24)
-                .background(Color.blue.gradient)
+                .background(Color.brand.gradient)
                 .clipShape(Circle())
 
             VStack(alignment: .leading, spacing: 2) {

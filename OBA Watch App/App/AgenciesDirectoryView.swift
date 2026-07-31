@@ -51,7 +51,7 @@ struct AgenciesDirectoryView: View {
                             HStack(spacing: 8) {
                                 Image(systemName: "building.2.crop.circle.fill")
                                     .font(.system(size: 16))
-                                    .foregroundColor(.blue)
+                                    .foregroundColor(.brand)
                                 
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(agency.agencyID)
@@ -98,7 +98,7 @@ struct AgencyDetailView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     Label("Agency Coverage", systemImage: "mappin.and.ellipse")
                         .font(.headline)
-                        .foregroundColor(.blue)
+                        .foregroundColor(.brand)
                     
                     Text("Center Location:")
                         .font(.caption2)
@@ -123,7 +123,7 @@ struct AgencyDetailView: View {
                 } label: {
                     Label(OBALoc("agencies.view_map", value: "View Region Map", comment: "View agency map button"), systemImage: "map.fill")
                         .font(.caption)
-                        .foregroundColor(.green)
+                        .foregroundColor(.brand)
                 }
             }
         }

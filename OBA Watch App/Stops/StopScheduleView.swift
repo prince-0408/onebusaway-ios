@@ -70,7 +70,7 @@ struct StopScheduleView: View {
                                 .padding(.vertical, 6)
                                 .background(
                                     Capsule()
-                                        .fill(selectedDay == day ? Color.blue : Color.white.opacity(0.15))
+                                        .fill(selectedDay == day ? Color.brand : Color.white.opacity(0.15))
                                 )
                                 .foregroundColor(.white)
                         }
@@ -121,7 +121,7 @@ struct StopScheduleView: View {
                                     .frame(maxWidth: .infinity)
                                     .background(
                                         RoundedRectangle(cornerRadius: 6)
-                                            .fill(isPast ? Color.white.opacity(0.06) : Color.blue.opacity(0.3))
+                                            .fill(isPast ? Color.white.opacity(0.06) : Color.brand.opacity(0.3))
                                     )
                             }
                         }

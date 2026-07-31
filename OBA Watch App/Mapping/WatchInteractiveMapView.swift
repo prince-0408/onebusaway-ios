@@ -77,11 +77,7 @@ struct WatchInteractiveMapView: View {
                     if !upcomingRoutePolyline.isEmpty {
                         MapPolyline(coordinates: upcomingRoutePolyline)
                             .stroke(
-                                LinearGradient(
-                                    colors: [Color(red: 0.0, green: 0.9, blue: 0.45), Color(red: 0.1, green: 0.98, blue: 0.55)],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                ),
+                                Color.brand.gradient,
                                 style: StrokeStyle(lineWidth: 5.5, lineCap: .round, lineJoin: .round)
                             )
                     }
@@ -96,7 +92,7 @@ struct WatchInteractiveMapView: View {
                             systemImage: stop.iconName,
                             coordinate: coord
                         )
-                        .tint(stop.isTrain ? .indigo : .blue)
+                        .tint(stop.isTrain ? .indigo : .brand)
                         .tag(stop.id)
                     }
                 }
@@ -129,11 +125,11 @@ struct WatchInteractiveMapView: View {
                     // Left circle badge
                     ZStack {
                         Circle()
-                            .fill(Color.blue.opacity(0.12))
+                            .fill(Color.brand.opacity(0.12))
                             .frame(width: 28, height: 28)
                         Image(systemName: "bus.fill")
                             .font(.system(size: 12, weight: .bold))
-                            .foregroundColor(.blue)
+                            .foregroundColor(.brand)
                     }
                     
                     // Middle text info
@@ -160,7 +156,7 @@ struct WatchInteractiveMapView: View {
                     if let lat = vehicle.latitude, let lon = vehicle.longitude {
                         Image(systemName: "location.fill")
                             .font(.system(size: 11, weight: .bold))
-                            .foregroundColor(.blue)
+                            .foregroundColor(.brand)
                             .rotationEffect(Angle(degrees: relativeBearing(lat: lat, lon: lon) - 45))
                             .padding(.trailing, 2)
                     }
@@ -210,7 +206,7 @@ struct WatchInteractiveMapView: View {
                 } label: {
                     Image(systemName: mapStyleRaw == "transit" ? "bus.fill" : "map")
                         .font(.system(size: 13, weight: .bold))
-                        .foregroundColor(mapStyleRaw == "transit" ? .blue : .primary)
+                        .foregroundColor(mapStyleRaw == "transit" ? .brand : .primary)
                         .padding(8)
                         .background(Circle().fill(.ultraThinMaterial))
                         .shadow(color: Color.black.opacity(0.25), radius: 3, x: 0, y: 1)
@@ -227,7 +223,7 @@ struct WatchInteractiveMapView: View {
                 } label: {
                     Image(systemName: "location.fill")
                         .font(.system(size: 13, weight: .bold))
-                        .foregroundColor(.blue)
+                        .foregroundColor(.brand)
                         .padding(8)
                         .background(Circle().fill(.ultraThinMaterial))
                         .shadow(color: Color.black.opacity(0.25), radius: 3, x: 0, y: 1)

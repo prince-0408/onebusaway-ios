@@ -53,7 +53,7 @@ struct RouteSearchView: View {
                                     .font(.system(size: 14, weight: .bold))
                                     .foregroundColor(.white)
                                     .frame(width: 30, height: 30)
-                                    .background(Color.green.gradient)
+                                    .background(Color.brand.gradient)
                                     .clipShape(Circle())
 
                                 VStack(alignment: .leading, spacing: 2) {
@@ -97,7 +97,7 @@ struct RouteSearchView: View {
                         } label: {
                             Label(String(format: OBALoc("search.address_for", value: "Search Address '%@'", comment: "Search address shortcut"), viewModel.query), systemImage: "mappin.and.ellipse")
                                 .font(.system(size: 11, weight: .semibold))
-                                .foregroundColor(.blue)
+                                .foregroundColor(.brand)
                         }
                         .buttonStyle(.bordered)
                         .padding(.top, 4)

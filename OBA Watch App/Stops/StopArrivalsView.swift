@@ -76,7 +76,7 @@ struct StopArrivalsView: View {
                             } label: {
                                 Image(systemName: viewModel.sortMode == .byTime ? "arrow.up.arrow.down" : "arrow.up.arrow.down.circle.fill")
                                     .font(.system(size: 14, weight: .medium))
-                                    .foregroundColor(.blue)
+                                    .foregroundColor(.brand)
                             }
                             .buttonStyle(.plain)
 
@@ -118,7 +118,7 @@ struct StopArrivalsView: View {
                                     
                                     Text(walkInfo.formattedWalkTime)
                                         .font(.system(size: 10, weight: .medium))
-                                        .foregroundColor(Color(red: 0.2, green: 0.85, blue: 0.45))
+                                        .foregroundColor(.brand)
                                 }
                             }
                         }
@@ -141,7 +141,7 @@ struct StopArrivalsView: View {
                                     .font(.system(size: 11, weight: .bold))
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 4)
-                                    .background(viewModel.selectedRouteFilter == nil ? Color.blue : Color.white.opacity(0.15))
+                                    .background(viewModel.selectedRouteFilter == nil ? Color.brand : Color.white.opacity(0.15))
                                     .foregroundColor(.white)
                                     .cornerRadius(8)
                             }
@@ -159,7 +159,7 @@ struct StopArrivalsView: View {
                                         .font(.system(size: 11, weight: .bold))
                                         .padding(.horizontal, 8)
                                         .padding(.vertical, 4)
-                                        .background(viewModel.selectedRouteFilter == routeFilter ? Color.blue : Color.white.opacity(0.15))
+                                        .background(viewModel.selectedRouteFilter == routeFilter ? Color.brand : Color.white.opacity(0.15))
                                         .foregroundColor(.white)
                                         .cornerRadius(8)
                                 }
@@ -213,7 +213,7 @@ struct StopArrivalsView: View {
                             showAllArrivals.toggle()
                         }
                         .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.blue)
+                        .foregroundColor(.brand)
                         .listRowBackground(Color.clear)
                     }
                 }
@@ -376,10 +376,10 @@ struct StopArrivalsView: View {
                 } label: {
                     HStack {
                         Image(systemName: "eye")
-                            .foregroundColor(.blue)
+                            .foregroundColor(.brand)
                         Text(OBALoc("stop_preferences.unhide_all", value: "Unhide All Routes", comment: "Unhide all routes button"))
                             .font(.system(size: 13, weight: .semibold))
-                            .foregroundColor(.blue)
+                            .foregroundColor(.brand)
                     }
                 }
                 .listRowBackground(Color.clear)
@@ -578,7 +578,7 @@ struct RoutePreferenceRowView: View {
                 .font(.system(size: 14, weight: .bold, design: .rounded))
                 .foregroundColor(.white)
                 .frame(width: 34, height: 34)
-                .background(Color.blue.gradient)
+                .background(Color.brand.gradient)
                 .clipShape(Circle())
 
             VStack(alignment: .leading, spacing: 2) {
@@ -605,7 +605,7 @@ struct RoutePreferenceRowView: View {
             } label: {
                 Label(labelText, systemImage: iconName)
             }
-            .tint(isHidden ? .blue : .orange)
+            .tint(isHidden ? .brand : .orange)
         }
         .onAppear {
             isHidden = StopPreferencesStore.shared.isRouteHidden(stopID: stopID, routeID: route.id)

@@ -85,7 +85,7 @@ extension BLTNItemManager {
             // Classic: present above whatever's at the top of the key window.
             // `topViewController` is defined on `UIWindow` in
             // `OBAKitCore/Extensions/UIKitExtensions.swift`.
-            guard let topViewController = application.keyWindowFromScene?.topViewController else {
+            guard let topViewController = application.keyWindowFromScene?.topViewController() else {
                 Logger.error("Bulletin dropped: no key window / top view controller available to host it.")
                 return
             }

@@ -130,15 +130,29 @@ public final class ThemeColors: NSObject, @unchecked Sendable {
     #if !os(watchOS)
     public init(bundle: Bundle, traitCollection: UITraitCollection?) {
         super.init()
+        let isKiedyBus = (bundle.bundleIdentifier ?? Bundle.main.bundleIdentifier ?? "").contains("kiedybus")
+        let fallbackColor = isKiedyBus ?
+            UIColor(red: 0.271, green: 0.588, blue: 0.925, alpha: 1.0) : // KiedyBus Blue (#4596EC)
+            UIColor(red: 0.471, green: 0.667, blue: 0.212, alpha: 1.0)   // OneBusAway Green (#78AA36)
+
         brand = UIColor(named: "brand", in: bundle, compatibleWith: traitCollection) ??
-            UIColor(red: 0.471, green: 0.667, blue: 0.212, alpha: 1.0)  // fallback for swiftui previews
+            UIColor(named: "brand") ??
+            UIColor(named: "AccentColor", in: bundle, compatibleWith: traitCollection) ??
+            UIColor(named: "AccentColor") ??
+            fallbackColor
         commonInit(bundle: bundle)
     }
     #else
     public init(bundle: Bundle) {
         super.init()
+        let isKiedyBus = (bundle.bundleIdentifier ?? Bundle.main.bundleIdentifier ?? "").contains("kiedybus")
+        let fallbackColor = isKiedyBus ?
+            UIColor(red: 0.271, green: 0.588, blue: 0.925, alpha: 1.0) : // KiedyBus Blue (#4596EC)
+            UIColor(red: 0.471, green: 0.667, blue: 0.212, alpha: 1.0)   // OneBusAway Green (#78AA36)
+
         brand = UIColor(named: "brand") ??
-            UIColor(red: 0.471, green: 0.667, blue: 0.212, alpha: 1.0)  // fallback for swiftui previews
+            UIColor(named: "AccentColor") ??
+            fallbackColor
         commonInit(bundle: bundle)
     }
     #endif

@@ -43,7 +43,7 @@ struct ProblemReportView: View {
                             Spacer()
                             if code == item.code {
                                 Image(systemName: "checkmark")
-                                    .foregroundColor(.blue)
+                                    .foregroundColor(.brand)
                             }
                         }
                     }
@@ -84,7 +84,7 @@ struct ProblemReportView: View {
                 }
                 .disabled(isSubmitting || code.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 .buttonStyle(.borderedProminent)
-                .tint(.blue)
+                .tint(.brand)
             }
             .listRowBackground(Color.clear)
         }

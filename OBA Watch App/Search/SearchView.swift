@@ -195,7 +195,7 @@ struct SearchView: View {
                                     .font(.system(size: 12, weight: .bold))
                                     .foregroundColor(.white)
                                     .frame(width: 22, height: 22)
-                                    .background(Color.green.gradient)
+                                    .background(Color.brand.gradient)
                                     .clipShape(Circle())
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(route.shortName ?? route.id)
@@ -332,7 +332,7 @@ struct QuickSearchButtonsView: View {
             } label: {
                 GlassQuickSearchCardContent(
                     iconName: "bus.fill",
-                    iconColor: .green,
+                    iconColor: .brand,
                     title: OBALoc("search.quick.route", value: "Route:", comment: "Quick search route"),
                     query: query
                 )
@@ -352,7 +352,7 @@ struct QuickSearchButtonsView: View {
             } label: {
                 GlassQuickSearchCardContent(
                     iconName: "mappin.and.ellipse",
-                    iconColor: .blue,
+                    iconColor: .brand,
                     title: OBALoc("search.quick.address", value: "Address:", comment: "Quick search address"),
                     query: query
                 )

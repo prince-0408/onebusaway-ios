@@ -91,7 +91,7 @@ struct ConnectionGuideView: View {
                     // Step 1: Arriving Trip
                     HStack(spacing: 10) {
                         Circle()
-                            .fill(Color.blue)
+                            .fill(Color.brand)
                             .frame(width: 10, height: 10)
                         
                         VStack(alignment: .leading, spacing: 2) {

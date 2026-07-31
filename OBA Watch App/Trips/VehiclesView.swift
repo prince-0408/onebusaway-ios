@@ -135,15 +135,22 @@ struct VehiclesMapView: View {
         }
     }
 
+    private var validTrips: [OBATripForLocation] {
+        trips.filter { $0.latitude != nil && $0.longitude != nil }
+    }
+
     var body: some View {
         Map(position: $position) {
             UserAnnotation()
             
-            ForEach(trips) { trip in
-                if let lat = trip.latitude, let lon = trip.longitude {
-                    Marker(trip.routeShortName ?? OBALoc("vehicles.marker.bus", value: "Bus", comment: "Vehicle marker title"), systemImage: "bus", coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon))
-                        .tint(.blue)
-                }
+            ForEach(validTrips) { trip in
+                Marker(
+                    trip.routeShortName ?? OBALoc("vehicles.marker.bus", value: "Bus", comment: "Vehicle marker title"),
+                    systemImage: "bus",
+                    coordinate: CLLocationCoordinate2D(latitude: trip.latitude!, longitude: trip.longitude!)
+                )
+                .tint(Color.brand)
+                .tag(trip.id)
             }
         }
         .mapStyle(mapStyle)

@@ -136,7 +136,7 @@ struct AddressSearchView: View {
                             .font(.system(size: 14, weight: .bold))
                             .foregroundColor(.white)
                             .frame(width: 30, height: 30)
-                            .background(Color.blue.gradient)
+                            .background(Color.brand.gradient)
                             .clipShape(Circle())
                         
                         VStack(alignment: .leading, spacing: 2) {

@@ -85,7 +85,7 @@ struct RouteDetailView: View {
                                         .font(.system(size: 14, weight: .bold))
                                         .foregroundColor(.white)
                                         .frame(width: 30, height: 30)
-                                        .background(Color.green.gradient)
+                                        .background(Color.brand.gradient)
                                         .clipShape(Circle())
 
                                     VStack(alignment: .leading, spacing: 2) {
@@ -117,7 +117,7 @@ struct RouteDetailView: View {
                                                             .font(.system(size: 9, weight: .bold))
                                                             .padding(.horizontal, 4)
                                                             .padding(.vertical, 1)
-                                                            .background(Color.blue.opacity(0.3))
+                                                            .background(Color.brand.opacity(0.3))
                                                             .foregroundColor(.white)
                                                             .cornerRadius(4)
                                                     }
@@ -167,14 +167,9 @@ struct RouteShapeMapView: View {
                 MapPolyline(coordinates: coordinates)
                     .stroke(Color.black.opacity(0.85), style: StrokeStyle(lineWidth: 9, lineCap: .round, lineJoin: .round))
 
-                // Inner vibrant mint green polyline
                 MapPolyline(coordinates: coordinates)
                     .stroke(
-                        LinearGradient(
-                            colors: [Color(red: 0.0, green: 0.9, blue: 0.45), Color(red: 0.1, green: 0.98, blue: 0.55)],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        ),
+                        Color.brand.gradient,
                         style: StrokeStyle(lineWidth: 6, lineCap: .round, lineJoin: .round)
                     )
 
@@ -184,7 +179,7 @@ struct RouteShapeMapView: View {
                         ZStack {
                             Circle().fill(Color.black.opacity(0.8)).frame(width: 14, height: 14)
                             Circle().fill(Color.white).frame(width: 11, height: 11)
-                            Circle().fill(Color(red: 0.0, green: 0.85, blue: 0.35)).frame(width: 6, height: 6)
+                            Circle().fill(Color.brand).frame(width: 6, height: 6)
                         }
                     }
                 }
@@ -204,10 +199,10 @@ struct RouteShapeMapView: View {
                     Annotation("", coordinate: vehicleCoordinates[idx], anchor: .center) {
                         ZStack {
                             Circle()
-                                .fill(Color(red: 0.0, green: 0.85, blue: 0.35).opacity(0.3))
+                                .fill(Color.brand.opacity(0.3))
                                 .frame(width: 26, height: 26)
                             Circle()
-                                .fill(Color(red: 0.0, green: 0.82, blue: 0.35))
+                                .fill(Color.brand)
                                 .frame(width: 20, height: 20)
                                 .shadow(color: .black.opacity(0.5), radius: 3, y: 1)
                             Image(systemName: "bus.fill")

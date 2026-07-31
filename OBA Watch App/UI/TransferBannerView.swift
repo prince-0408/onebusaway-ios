@@ -26,12 +26,12 @@ struct TransferBannerView: View {
                     HStack(spacing: 6) {
                         Image(systemName: "arrow.triangle.branch")
                             .font(.system(size: 14, weight: .bold))
-                            .foregroundColor(.green)
+                            .foregroundColor(.brand)
 
                         VStack(alignment: .leading, spacing: 2) {
                             Text(OBALoc("transfer_banner.title", value: "Transfer Connection", comment: "Transfer banner header title"))
                                 .font(.system(size: 11, weight: .semibold))
-                                .foregroundColor(.green)
+                                .foregroundColor(.brand)
 
                             Text(String(format: OBALoc("transfer_banner.from_route_fmt", value: "From Route %@", comment: "Origin route for transfer"), context.fromRouteDisplay))
                                 .font(.system(size: 13, weight: .bold))
@@ -55,16 +55,16 @@ struct TransferBannerView: View {
                 
                 Image(systemName: "chevron.right")
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundColor(.green)
+                    .foregroundColor(.brand)
             }
             .padding(10)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 RoundedRectangle(cornerRadius: 14)
-                    .fill(Color.green.opacity(0.15))
+                    .fill(Color.brand.opacity(0.15))
                     .overlay(
                         RoundedRectangle(cornerRadius: 14)
-                            .strokeBorder(Color.green.opacity(0.4), lineWidth: 1)
+                            .strokeBorder(Color.brand.opacity(0.4), lineWidth: 1)
                     )
             )
         }

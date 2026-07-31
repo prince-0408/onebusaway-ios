@@ -18,7 +18,7 @@ struct PulsingVehicleMarker: View {
             ZStack {
                 // Core Vehicle Badge with crisp white border ring (No glowing green aura)
                 Circle()
-                    .fill(isTracked ? Color(red: 0.0, green: 0.82, blue: 0.4) : Color.blue)
+                    .fill(Color.brand)
                     .frame(width: 24, height: 24)
                     .shadow(color: Color.black.opacity(0.4), radius: 2, x: 0, y: 1)
                     .overlay(
