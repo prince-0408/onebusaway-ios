@@ -7,9 +7,13 @@
 //  LICENSE file in the root directory of this source tree.
 //
 
+#if canImport(ActivityKit)
 import ActivityKit
+#endif
 import Combine
+import CoreLocation
 import SwiftUI
+import UIKit
 import OBAKitCore
 
 /// Hosts `TripPageView` and owns every reach into `Application` the page needs —

@@ -7,6 +7,7 @@
 //  LICENSE file in the root directory of this source tree.
 //
 
+#if canImport(ActivityKit)
 import ActivityKit
 import Foundation
 
@@ -114,3 +115,5 @@ extension Activity where Attributes == TripAttributes {
         }
     }
 }
+#endif
+

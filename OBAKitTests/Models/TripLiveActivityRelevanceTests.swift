@@ -7,6 +7,7 @@
 //  LICENSE file in the root directory of this source tree.
 //
 
+#if canImport(ActivityKit)
 import ActivityKit
 import Foundation
 import Testing
@@ -107,3 +108,5 @@ final class TripLiveActivityRelevanceTests {
         #expect(wiped.relevanceScore != existing.relevanceScore)
     }
 }
+#endif
+
