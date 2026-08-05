@@ -11,11 +11,14 @@ struct EmptyStateView: View {
                 .foregroundColor(.secondary)
             Text(title)
                 .font(.headline)
+                .multilineTextAlignment(.center)
             Text(message)
                 .font(.caption)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
         }
+        .multilineTextAlignment(.center)
+        .frame(maxWidth: .infinity)
         .padding()
     }
 }
