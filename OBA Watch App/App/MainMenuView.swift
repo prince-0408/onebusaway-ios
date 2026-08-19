@@ -74,25 +74,14 @@ struct MainMenuView: View {
                 )
             }
 
-            // Search & Map at the top
+            // Closest Departures from nearest stop right at top
             Section {
-                NavigationLink {
-                    SearchView()
-                } label: {
-                    Label(OBALoc("common.search", value: "Search", comment: "Title for search menu item"), systemImage: "magnifyingglass")
-                        .font(.headline)
-                }
+                ClosestDeparturesView()
+            } header: {
+                Text(OBALoc("main_menu.section.closest_departures", value: "Closest Departures", comment: "Section header for closest departures"))
             }
 
-            Section {
-                RegionPreviewMapView()
-                    .frame(height: 120)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
-                    .listRowInsets(EdgeInsets(top: 2, leading: 2, bottom: 2, trailing: 2))
-                    .listRowBackground(Color.clear)
-            }
-
-            // Bookmarks Section - Keep this because user asked to fix it!
+            // Bookmarks Section
             Section {
                 NavigationLink {
                     BookmarksView()
@@ -102,12 +91,33 @@ struct MainMenuView: View {
                 }
             }
 
-            // Other useful actions but minimized
+            // Search
+            Section {
+                NavigationLink {
+                    SearchView()
+                } label: {
+                    Label(OBALoc("common.search", value: "Search", comment: "Title for search menu item"), systemImage: "magnifyingglass")
+                        .font(.headline)
+                }
+            }
+
+            // Interactive Map — moved lower down as requested by mentor feedback
+            Section {
+                RegionPreviewMapView()
+                    .frame(height: 120)
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .listRowInsets(EdgeInsets(top: 2, leading: 2, bottom: 2, trailing: 2))
+                    .listRowBackground(Color.clear)
+            } header: {
+                Text(OBALoc("main_menu.section.map", value: "Map", comment: "Section header for map"))
+            }
+
+            // Explore (Nearby, Recents, Vehicles)
             Section {
                 NavigationLink {
                     NearbyStopsView()
                 } label: {
-                    Label(OBALoc("common.nearby", value: "Nearby", comment: "Title for nearby stops menu item"), systemImage: "location.fill")
+                    Label(OBALoc("common.all_nearby_stops", value: "All Nearby Stops", comment: "Title for all nearby stops menu item"), systemImage: "location.fill")
                 }
 
                 NavigationLink {

@@ -4,6 +4,7 @@
 //  LICENSE file in the root directory of this source tree.
 //
 
+#if canImport(ActivityKit)
 import Foundation
 import Testing
 @testable import OBAKitCore
@@ -95,3 +96,4 @@ struct LiveActivityUpdateCoalescerTests {
         }
     }
 }
+#endif

@@ -7,6 +7,7 @@
 //  LICENSE file in the root directory of this source tree.
 //
 
+#if canImport(ActivityKit)
 import ActivityKit
 import Foundation
 
@@ -93,3 +94,4 @@ public struct LiveActivityUpdateMailbox: Sendable {
         pending.removeValue(forKey: activityID)
     }
 }
+#endif
