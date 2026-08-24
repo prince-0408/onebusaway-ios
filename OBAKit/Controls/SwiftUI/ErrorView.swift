@@ -23,7 +23,7 @@ struct ErrorView: View {
 
     var body: some View {
         VStack(spacing: 16) {
-            Image(systemName: errorIconName)
+            Image(systemName: iconName(for: classifiedError))
                 .font(.largeTitle)
                 .foregroundStyle(.red)
             Text(headline)
@@ -60,7 +60,6 @@ struct ErrorView: View {
         default:
             return "exclamationmark.triangle"
         }
-    }
     }
 }
 

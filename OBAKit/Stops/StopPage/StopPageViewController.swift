@@ -366,7 +366,6 @@ class StopPageViewController: UIHostingController<StopPageRootView>,
     private func startLiveActivity(for departure: ArrivalDeparture) {
         actionPresenter.startLiveActivity(for: departure, viewModel: viewModel)
     }
-    }
 
     // MARK: - Snapshot
 

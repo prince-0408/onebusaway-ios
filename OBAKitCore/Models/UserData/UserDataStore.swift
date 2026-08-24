@@ -607,8 +607,8 @@ public class UserDefaultsStore: NSObject, UserDataStore, StopPreferencesStore {
         bookmark.groupID = group?.id ?? nil
 
         // Decode once, mutate in memory, encode once. The previous loop called
-        `bookmarks` get/set (full plist round-trip) per row, which froze the
-        UI for several seconds with a dozen bookmarks. See #548.
+        // `bookmarks` get/set (full plist round-trip) per row, which froze the
+        // UI for several seconds with a dozen bookmarks. See #548.
         var all = bookmarks.filter { $0.id != bookmark.id }
         let newGroupID = bookmark.groupID
 
