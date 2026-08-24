@@ -32,7 +32,12 @@ public enum ErrorClassifier {
         // If it's already a well-classified APIError with good user messages, return as-is
         // — except for requestFailure, which we can upgrade to serverUnavailable.
         if let apiError = error as? APIError {
-            return classifyAPIError(apiError, regionName: regionName, isCellularDataRestricted: isCellularDataRestricted)
+            switch apiError {
+            case .serverError, .serverUnavailable, .invalidResponseData, .cellularDataRestricted:
+                return apiError
+            default:
+                return classifyAPIError(apiError, regionName: regionName, isCellularDataRestricted: isCellularDataRestricted)
+            }
         }
 
         // Classify NSURLError codes (timeout, no connection, etc.)
@@ -41,9 +46,9 @@ public enum ErrorClassifier {
             return classifyURLError(nsError, regionName: regionName, isCellularDataRestricted: isCellularDataRestricted)
         }
 
-        // Classify DecodingErrors: these surface as raw Swift messages
-        // like "The data couldn't be read because it is missing."
-        // When shown to users, this is confusing. Replace with a server-problem message.
+        // DecodingErrors surface raw Swift messages like
+        // "The data couldn't be read because it is missing."
+        // That is bad payload, not an unreachable host (#1276).
         if error is DecodingError {
             return classifyDecodingError(error, regionName: regionName)
         }
@@ -123,13 +128,13 @@ public enum ErrorClassifier {
         guard let regionName else {
             let fmt = OBALoc(
                 "api_error.decoding_failure",
-                value: "The server returned unexpected data. This usually means the server is experiencing problems. Please try again shortly.",
-                comment: "An error shown when the server returns data the app can't understand, indicating a likely server-side issue."
+                value: "The server returned data this app can't read. That's usually a problem with the stop or agency feed. Please try again shortly.",
+                comment: "An error shown when the server returns a body the app cannot decode and no region name is available to specialize the copy."
             )
             return UnstructuredError(fmt)
         }
 
-        return APIError.serverUnavailable(regionName: regionName, statusCode: nil)
+        return APIError.invalidResponseData(regionName: regionName)
     }
 
     // MARK: - Helpers

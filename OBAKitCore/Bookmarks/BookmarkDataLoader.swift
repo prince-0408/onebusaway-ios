@@ -52,28 +52,62 @@ public class BookmarkDataLoader: NSObject {
     /// Resumed when that batch drains (`taskFinished`) or is retired (`cancelUpdates`).
     @MainActor private var batchContinuations: [UInt64: [CheckedContinuation<Void, Never>]] = [:]
 
-    /// Stops whose arrival fetch has completed successfully at least once this
-    /// session. Lets consumers distinguish "still loading" from "loaded, but no
-    /// upcoming departures".
+    /// Stops whose arrival fetch has finished this session — a successful
+    /// payload **or** a literal HTTP 404. Lets consumers distinguish "still
+    /// loading" from "loaded, but no upcoming departures". Empty HTTP 200
+    /// (also thrown as `APIError.requestNotFound`) is not recorded here.
     @MainActor private var fetchedStopIDs = Set<StopID>()
 
-    /// `true` once at least one arrival fetch for `stopID` has completed
-    /// successfully this session.
+    /// `true` once an arrival fetch for `stopID` has finished this session
+    /// (success or HTTP 404).
     @MainActor public func hasFetchedData(forStopID stopID: StopID) -> Bool {
         fetchedStopIDs.contains(stopID)
     }
 
-    public init(application: CoreApplication, delegate: BookmarkDataDelegate) {
+    /// When set, supplies the bookmarks a batch should fetch instead of every
+    /// bookmark in the current region. Lets a caller that only displays a few
+    /// bookmarks — the home sheet's preview section — reuse this loader without
+    /// paying for the whole set.
+    private let bookmarkProvider: (() -> [Bookmark])?
+
+    /// When `false`, `startRefreshTimer()` is a no-op, so the loader fetches
+    /// only when explicitly asked. Callers that display a handful of bookmarks
+    /// outside a dedicated screen don't want a background 30-second cycle.
+    private let autoRefreshes: Bool
+
+    public init(
+        application: CoreApplication,
+        delegate: BookmarkDataDelegate,
+        bookmarkProvider: (() -> [Bookmark])? = nil,
+        autoRefreshes: Bool = true
+    ) {
         self.application = application
         self.delegate = delegate
+        self.bookmarkProvider = bookmarkProvider
+        self.autoRefreshes = autoRefreshes
     }
 
     public func startRefreshTimer() {
         timer?.invalidate()
 
+        guard autoRefreshes else {
+            timer = nil
+            return
+        }
+
         timer = Timer.scheduledMainActorTimer(withTimeInterval: refreshInterval, repeats: true) { [weak self] in
             self?.loadData()
         }
+    }
+
+    /// Whether a repeating refresh is currently armed.
+    ///
+    /// Deliberately `internal`, not `public`: nothing in the app reads it, and
+    /// it exists so `BookmarkDataLoaderTests` can assert that a loader built with
+    /// `autoRefreshes: false` really installs no timer. `@testable import` reaches
+    /// it; the framework's public surface doesn't grow for a test.
+    var hasScheduledRefresh: Bool {
+        timer?.isValid ?? false
     }
 
     public func cancelUpdates() {
@@ -124,7 +158,10 @@ public class BookmarkDataLoader: NSObject {
     }
 
     private func eligibleBookmarks() -> [Bookmark] {
-        application.userDataStore.bookmarks.filter {
+        if let bookmarkProvider {
+            return bookmarkProvider()
+        }
+        return application.userDataStore.bookmarks.filter {
             $0.regionIdentifier == application.regionsService.currentRegion?.id
         }
     }
@@ -176,6 +213,19 @@ public class BookmarkDataLoader: NSObject {
                         self.tripBookmarkKeys[key] = deps
                     }
 
+                    self.delegate?.dataLoaderDidUpdate(self)
+                }
+            } catch APIError.requestNotFound(let response) where response.statusCode == 404 {
+                // Literal HTTP 404: the stop no longer exists in this region.
+                // San Diego trace 2026-08-14 against realtime.sdmts.com: a live
+                // stop (`MTS_11589`) returns HTTP 200 with a full JSON body on
+                // the app URL (`/api/api/where/...`). Empty HTTP 200 — also
+                // thrown as `requestNotFound` by `APIService+GetData` — is a
+                // transient blip and falls through to `displayError` below.
+                await MainActor.run {
+                    guard batchID == self.currentBatchID else { return }
+                    self.fetchedStopIDs.insert(bookmark.stopID)
+                    self.tripBookmarkKeys = self.tripBookmarkKeys.filter { $0.key.stopID != bookmark.stopID }
                     self.delegate?.dataLoaderDidUpdate(self)
                 }
             } catch {

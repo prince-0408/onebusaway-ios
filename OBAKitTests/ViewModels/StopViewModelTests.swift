@@ -347,6 +347,27 @@ final class StopViewModelTests: OBATestCase {
         #expect(app.effectiveArrivalDepartureFilter == .estimatedOnly)
     }
 
+    /// Settings writes the same defaults key without going through this view
+    /// model. An already-open stop page must pick that up so its Departure Type
+    /// menu and filtered list don't stay on the value from `init` (#1273).
+    @Test @MainActor
+    func `Arrival departure filter syncs from an external Settings change`() async {
+        let dataLoader = MockDataLoader(testName: name)
+        let app = createApplication(dataLoader: dataLoader, analytics: AnalyticsMock())
+
+        let viewModel = StopViewModel(application: app, stopID: testStopID)
+        #expect(viewModel.arrivalDepartureFilter == .all)
+
+        // Settings' write path — not `updateArrivalDepartureFilter`.
+        app.setArrivalDepartureFilter(.estimatedOnly)
+
+        // `UserDefaults.didChangeNotification` fan-out is `receive(on: main)`,
+        // so give the runloop a few hops to deliver.
+        for _ in 0..<5 { await Task.yield() }
+
+        #expect(viewModel.arrivalDepartureFilter == .estimatedOnly)
+    }
+
     // MARK: - $stop re-emit guard
 
     /// `$stop` must not re-emit across refreshes when the underlying value is unchanged.
@@ -811,6 +832,26 @@ final class StopViewModelTests: OBATestCase {
 
         let plainController = app.viewRouter.makeStopController(stop: stop, transferContext: nil)
         #expect(plainController is StopPageViewController)
+    }
+
+    /// The banner toggle drops the effective transfer context. Routing must use
+    /// that same helper: a raw non-nil context with the toggle off is ordinary
+    /// stop UX, so it belongs on the new page (flag default ON). Leave the
+    /// router on the raw value and this fails — legacy screen, no banner.
+    @Test @MainActor
+    func `Make stop controller ignores transfer context when the banner toggle is off`() throws {
+        let dataLoader = MockDataLoader(testName: name)
+        let app = createApplication(dataLoader: dataLoader, analytics: AnalyticsMock())
+        #expect(FeatureFlags.isNewStopPageEnabled(userDefaults: app.userDefaults))
+
+        app.userDataStore.showTransferArrivalBanner = false
+
+        let stop = try #require(try Fixtures.loadSomeStops().first)
+        let transfer = TransferContext(arrivalTime: Date(), fromRouteShortName: "1", fromTripHeadsign: "Downtown")
+        let controller = app.viewRouter.makeStopController(stop: stop, transferContext: transfer)
+
+        #expect(controller is StopPageViewController)
+        #expect((controller as? StopPageViewController)?.transferContext == nil)
     }
 
     // MARK: - Alarm Lead Time

@@ -10,6 +10,8 @@
 /* An error message that informs the user that the wrong kind of content was received from the server. */
 "api_error.invalid_content_type_fmt" = "Nous attendions des données %1$@ du serveur, mais nous avons reçu %2$@ à la place.";
 
+"api_error.invalid_response_data_fmt" = "Le serveur de la région %1$@ a renvoyé des données que cette app ne peut pas lire. Il s'agit généralement d'un problème lié à l'arrêt ou au flux de l'agence, et non à %2$@. Réessayez dans quelques instants.";
+
 /* An error that tells the user that the network connection isn't working. */
 "api_error.network_failure" = "Impossible de se connecter à Internet ou au serveur. Veuillez vérifier votre connexion réseau et réessayer.";
 
@@ -378,6 +380,12 @@
 
 /* Short text shown when a departure occurs at the same time as the rider's transfer arrival. */
 "formatters.transfer.on_arrival" = "MAINT.";
+
+/* The body of the tip pointing at the map toolbar's basemap button, which opens the Map sheet where the rental layers are turned on and off */
+"map_layers_tip.message" = "Appuyez ici pour afficher les vélos et trottinettes sur la carte.";
+
+/* Title for the tip pointing at the map toolbar's basemap button when a region gains bike and scooter rental map layers */
+"map_layers_tip.title" = "Nouveau : vélos et trottinettes";
 
 /* Error when a route has no real-time vehicle tracking data. */
 "nearby_trip_matcher.error.no_realtime" = "Aucune donnée de suivi en temps réel n'est disponible pour cette ligne.";

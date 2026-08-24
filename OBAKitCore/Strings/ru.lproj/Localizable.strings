@@ -10,6 +10,8 @@
 /* An error message that informs the user that the wrong kind of content was received from the server. */
 "api_error.invalid_content_type_fmt" = "От сервера ожидались данные типа %1$@, но вместо этого получены %2$@.";
 
+"api_error.invalid_response_data_fmt" = "Сервер региона %1$@ вернул данные, которые это приложение не может прочитать. Обычно это проблема остановки или фида агентства, а не приложения %2$@. Повторите попытку чуть позже.";
+
 /* An error that tells the user that the network connection isn't working. */
 "api_error.network_failure" = "Не удаётся подключиться к интернету или серверу. Проверьте сетевое подключение и повторите попытку.";
 
@@ -378,6 +380,12 @@
 
 /* Short text shown when a departure occurs at the same time as the rider's transfer arrival. */
 "formatters.transfer.on_arrival" = "СЕЙЧАС";
+
+/* The body of the tip pointing at the map toolbar's basemap button, which opens the Map sheet where the rental layers are turned on and off */
+"map_layers_tip.message" = "Нажмите здесь, чтобы показать велосипеды и самокаты на карте.";
+
+/* Title for the tip pointing at the map toolbar's basemap button when a region gains bike and scooter rental map layers */
+"map_layers_tip.title" = "Новое: велосипеды и самокаты";
 
 /* Error when a route has no real-time vehicle tracking data. */
 "nearby_trip_matcher.error.no_realtime" = "Для этого маршрута нет данных отслеживания в реальном времени.";

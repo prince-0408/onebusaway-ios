@@ -21,7 +21,12 @@ import Testing
 final class LocalizationTests {
 
     /// Keys whose plural forms come from `Localizable.stringsdict` rather than
-    /// `Localizable.strings`. Every one of these is called with `String(format:)` and a count.
+    /// `Localizable.strings`. Each is called with a count.
+    ///
+    /// Note that `String(format:)` expands `%#@…@` but always resolves it against the root
+    /// plural rule, so only `one`/`other` are ever reachable through it — the call site has to
+    /// use `String.localizedStringWithFormat` for a locale's `few`/`many`/`zero`/`two` entries
+    /// to mean anything. Nothing here can catch that; it's a call-site property.
     private static let pluralKeys: Set<String> = [
         "stop_page.service_alerts.summary_fmt",
         "stop_page.service_alerts.show_all_fmt",
@@ -30,7 +35,8 @@ final class LocalizationTests {
         "stop_controller.transfer_show_earlier_departures_fmt",
         "stop_page.empty.no_departures_fmt",
         "data_migration_bulletin.report_summary_number_of_failures",
-        "data_migration_bulletin.report_summary_number_of_successes"
+        "data_migration_bulletin.report_summary_number_of_successes",
+        "search_results_sheet.result_count_fmt"
     ]
 
     /// `%@`, `%d`, `%1$@`, `%2$d`, … and the escaped `%%`.
@@ -123,6 +129,25 @@ final class LocalizationTests {
                 #expect((variable["NSStringFormatSpecTypeKey"] as? String) == "NSStringPluralRuleType", "\(localization)/\(key): wrong spec type")
                 #expect(variable["other"] != nil, "\(localization)/\(key): missing mandatory CLDR category 'other'")
             }
+        }
+    }
+
+    /// The footer names the switch. A locale that leaves the English phrase in
+    /// the footer while translating the title makes the two unrecognizable as
+    /// the same control.
+    @Test func `Transfer banner footer names the switch title in every locale`() {
+        let bundle = Bundle(for: DonationCell.self)
+        let titleKey = "settings_controller.arrival_display_section.transfer_banner"
+        let footerKey = "settings_controller.arrival_display_section.transfer_banner.footer"
+
+        for localization in bundle.localizations where localization != "Base" {
+            guard let table = strings(in: bundle, localization: localization),
+                  let title = table[titleKey],
+                  let footer = table[footerKey] else {
+                Issue.record("\(localization): missing transfer banner strings")
+                continue
+            }
+            #expect(footer.hasPrefix(title), "\(localization): footer must start with the switch title \"\(title)\"")
         }
     }
 
