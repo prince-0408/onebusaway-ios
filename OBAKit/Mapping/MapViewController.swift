@@ -138,8 +138,7 @@ class MapViewController: UIViewController,
             toolbar.widthAnchor.constraint(equalToConstant: 42.0),
             locationButton.heightAnchor.constraint(equalTo: locationButton.widthAnchor),
             weatherButton.heightAnchor.constraint(equalTo: weatherButton.widthAnchor),
-            toggleMapTypeButton.heightAnchor.constraint(equalTo: toggleMapTypeButton.widthAnchor),
-            myTripButton.heightAnchor.constraint(equalTo: myTripButton.widthAnchor)
+            toggleMapTypeButton.heightAnchor.constraint(equalTo: toggleMapTypeButton.widthAnchor)
         ])
 
         // Status pill: centered horizontally, anchored to safe area top.
