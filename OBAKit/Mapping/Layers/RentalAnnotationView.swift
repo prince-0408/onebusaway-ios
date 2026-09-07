@@ -37,8 +37,13 @@ public class RentalAnnotationView: MKMarkerAnnotationView {
         label.font = UIFont(descriptor: descriptor, size: 0)
         label.adjustsFontForContentSizeCategory = true
 
-        // A white halo keeps the text legible over satellite basemaps.
-        label.layer.shadowColor = UIColor.white.cgColor
+        // A halo keeps the text legible over the map basemap.
+        // The actual color is set in traitCollectionDidChange so it stays
+        // correct when the user switches between light and dark mode at runtime.
+        // White in light mode (contrast against light road maps / satellite);
+        // black in dark mode (contrast against the dark basemap). A hardcoded
+        // white halo disappears in dark mode because label and halo share the
+        // same lightness. (#1364)
         label.layer.shadowRadius = 2
         label.layer.shadowOpacity = 1
         label.layer.shadowOffset = .zero
@@ -64,6 +69,8 @@ public class RentalAnnotationView: MKMarkerAnnotationView {
         // The label sits outside bounds, so it must not be clipped.
         clipsToBounds = false
         addSubview(fuelLabel)
+        // Apply the initial halo color now that traitCollection is available.
+        applyFuelLabelShadowColor()
         NSLayoutConstraint.activate([
             fuelLabel.centerXAnchor.constraint(equalTo: centerXAnchor),
             // MKMarkerAnnotationView documents neither its bounds nor its default
@@ -91,6 +98,26 @@ public class RentalAnnotationView: MKMarkerAnnotationView {
         // state that isn't reset here leaks into the next annotation.
         fuelLabel.text = nil
         fuelLabel.isHidden = true
+    }
+
+    public override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+        super.traitCollectionDidChange(previousTraitCollection)
+        // CGColor is a snapshot — it doesn't update automatically when the
+        // color scheme changes. Re-apply whenever the trait collection mutates
+        // so the halo stays readable in both light and dark mode. (#1364)
+        if traitCollection.hasDifferentColorAppearance(comparedTo: previousTraitCollection) {
+            applyFuelLabelShadowColor()
+        }
+    }
+
+    /// Resolves the halo color for the current trait collection and applies it
+    /// to `fuelLabel.layer.shadowColor`. White in light mode (readable over
+    /// light road / satellite basemaps); black in dark mode (readable over the
+    /// dark-mode map surface).
+    private func applyFuelLabelShadowColor() {
+        fuelLabel.layer.shadowColor = (traitCollection.userInterfaceStyle == .dark
+            ? UIColor.black
+            : UIColor.white).cgColor
     }
 
     private func configure() {
