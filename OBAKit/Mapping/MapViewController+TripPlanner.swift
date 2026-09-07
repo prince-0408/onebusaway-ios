@@ -14,8 +14,10 @@ import OTPKit
 import SwiftUI
 import UIKit
 
-/// Trip planner presentation. An extension rather than more of `MapViewController`:
-/// the class it hangs off is already at SwiftLint's body-length ceiling.
+/// Trip planner presentation. An extension rather than more of `MapViewController`
+/// because presenting one feature is a separate concern from the map state that
+/// class holds — not because of a lint limit. `type_body_length` reports nothing
+/// on `MapViewController` today; only `file_length` is suppressed there.
 /// See: https://github.com/OneBusAway/onebusaway-ios/issues/1303
 extension MapViewController {
 
@@ -94,45 +96,36 @@ extension MapViewController {
 
     /// Presents the trip planner.
     /// - Parameters:
+    ///   - origin: Optional prefilled origin. When set, current location is not
+    ///     used as origin — stop-page "Directions from Here" relies on that.
     ///   - destination: Optional prefilled destination.
     ///   - viaPoint: Optional coordinate every planned trip must pass through — used by
     ///     "Plan a trip using this bike" with the vehicle's location.
     ///   - preselectedMode: Optional transport mode to preselect, e.g. `.transitBikeRental`.
-    func showTripPlanner(destination: MKMapItem? = nil, viaPoint: CLLocationCoordinate2D? = nil, preselectedMode: TransportMode? = nil) {
+    func showTripPlanner(
+        origin: MKMapItem? = nil,
+        destination: MKMapItem? = nil,
+        viaPoint: CLLocationCoordinate2D? = nil,
+        preselectedMode: TransportMode? = nil
+    ) {
         guard let currentRegion = application.regionsService.currentRegion,
               currentRegion.supportsOTP,
               application.userDataStore.isTripPlanningEnabled(for: currentRegion) else {
             return
         }
 
-        // Get current location for origin
-        var origin: Location?
-        if let currentLocation = application.locationService.currentLocation {
-            origin = Location(
-                title: "Current Location",
-                subTitle: "Your current location",
-                latitude: currentLocation.coordinate.latitude,
-                longitude: currentLocation.coordinate.longitude
-            )
-        }
-
-        // Convert MKMapItem destination to Location if provided
-        var destinationLocation: Location?
-        if let destination {
-            destinationLocation = Location(
-                title: destination.name ?? "Destination",
-                subTitle: destination.placemark.title ?? "",
-                latitude: destination.placemark.coordinate.latitude,
-                longitude: destination.placemark.coordinate.longitude
-            )
-        }
+        let originLocation = TripPlannerEndpoints.origin(
+            explicit: origin,
+            currentLocation: application.locationService.currentLocation
+        )
+        let destinationLocation = TripPlannerEndpoints.destination(from: destination)
 
         guard let tripPlanner = buildTripPlanner(region: currentRegion) else { return }
 
         subscribeToTripPlannerNotifications()
 
         let tripPlannerView = tripPlanner.createTripPlannerView(
-            origin: origin,
+            origin: originLocation,
             destination: destinationLocation,
             viaPoint: viaPoint,
             transportMode: preselectedMode

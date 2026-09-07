@@ -20,30 +20,37 @@ struct RentalMapMarker: View {
     let showsFuelLabel: Bool
 
     var body: some View {
-        VStack(spacing: 1) {
-            ZStack {
-                Circle()
-                    .fill(markerColor)
-                    .frame(width: 28, height: 28)
-                    .shadow(radius: 1, y: 1)
+        ZStack {
+            Circle()
+                .fill(markerColor)
+                .frame(width: 28, height: 28)
+                .shadow(radius: 1, y: 1)
 
-                if let count = stationAvailabilityText {
-                    Text(count)
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(.white)
-                } else {
-                    Image(systemName: glyphName)
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(.white)
-                }
+            if let count = stationAvailabilityText {
+                Text(count)
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(.white)
+            } else {
+                Image(systemName: glyphName)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.white)
             }
-
+        }
+        // An overlay rather than a second `VStack` child: `Annotation` centres
+        // this view on the rental's coordinate, so anything that adds layout
+        // height pushes the circle off the point it is marking. An overlay does
+        // not change the frame, so the marker stays 28x28 whether or not the
+        // fuel figure is showing. The guide puts the label's top at the circle's
+        // bottom, reproducing the 1pt spacing the stack used to provide.
+        .overlay(alignment: .bottom) {
             if showsFuelLabel, let fuelText = RentalFormat.fuelLabelText(for: rental) {
                 Text(fuelText)
                     .font(.caption.bold())
                     .foregroundStyle(markerColor)
                     // A light halo keeps the figure legible over satellite.
                     .shadow(color: Color(uiColor: .systemBackground), radius: 2)
+                    .fixedSize()
+                    .alignmentGuide(.bottom) { $0[.top] - 1 }
             }
         }
         // VoiceOver ignores the zoom gate: a visual-density rule must not cost a
@@ -100,11 +107,14 @@ struct RentalClusterMapMarker: View {
                 .foregroundStyle(.white)
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text(String(
-            format: OBALoc(
+        // `localizedStringWithFormat`, not `String(format:)` — see the note on the
+        // sheet's `navigationTitle`; VoiceOver would otherwise read the root plural
+        // form for every count.
+        .accessibilityLabel(Text(String.localizedStringWithFormat(
+            OBALoc(
                 "rental_cluster.title_fmt",
                 value: "%d vehicles here",
-                comment: "Title of the sheet listing the members of a rental cluster"
+                comment: "Title of the sheet listing the members of a rental cluster. Plural forms live in Localizable.stringsdict; the value above is only the not-found fallback."
             ),
             count
         )))

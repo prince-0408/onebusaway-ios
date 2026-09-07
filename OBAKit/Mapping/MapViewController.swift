@@ -418,6 +418,15 @@ class MapViewController: UIViewController,
         var config = UIButton.Configuration.plain()
         config.imagePlacement = .top
         config.title = "—"
+        // The toolbar pins this button to 42pt (see the width constraint above),
+        // and `.plain()` ships nonzero horizontal insets that the old
+        // `UIButton(type: .system)` did not have. That left the title too little
+        // room: a two-digit temperature already wrapped onto three lines
+        // ("1", "8", "°"). Zero the horizontal insets only — the vertical ones
+        // still separate the icon from the temperature under `imagePlacement`.
+        // See: https://github.com/OneBusAway/onebusaway-ios/issues/1344
+        config.contentInsets.leading = 0
+        config.contentInsets.trailing = 0
         config.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { incoming in
             var outgoing = incoming
             outgoing.font = UIFont.preferredFont(forTextStyle: .body).bold
@@ -425,6 +434,12 @@ class MapViewController: UIViewController,
         }
 
         let button = UIButton(configuration: config)
+        // Restores what `7f2c1b8b` intended before the Configuration switch
+        // dropped it, with the scale factor that version omitted: without a
+        // `minimumScaleFactor`, `adjustsFontSizeToFitWidth` never shrinks
+        // anything. Three-digit temperatures scale down rather than wrap.
+        button.titleLabel?.adjustsFontSizeToFitWidth = true
+        button.titleLabel?.minimumScaleFactor = 0.7
         button.addTarget(self, action: #selector(showWeather), for: .touchUpInside)
         button.accessibilityLabel = OBALoc("map_controller.show_weather_button", value: "Show Weather Forecast", comment: "Accessibility label for a button that provides the current forecast")
         return button
@@ -448,7 +463,6 @@ class MapViewController: UIViewController,
                 // Configuration-based buttons ignore `setTitle`/`setImage`. Update
                 // the configuration only so the stacked icon + temp actually show.
                 var config = weatherButton.configuration ?? .plain()
-                config.imagePlacement = .top
                 config.image = UIImage(systemName: WeatherFormatter.systemImageName(for: display.header.iconName))?
                     .withRenderingMode(.alwaysTemplate)
                 config.title = display.buttonTitle
@@ -463,7 +477,7 @@ class MapViewController: UIViewController,
 
     // MARK: - Long Press Gesture
 
-    var longPressGesture: UILongPressGestureRecognizer!
+    private var longPressGesture: UILongPressGestureRecognizer!
 
     @objc private func handleLongPress(_ gesture: UILongPressGestureRecognizer) {
         // Only handle the began state to avoid multiple pins
@@ -579,6 +593,14 @@ class MapViewController: UIViewController,
             let resignedActiveAt = resignedActiveAt,
             abs(resignedActiveAt.timeIntervalSinceNow) > 600
         else {
+            return
+        }
+
+        // Same rule as launch: don't yank a rider in another city onto GPS
+        // just because the app sat in the background for ten minutes (#615).
+        if let region = application.regionsService.currentRegion,
+           let location = application.locationService.currentLocation,
+           !region.contains(location: location) {
             return
         }
 
@@ -829,7 +851,8 @@ class MapViewController: UIViewController,
     private var stopFocusCancellables = Set<AnyCancellable>()
 
     /// Owns the half-detent panel that shows the redesigned Stop page over the map.
-    private lazy var stopSheet = StopSheetPresenter()
+    /// Internal so trip-planner tests can put a sheet up the same way a map pin does.
+    lazy var stopSheet = StopSheetPresenter()
 
     /// The stop whose sheet is up, or nil between presentations — the single
     /// switch behind both of the things the map does differently while a sheet
@@ -1350,13 +1373,36 @@ class MapViewController: UIViewController,
 
     /// Updates the visible area on the map view based on the user's selected `Region` and current location.
     private func updateVisibleMapRect() {
+        applyLaunchCamera(userLocation: application.locationService.currentLocation)
+    }
+
+    /// Frames GPS when it sits in the selected region; otherwise the region's
+    /// service rect (or last in-region viewport). The first location fix used
+    /// to call `programmaticallyUpdateVisibleMapRegion` unconditionally, which
+    /// is why a Taipei GPS with Puget Sound selected opened on Taipei (#615).
+    private func applyLaunchCamera(userLocation: CLLocation?) {
         guard let currentRegion = application.regionsService.currentRegion else { return }
 
-        if let location = application.locationService.currentLocation, promptUserOnRegionMismatch {
-            if currentRegion.contains(location: location) {
-                programmaticallyUpdateVisibleMapRegion(location: location)
+        switch LaunchMapCamera.target(
+            selectedRegion: currentRegion,
+            userLocation: userLocation,
+            lastVisibleMapRect: mapRegionManager.lastVisibleMapRect
+        ) {
+        case .userLocation:
+            if let userLocation {
+                programmaticallyUpdateVisibleMapRegion(location: userLocation)
             }
-            else {
+        case .mapRect(let rect, let showMismatch):
+            if !initialMapChangeMade {
+                mapRegionManager.mapView.visibleMapRect = rect
+                // Latch on mismatch so the next GPS callback cannot yank the
+                // camera to the device. No GPS yet: leave the latch open so a
+                // later in-region fix can still zoom in for stops.
+                if showMismatch {
+                    initialMapChangeMade = true
+                }
+            }
+            if showMismatch && promptUserOnRegionMismatch {
                 promptUserOnRegionMismatch = false
                 if let regionMismatchBulletin = RegionMismatchBulletin(application: application),
                    let uiApp = application.delegate?.uiApplication {
@@ -1364,12 +1410,6 @@ class MapViewController: UIViewController,
                     self.regionMismatchBulletin?.show(in: uiApp)
                 }
             }
-        }
-        else if let lastVisibleRegion = mapRegionManager.lastVisibleMapRect {
-            mapRegionManager.mapView.visibleMapRect = lastVisibleRegion
-        }
-        else {
-            mapRegionManager.mapView.visibleMapRect = currentRegion.serviceRect
         }
     }
 
@@ -1384,7 +1424,7 @@ class MapViewController: UIViewController,
     }
 
     public func locationService(_ service: LocationService, locationChanged location: CLLocation) {
-        programmaticallyUpdateVisibleMapRegion(location: location)
+        applyLaunchCamera(userLocation: location)
     }
 
     // MARK: - Context Menus

@@ -119,7 +119,8 @@ public class Application: CoreApplication, PushServiceDelegate, WCSessionDelegat
     @MainActor
     public private(set) lazy var proximityAlertManager = ProximityAlertManager(
         locationService: locationService,
-        userDataStore: userDataStore
+        userDataStore: userDataStore,
+        regionIDProvider: { [weak self] in self?.regionsService.currentRegion?.regionIdentifier }
     )
 
     @objc lazy var userActivityBuilder = UserActivityBuilder(application: self)
@@ -202,6 +203,7 @@ public class Application: CoreApplication, PushServiceDelegate, WCSessionDelegat
 
         configureAppearanceProxies()
         configureWatchSession()
+        observeShortcutLifecycle()
     }
 
     private func configureWatchSession() {
@@ -406,19 +408,21 @@ public class Application: CoreApplication, PushServiceDelegate, WCSessionDelegat
         Task { await pushRegistrationManager.registerIfNeeded() }
     }
 
-    public func pushService(_ pushService: PushService, receivedProximityAlertForStopID stopID: StopID) {
-        // The current region is the right one by construction: the geofence that
-        // produced this notification is only crossed where the rider physically
-        // is. `queueOrOpenStop` still needs one named, because it refuses to open
-        // a stop against a different region's API.
-        guard let regionID = regionsService.currentRegion?.regionIdentifier else {
-            // No region yet — the ordinary case for a tap that relaunched a
+    public func pushService(_ pushService: PushService, receivedProximityAlertForStopID stopID: StopID, regionID: Int?) {
+        // The alert's own region wins where it has one. `currentRegion` is right
+        // only while it tracks the rider's location — the ordinary case, since the
+        // geofence is crossed where they are — and is wrong for a manually pinned
+        // region, which would send them to the pinned region's API for a stop they
+        // set somewhere else. Alerts stored before they carried a region still
+        // fall back to it, exactly as they always did.
+        guard let regionID = regionID ?? regionsService.currentRegion?.regionIdentifier else {
+            // Neither names one — the ordinary case for a tap that relaunched a
             // terminated app, since the regions list loads asynchronously. Stash
             // without one, exactly as the fired-alarm handler above does: the
             // drain navigates as soon as a root controller exists, and
             // `regionsService(_:updatedRegion:)` drains again once a region lands.
             // Returning here instead would drop the only thing the rider tapped.
-            Logger.info("Proximity alert tap for stop \(stopID) arrived before a region loaded; deferring navigation.")
+            Logger.info("Proximity alert tap for stop \(stopID) arrived with no region; deferring navigation.")
             pendingStopID = stopID
             // Cleared rather than left alone: a region stashed by an earlier
             // navigation would make the drain refuse this stop as belonging to
@@ -426,6 +430,11 @@ public class Application: CoreApplication, PushServiceDelegate, WCSessionDelegat
             pendingStopRegionID = nil
             return
         }
+        // Through `queueOrOpenStop` on both branches, rather than a second copy of
+        // its deferral logic here: once the region can come from the alert instead
+        // of from `currentRegion`, its mismatch guard can finally disagree with
+        // itself, and a tap that relaunched the app stashes a region the drain can
+        // check instead of navigating against whatever loads first.
         queueOrOpenStop(AppLinksRouter.StopDestination(stopID: stopID, regionID: regionID))
     }
 
@@ -543,6 +552,7 @@ public class Application: CoreApplication, PushServiceDelegate, WCSessionDelegat
         reportAnalyticsUserProperties()
 
         configureTipKit()
+        OBAAppShortcuts.updateAppShortcutParameters()
 
         if userDataStore.walkingSpeedSource == .healthKit {
             Task { await walkingSpeedManager.refreshFromHealthKitIfPossible() }
@@ -597,6 +607,8 @@ public class Application: CoreApplication, PushServiceDelegate, WCSessionDelegat
 
         drainPendingUIPresentations()
 
+        consumePendingLiveActivityShortcut()
+
         if let region = regionsService.currentRegion, let analytics {
             analytics.updateServer?(region: region)
         }
@@ -610,6 +622,7 @@ public class Application: CoreApplication, PushServiceDelegate, WCSessionDelegat
     /// otherwise wait for the next foreground cycle. This is the deterministic drain point.
     @MainActor @objc public func rootUserInterfaceDidLoad() {
         drainPendingUIPresentations()
+        consumePendingLiveActivityShortcut()
     }
 
     /// True while the onboarding flow is installed as the window's root — deferred
@@ -663,6 +676,41 @@ public class Application: CoreApplication, PushServiceDelegate, WCSessionDelegat
         }
     }
 
+    /// A Track Bookmark Shortcut queued a Live Activity. Consume it here from
+    /// `topViewController` rather than switching to the Bookmarks tab — that
+    /// tab's stack may already have a stop page pushed, and
+    /// `rootNavigateTo(.bookmarks)` does not pop it.
+    @MainActor
+    func consumePendingLiveActivityShortcut() {
+        guard !isOnboardingRoot else { return }
+        LiveActivityShortcutDrain.consume(application: self, presentingFrom: topViewController)
+    }
+
+    /// `openAppWhenRun` activates the app before `perform()` stores, so
+    /// `applicationDidBecomeActive` / `rootUserInterfaceDidLoad` peek an empty
+    /// queue. Observe the store notification (warm launch) and bookmark
+    /// changes (Shortcut parameter list).
+    private func observeShortcutLifecycle() {
+        notificationCenter.addObserver(
+            forName: .liveActivityShortcutRequestDidStore,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            guard let self else { return }
+            MainActor.assumeIsolated {
+                self.consumePendingLiveActivityShortcut()
+            }
+        }
+
+        notificationCenter.addObserver(
+            forName: .bookmarksDidChange,
+            object: nil,
+            queue: .main
+        ) { _ in
+            OBAAppShortcuts.updateAppShortcutParameters()
+        }
+    }
+
     @objc public func applicationWillResignActive(_ application: UIApplication) {
         // Unconditional: stopping is always safe, and gating it on authorization
         // would strand a manager we started before access was revoked.
@@ -710,6 +758,11 @@ public class Application: CoreApplication, PushServiceDelegate, WCSessionDelegat
     /// region exist. Does not fetch this stop against a different region's API.
     func queueOrOpenStop(_ destination: AppLinksRouter.StopDestination) {
         if let current = currentRegion?.regionIdentifier, current != destination.regionID {
+            // Dropped on purpose — fetching this stop against another region's API
+            // would return the wrong stop or nothing — but say so. This is the end
+            // of the line for something the rider actually tapped, and the
+            // no-region branch that defers instead already logs its reasoning.
+            Logger.warn("Stop \(destination.stopID) belongs to region \(destination.regionID) but region \(current) is selected; dropping the tap.")
             return
         }
 
@@ -861,6 +914,10 @@ public class Application: CoreApplication, PushServiceDelegate, WCSessionDelegat
         // A donated stop shortcut that arrived before `currentRegion` was set
         // is sitting in `pendingStopID`. Drain now that we know which region we are in.
         drainPendingUIPresentations()
+
+        // Region change does not post `.bookmarksDidChange`, so Shortcuts
+        // would keep offering the previous region's trip bookmarks.
+        OBAAppShortcuts.updateAppShortcutParameters()
     }
 
     public func regionsService(_ service: RegionsService, displayError error: Error) {
